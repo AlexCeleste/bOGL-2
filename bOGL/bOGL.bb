@@ -11,6 +11,7 @@
 ; CreateCamera()
 ; CameraRange(handler, near#, far#)
 ; CameraFieldOfView(handler, angle#)
+; CameraClsColor(handler, red, green, blue)
 ; CameraFogMode(handler, mode[, near#[, far#]])
 ; CameraFogColor(handler, red, green, blue[, alpha#])
 ; CameraViewport(handler, x, y, width, height)
@@ -79,7 +80,7 @@ End Type
 Type bOGL_Cam
 	Field ent.bOGL_Ent
 	Field vpx, vpy, vpw, vph
-	Field viewangle#, near#, far#
+	Field viewangle#, near#, far#, clscol
 	Field fogmode, fognear#, fogfar#, fogcolor
 End Type
 
@@ -106,59 +107,14 @@ End Type
 Function Graphics3D(title$, width, height, depth, mode)
 	AppTitle(title)
 	Graphics width, height, depth, mode
-	
 	bOGL_bbHwnd = ogld_GetWindow()
-	If Not bOGL_bbHwnd Then RuntimeError "Couldn't get the handle of the window!"
-	bOGL_bbHwndW = width
-	bOGL_bbHwndH = height
-	
-	BlitzGL_Init
-	bOGL_EntOpen_ = 1 : bOGL_EntLSz_ = BOGL_ENTLIST_MINSIZE_
-	Dim bOGL_EntList_.bOGL_Ent(bOGL_EntLSz_)
-	
-	Local pf.ogld_PixelFormat = ogld_MakeDefaultPixelFormat()
-	bOGL_hMainDC = ogld_SetUp_OpenGL(bOGL_bbHwnd, pf)
-	If Not bOGL_hMainDC Then RuntimeError "Could not initialize OpenGl!"
-	
-	glEnable GL_TEXTURE_2D
-	glEnable GL_DEPTH_TEST
-	glEnable GL_SCISSOR_TEST
-	glShadeModel GL_SMOOTH
-	glHint GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST
-	glEnable GL_CULL_FACE
-	glCullFace GL_BACK
-	glColorMaterial GL_FRONT, GL_AMBIENT_AND_DIFFUSE	;So lights don't erase colours
-	glEnable GL_COLOR_MATERIAL
-	
-	Return True	
+	Dim bOGL_EntList_(0) : bOGL_Init_ width, height
 End Function
 
 Function CreateCanvas3D(x, y, width, height, group)
 	Local canvas = CreateCanvas(x, y, width, height, group)
-	
 	bOGL_bbHwnd = QueryObject(canvas, 1)
-	If Not bOGL_bbHwnd Then RuntimeError "Couldn't get the handle of the canvas!"
-	bOGL_bbHwndW = width
-	bOGL_bbHwndH = height
-	
-	BlitzGL_Init
-	bOGL_EntOpen_ = 1 : bOGL_EntLSz_ = BOGL_ENTLIST_MINSIZE_
-	Dim bOGL_EntList_.bOGL_Ent(bOGL_EntLSz_)
-	
-	Local pf.ogld_PixelFormat = ogld_MakeDefaultPixelFormat()
-	bOGL_hMainDC = ogld_SetUp_OpenGL(bOGL_bbHwnd, pf)
-	If Not bOGL_hMainDC Then RuntimeError "Could not initialize OpenGl!"
-	
-	glEnable GL_TEXTURE_2D
-	glEnable GL_DEPTH_TEST
-	glEnable GL_SCISSOR_TEST
-	glShadeModel GL_SMOOTH
-	glHint GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST
-	glEnable GL_CULL_FACE
-	glCullFace GL_BACK
-	glColorMaterial GL_FRONT, GL_AMBIENT_AND_DIFFUSE	;So lights don't erase colours
-	glEnable GL_COLOR_MATERIAL
-
+	bOGL_Init_ width, height
 	Return canvas
 End Function
 
@@ -395,6 +351,11 @@ Function CameraFieldOfView(handler, viewangle#)
 	this\c\viewangle = viewangle
 End Function
 
+Function CameraClsColor(handler, red, green, blue)
+	Local this.bOGL_Ent = bOGL_EntList_(handler)
+	this\c\clscol = $FF000000 Or ((red And $FF) Shl 16) Or ((green And $FF) Shl 8) Or (blue And $FF)
+End Function
+
 Function CameraFogMode(handler, mode, near# = 10.0, far# = 100.0)
 	Local this.bOGL_Ent = bOGL_EntList_(handler)
 	this\c\fogmode = mode
@@ -405,8 +366,7 @@ End Function
 
 Function CameraFogColor(handler, red, green, blue, alpha# = 1.0)
 	Local this.bOGL_Ent = bOGL_EntList_(handler), c.bOGL_Cam = this\c
-	If c\fogcolor Then FreeBank c\fogcolor
-	c\fogcolor = CreateBank(16)
+	If Not c\fogcolor Then c\fogcolor = CreateBank(16)
 	PokeFloat c\fogcolor, 0, red
 	PokeFloat c\fogcolor, 4, green
 	PokeFloat c\fogcolor, 8, blue
@@ -710,6 +670,7 @@ Function RenderWorld()
 	Local cam.bOGL_Cam : For cam = Each bOGL_Cam
 		If Not cam\ent\hidden
 			glScissor cam\vpx, cam\vpy, cam\vpw, cam\vph
+			glClearColor ((cam\clscol And $FF0000) Shr 16) / 255., ((cam\clscol And $FF00) Shr 8) / 255., (cam\clscol And $FF) / 255., 1.
 			glClear GL_COLOR_BUFFER_BIT Or GL_DEPTH_BUFFER_BIT
 			
 			glMatrixMode GL_PROJECTION
@@ -810,6 +771,29 @@ Const BOGL_ENTLIST_MINSIZE_ = 1024
 Dim bOGL_EntList_.bOGL_Ent(0), bOGL_EntCpList_.bOGL_Ent(0)
 Global bOGL_EntCnt_, bOGL_EntOpen_, bOGL_EntMax_, bOGL_EntLSz_
 Global bOGL_AmbientLight_
+
+Function bOGL_Init_(width, height)
+	If Not bOGL_bbHwnd Then RuntimeError "Couldn't get the handle of the window!"
+	bOGL_bbHwndW = width : bOGL_bbHwndH = height
+	
+	BlitzGL_Init
+	bOGL_EntOpen_ = 1 : bOGL_EntLSz_ = BOGL_ENTLIST_MINSIZE_
+	Dim bOGL_EntList_.bOGL_Ent(bOGL_EntLSz_)
+	
+	Local pf.ogld_PixelFormat = ogld_MakeDefaultPixelFormat()
+	bOGL_hMainDC = ogld_SetUp_OpenGL(bOGL_bbHwnd, pf)
+	If Not bOGL_hMainDC Then RuntimeError "Could not initialize OpenGl!"
+	
+	glEnable GL_TEXTURE_2D
+	glEnable GL_DEPTH_TEST
+	glEnable GL_SCISSOR_TEST
+	glShadeModel GL_SMOOTH
+	glHint GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST
+	glEnable GL_CULL_FACE
+	glCullFace GL_BACK
+	glColorMaterial GL_FRONT, GL_AMBIENT_AND_DIFFUSE	;So lights don't erase colours
+	glEnable GL_COLOR_MATERIAL
+End Function
 
 Function bOGL_EntHandler_(this.bOGL_Ent)
 	If bOGL_EntCnt_ = bOGL_EntLSz_	;Out of slots, allocate more space in the index by doubling it
@@ -939,8 +923,8 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#47#4E#55#5A#60#69#87#A4#AB#B8#D1#D6#DB#E7#F3#FD#102#107#10C#11A
-;~F#11F#124#129#12E#133#15D#169#183#188#18D#195#19F#1A5#1AB#1B3#1BA#1C6#1CD#1D2#1D7
-;~F#1DC#1E3#1E8#204#219#221#22C#236#241#245#249#24D#252#257#25C#28D#294#29B#2A2#2AC
-;~F#2B5#310#314#32D#343#35C#36A#36F#374#37F#388#38F#394#39C
+;~F#48#4F#56#5B#61#6A#71#78#7F#8C#A5#AA#AF#BB#C7#D1#D6#DB#E0#EE
+;~F#F3#F8#FD#102#107#131#13D#157#15C#161#166#16E#177#17D#183#18B#192#19E#1A5#1AA
+;~F#1AF#1B4#1BB#1C0#1DC#1F1#1F9#204#20E#219#21D#221#225#22A#22F#234#265#26C#273#27A
+;~F#284#28D#2E9#2ED#306#31D#333#34C#35A#35F#364#36F#378#37F#384#38C
 ;~C#BlitzPlus
