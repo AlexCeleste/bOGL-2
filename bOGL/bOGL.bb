@@ -44,7 +44,8 @@
 ; ScaleSubMesh(handler, vf, vt, sx#, sy#, sz#, cx#, cy#, cz#)
 ; EntityX#(handler), EntityY#(handler), EntityZ#(handler)
 ; EntityXAngle#(handler), EntityYAngle#(handler), EntityZAngle#(handler)
-; LoadTexture(file$[, quality, filter]) ; valid quality 2 - 8, more on some machines
+; CreateTexture(width, height[, filter])
+; LoadTexture(file$[, quality, filter])
 ; FreeTexture(handler)
 ; TextureWidth(handler), TextureHeight(handler)
 ; GetTextureData(handler), UpdateTexture(handler, x, y, width, height, pixels)
@@ -562,53 +563,66 @@ Function EntityZAngle#(handler)
 	Return ASin(2. * e\q[1] * e\q[2] + 2. * e\q[3] * e\q[0]) 
 End Function
 
-Function LoadTexture(file$, quality = 8, filter = 1)
-	Local image = LoadImage(file) : If Not image Then Return False
-	If quality Then ResizeImage image, 2 ^ quality, 2 ^ quality
-	
+Function CreateTexture(width, height, filter = 1)
 	Local this.bOGL_Tex = New bOGL_Tex
-	this\width = ImageWidth(image)
-	this\height = ImageHeight(image)
+	this\width = width : this\height = height
 	this\rc = 1 : this\asVar = True
 	If filter <> 0 And filter <> 1 Then this\filter = 2 : Else this\filter = filter
 	
-	Local imgBuffer = ImageBuffer(image), imageBank = CreateBank(this\width * this\height * 3)
-	
-	LockBuffer imgBuffer
+	Local pixels = CreateBank(this\width * this\height * 3)
 	Local y : For y = 0 To this\height - 1
-		Local offset = BankSize(imageBank) - (y + 1) * this\width * 3
+		Local offset = BankSize(pixels) - (y + 1) * this\width * 3
 		Local x : For x = 0 To this\width - 1
-			Local pixel = ReadPixelFast(x, this\height - (y + 1), imgBuffer)	;OpenGL textures are "upside down"
-			PokeByte imageBank, offset, (pixel And $FF0000) Shr 16
-			PokeByte imageBank, offset + 1, (pixel And $FF00) Shr 8
-			PokeByte imageBank, offset + 2, pixel And $FF
+			PokeShort pixels, offset, $FFFF
+			PokeByte pixels, offset + 2, $FF
 			offset = offset + 3
 		Next
 	Next
-	UnlockBuffer imgBuffer
 	
-	FreeImage image
-	
-	glGenTextures 1, this
+	glGenTextures 1, this	;This command sets this\glName
 	glBindTexture GL_TEXTURE_2D, this\glName
 	
 	Select filter
 		Case 0	; Nearest Filtered Texture
 			glTexParameteri GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST
 			glTexParameteri GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST
-			glTexImage2D GL_TEXTURE_2D, 0, 3, this\width, this\height, 0, GL_RGB, GL_UNSIGNED_BYTE, imageBank
+			glTexImage2D GL_TEXTURE_2D, 0, 3, this\width, this\height, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels
 		Case 1	; Linear Filtered Texture
 			glTexParameteri GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR
 			glTexParameteri GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR
-			glTexImage2D GL_TEXTURE_2D, 0, 3, this\width, this\height, 0, GL_RGB, GL_UNSIGNED_BYTE, imageBank
+			glTexImage2D GL_TEXTURE_2D, 0, 3, this\width, this\height, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels
 		Default	; MipMapped Texture
 			glTexParameteri GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR
 			glTexParameteri GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST
-			gluBuild2DMipmaps GL_TEXTURE_2D, 3, this\width, this\height, GL_RGB, GL_UNSIGNED_BYTE, imageBank
+			gluBuild2DMipmaps GL_TEXTURE_2D, 3, this\width, this\height, GL_RGB, GL_UNSIGNED_BYTE, pixels
 	End Select
 	
-	FreeBank imageBank
+	FreeBank pixels
 	Return Handle this
+End Function
+
+Function LoadTexture(file$, quality = 8, filter = 1)
+	Local image = LoadImage(file), width, height : If Not image Then Return False
+	
+	If quality
+		width = 2 ^ quality : height = width : ResizeImage image, width, height
+	Else
+		width = ImageWidth(image) : height = ImageHeight(image)
+	EndIf
+	
+	Local pixels = CreateBank(width * height * 4), buf = ImageBuffer(image), offset
+	LockBuffer buf
+	Local y : For y = 0 To ImageHeight(image) - 1
+		Local x : For x = 0 To ImageWidth(image) - 1
+			PokeInt pixels, offset, ReadPixelFast(x, y, buf)
+			offset = offset + 4
+		Next
+	Next
+	UnlockBuffer buf
+	
+	Local tex = CreateTexture(ImageWidth(image), ImageHeight(image), filter)
+	UpdateTexture tex, 0, 0, ImageWidth(image), ImageHeight(image), pixels
+	FreeBank pixels : Return tex
 End Function
 
 Function FreeTexture(handler)
@@ -643,12 +657,14 @@ Function GetTextureData(handler)
 End Function
 
 Function UpdateTexture(handler, x, y, width, height, pixels)
-	Local this.bOGL_Tex = Object.bOGL_Tex handler
-	Local p : For p = 0 To BankSize(pixels) - 4 Step 4	;Convert to RGBA format
-		Local col = PeekInt(pixels, p) : PokeInt pixels, p, (col And $FF00FF00) Or ((col And $FF0000) Shr 16) Or ((col And $FF) Shl 16)
+	Local this.bOGL_Tex = Object.bOGL_Tex handler, temp = CreateBank(BankSize(pixels))
+	CopyBank pixels, 0, temp, 0, BankSize(temp)
+	Local p : For p = 0 To BankSize(temp) - 4 Step 4	;Convert to RGBA format
+		Local col = PeekInt(temp, p) : PokeInt temp, p, (col And $FF00FF00) Or ((col And $FF0000) Shr 16) Or ((col And $FF) Shl 16)
 	Next
 	glBindTexture GL_TEXTURE_2D, this\glName
-	glTexSubImage2D GL_TEXTURE_2D, 0, x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels
+	glTexSubImage2D GL_TEXTURE_2D, 0, x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, temp
+	FreeBank temp
 End Function
 
 Function RenderWorld()
@@ -922,8 +938,8 @@ Function bOGL_UpdateLight_(this.bOGL_Ent)
 End Function
 
 ;~IDEal Editor Parameters:
-;~F#48#4F#56#5B#61#6A#71#78#7F#8C#A5#AA#AF#BB#C7#D1#D6#DB#E0#EE
-;~F#F3#F8#FD#102#107#131#13D#157#15C#161#166#16E#177#17D#183#18B#192#19E#1A5#1AA
-;~F#1AF#1B4#1BB#1C0#1DC#1F1#1F9#204#20E#219#21D#221#225#22A#22F#234#265#26C#273#27A
-;~F#284#28D#2E9#2ED#306#31D#333#34C#35A#35F#364#36F#378#37F#384#38C
+;~F#49#50#57#5C#62#6B#72#79#80#8D#A6#AB#B0#BC#C8#D2#D7#DC#E1#EF
+;~F#F4#F9#FE#103#108#132#13E#158#15D#162#167#16F#178#17E#184#18C#193#19F#1A6#1AB
+;~F#1B0#1B5#1BC#1C1#1DD#1F2#1FA#205#20F#21A#21E#222#226#22B#230#235#25B#273#27A#281
+;~F#288#292#29D#2F9#2FD#316#32D#343#35C#36A#36F#374#37F#388#38F#394#39C
 ;~C#BlitzPlus
