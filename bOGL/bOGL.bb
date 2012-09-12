@@ -108,7 +108,7 @@ Function Graphics3D(title$, width, height, depth, mode)
 	AppTitle(title)
 	Graphics width, height, depth, mode
 	bOGL_bbHwnd = ogld_GetWindow()
-	Dim bOGL_EntList_(0) : bOGL_Init_ width, height
+	Dim bOGL_EntList_.bOGL_Ent(0) : bOGL_Init_ width, height
 End Function
 
 Function CreateCanvas3D(x, y, width, height, group)
@@ -306,10 +306,10 @@ End Function
 Function CreateSprite()
 	Local m = CreateMesh()
 	
-	AddVertex m,-1, 1, 0, 0, 0 : VertexNormal m, 0, 0, 0,-1	;Forward-facing
-	AddVertex m, 1, 1, 0, 1, 0 : VertexNormal m, 1, 0, 0,-1
-	AddVertex m, 1,-1, 0, 1, 1 : VertexNormal m, 2, 0, 0,-1
-	AddVertex m,-1,-1, 0, 0, 1 : VertexNormal m, 3, 0, 0,-1
+	AddVertex m,-1, 1, 0, 1, 0 : VertexNormal m, 0, 0, 0,-1	;Forward-facing
+	AddVertex m, 1, 1, 0, 0, 0 : VertexNormal m, 1, 0, 0,-1
+	AddVertex m, 1,-1, 0, 0, 1 : VertexNormal m, 2, 0, 0,-1
+	AddVertex m,-1,-1, 0, 1, 1 : VertexNormal m, 3, 0, 0,-1
 	AddTriangle m, 0, 1, 2 : AddTriangle m, 0, 2, 3
 	
 	Return m
@@ -920,7 +920,6 @@ Function bOGL_UpdateLight_(this.bOGL_Ent)
 		EndIf
 	EndIf
 End Function
-
 
 ;~IDEal Editor Parameters:
 ;~F#48#4F#56#5B#61#6A#71#78#7F#8C#A5#AA#AF#BB#C7#D1#D6#DB#E0#EE
