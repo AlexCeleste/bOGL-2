@@ -53,7 +53,7 @@ TurnEntity(handler, x#, y#, z#)
 PointEntity(handler, x#, y#, z#[, roll#])
 ScaleEntity(handler, x#, y#, z#[, absolute])
 PaintEntity(handler, red, green, blue)
-EntityAlpha(handler, alpha#)
+EntityAlpha(handler, alpha#), EntityFX(handler, flags)
 EntityTexture(handler, texture)
 ShowEntity(handler, state)
 EntityParent(handler, parentH), GetParentEntity(handler)
@@ -79,7 +79,6 @@ TFormPoint(x#, y#, z#, src, dst, out#[2])
  Still to come:
 ----------------
 
- - Entity FX system (things like fullbright, vertex alpha)
  - Easy stencil buffer access, for shadows, portals, etc.
  - Upgrade the vertex array rendering to use VBOs
  - Translate to C
