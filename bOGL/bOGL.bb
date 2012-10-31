@@ -8,42 +8,44 @@
 ; Graphics3D(title$, width, height, depth, mode)
 ; CreateCanvas3D(x, y, width,height, group)
 ; AmbientLight(red, green, blue)
-; CreateCamera()
+; CreateCamera([parent])
 ; CameraRange(handler, near#, far#)
 ; CameraFieldOfView(handler, angle#)
 ; CameraClsColor(handler, red, green, blue)
 ; CameraFogMode(handler, mode[, near#[, far#]])
 ; CameraFogColor(handler, red, green, blue[, alpha#])
 ; CameraViewport(handler, x, y, width, height)
-; CreateLight(red, green, blue, flag)
+; CreateLight(red, green, blue, flag[, parent])
 ; LightRange(handler, range#)
-; CreatePivot()
-; CreateMesh()
+; CreatePivot([parent])
+; CreateMesh([parent])
 ; AddVertex(mesh, x#, y#, z#[, u#, v#]), AddTriangle(mesh, v0, v1, v2)
 ; VertexCoords(mesh, v, x#, y#, z#), VextexTexCoords(mesh, v, u#, v#)
 ; VertexNormal(mesh, v, nx#, ny#, nz#), VertexColor(mesh, v, r#, g#, b#)
 ; VertexX#(mesh, v), VertexY#(mesh, v), VertexZ#(mesh, v), VertexU#(mesh, v), VertexV#(mesh, v)
-; CreateCube()
-; CreateSprite()
-; LoadTerrain(terrain$)
-; PositionEntity(handler, x#, y#, z#)
+; CreateCube([parent])
+; CreateSprite([parent])
+; LoadTerrain(terrain$[, parent])
+; PositionEntity(handler, x#, y#, z#[, absolute])
 ; MoveEntity(handler, x#, y#, z#)
-; RotateEntity(handler, x#, y#, z#)
+; RotateEntity(handler, x#, y#, z#[, absolute])
 ; TurnEntity(handler, x#, y#, z#)
 ; PointEntity(handler, x#, y#, z#[, roll#])
-; ScaleEntity(handler, x#, y#, z#)
+; ScaleEntity(handler, x#, y#, z#[, absolute])
 ; PaintEntity(handler, red, green, blue)
 ; EntityAlpha(handler, alpha#)
 ; EntityTexture(handler, texture)
 ; ShowEntity(handler, state)
+; EntityParent(handler, parentH), GetParentEntity(handler)
+; CountChildren(handler), GetChildEntity(handler, index)
 ; CopyEntity(handler)
 ; FreeEntity(handler)
 ; FlipPolygons(handler)
 ; RotateSubMesh(handler, vf, vt, rx#, ry#, rz#, cx#, cy#, cz#)
 ; TranslateSubMesh(handler, vf, vt, tx#, ty#, tz#)
 ; ScaleSubMesh(handler, vf, vt, sx#, sy#, sz#, cx#, cy#, cz#)
-; EntityX#(handler), EntityY#(handler), EntityZ#(handler)
-; EntityXAngle#(handler), EntityYAngle#(handler), EntityZAngle#(handler)
+; EntityX#(handler[, absolute]), EntityY#(handler[, absolute]), EntityZ#(handler[, absolute])
+; EntityXAngle#(handler[, absolute]), EntityYAngle#(handler[, absolute]), EntityZAngle#(handler[, absolute])
 ; CreateTexture(width, height[, filter])
 ; LoadTexture(file$[, quality, filter])
 ; FreeTexture(handler)
@@ -60,8 +62,8 @@ Include "bOGL\gl_const.bb"
 Include "bOGL\glu_const.bb"
 Include "bOGL\blitz_gl.bb"
 
-;Global hRC							; The OpenGL RenderContext
-Global bOGL_hMainDC					; render window's  Device context
+
+Global bOGL_hMainDC					; Render window's device context
 Global bOGL_bbHwnd					; Window's handle.
 Global bOGL_bbHwndW, bOGL_bbHwndH	; Window's size.
 
@@ -71,11 +73,14 @@ Const BOGL_DEFAULT_COLOR = (200 Or (200 Shl 8) Or (200 Shl 16) Or ($FF000000))
 Const BOGL_VERT_STRIDE = 32, BOGL_TRIS_STRIDE = 6, BOGL_COL_STRIDE = 3, BOGL_VERT_CAP = 65536
 Const BOGL_EPSILON# = 0.001, BOGL_LIGHT_EPSILON# = 1.0 / 255.0
 
+
 Type bOGL_Ent
-	Field handler
+	Field handler, parentH
 	Field hidden
-	Field x#, y#, z#, sx#, sy#, sz#, r#[3], q#[3], rv, qv
+	Field x#, y#, z#, sx#, sy#, sz#, r#[3], q#[3], Rv, Qv
+	Field g_x#, g_y#, g_z#, g_sx#, g_sy#, g_sz#, g_r#[3], g_q#[3], g_Rv, g_Qv, Gv
 	Field eClass, c.bOGL_Cam, l.bOGL_Light, m.bOGL_Mesh
+	Field children
 End Type
 
 Type bOGL_Cam
@@ -126,8 +131,8 @@ Function AmbientLight(red, green, blue)
 	PokeFloat bOGL_AmbientLight_, 8, blue / 255.0
 End Function
 
-Function CreateCamera()
-	Local this.bOGL_Cam = New bOGL_Cam, ent.bOGL_Ent = bOGL_NewEnt_(BOGL_CLASS_CAM, Handle this)
+Function CreateCamera(parentH = 0)
+	Local this.bOGL_Cam = New bOGL_Cam, ent.bOGL_Ent = bOGL_NewEnt_(BOGL_CLASS_CAM, Handle this, parentH)
 	
 	this\ent = ent
 	this\vpx = 0 : this\vpy = 0
@@ -139,8 +144,8 @@ Function CreateCamera()
 	Return ent\handler
 End Function
 
-Function CreateLight(red, green, blue, flag)
-	Local this.bOGL_Light = New bOGL_Light, ent.bOGL_Ent = bOGL_NewEnt_(BOGL_CLASS_LIGHT, Handle this)
+Function CreateLight(red, green, blue, flag, parentH = 0)
+	Local this.bOGL_Light = New bOGL_Light, ent.bOGL_Ent = bOGL_NewEnt_(BOGL_CLASS_LIGHT, Handle this, parentH)
 	this\ent = ent
 	
 	this\pos = CreateBank(16)
@@ -169,16 +174,15 @@ Function LightRange(handler, range#)
 	If range > 0 Then PokeFloat this\l\att, 0, 255.0 / range : Else PokeFloat this\l\att, 0, 0
 End Function
 
-Function CreatePivot()
-	Local this.bOGL_Ent = bOGL_NewEnt_(BOGL_CLASS_PIV, 0)
+Function CreatePivot(parentH = 0)
+	Local this.bOGL_Ent = bOGL_NewEnt_(BOGL_CLASS_PIV, 0, parentH)
 	Return this\handler
 End Function
 
-Function CreateMesh()
-	Local this.bOGL_Mesh = New bOGL_Mesh, ent.bOGL_Ent = bOGL_NewEnt_(BOGL_CLASS_MESH, Handle this)
+Function CreateMesh(parentH = 0)
+	Local this.bOGL_Mesh = New bOGL_Mesh, ent.bOGL_Ent = bOGL_NewEnt_(BOGL_CLASS_MESH, Handle this, parentH)
 	this\ent = ent
-	this\argb = BOGL_DEFAULT_COLOR
-	this\alpha = 1.0
+	this\argb = BOGL_DEFAULT_COLOR : this\alpha = 1.0
 	
 	this\vp = CreateBank(0)
 	this\poly = CreateBank(0)
@@ -262,8 +266,8 @@ Function VertexV#(handler, v)
 	Return PeekFloat(m\vp, v * BOGL_VERT_STRIDE + 4)
 End Function
 
-Function CreateCube()
-	Local m = CreateMesh(), v0, v1, v2, v3
+Function CreateCube(parentH = 0)
+	Local m = CreateMesh(parentH), v0, v1, v2, v3
 	
 	v0 = AddVertex(m,-1, 1,-1, 0, 0) : VertexNormal m, v0, 0, 1, 0	;Top
 	v1 = AddVertex(m,-1, 1, 1, 0, 1) : VertexNormal m, v1, 0, 1, 0
@@ -304,8 +308,8 @@ Function CreateCube()
 	Return m
 End Function
 
-Function CreateSprite()
-	Local m = CreateMesh()
+Function CreateSprite(parentH = 0)
+	Local m = CreateMesh(parentH)
 	
 	AddVertex m,-1, 1, 0, 1, 0 : VertexNormal m, 0, 0, 0,-1	;Forward-facing
 	AddVertex m, 1, 1, 0, 0, 0 : VertexNormal m, 1, 0, 0,-1
@@ -316,10 +320,10 @@ Function CreateSprite()
 	Return m
 End Function
 
-Function LoadTerrain(terrain$)
+Function LoadTerrain(terrain$, parentH = 0)
 	Local image = LoadImage(terrain$)
 	If image
-		Local m = CreateMesh(), y, x, col
+		Local m = CreateMesh(parentH), y, x, col
 		Local width = ImageWidth(image), height = ImageHeight(image)
 		
 		For y = 0 To width - 1
@@ -380,37 +384,40 @@ Function CameraViewport(handler, x, y, width, height)
 	this\c\vpy = bOGL_bbHwndH - (height + y)	;GL measures the viewport from the bottom
 End Function
 
-Function PositionEntity(handler, x#, y#, z#)
+Function PositionEntity(handler, x#, y#, z#, absolute = False)
 	Local this.bOGL_Ent = bOGL_EntList_(handler)
-	this\x = x : this\y = y : this\z = z
-	If this\eClass = BOGL_CLASS_LIGHT Then bOGL_UpdateLight_ this
+	If absolute Then x = x - this\g_x : y = y - this\g_y : z = z - this\g_z
+	this\x = x : this\y = y : this\z = z : bOGL_InvalidateGlobalPosition_ this
 End Function
 
 Function MoveEntity(handler, x#, y#, z#)
 	Local this.bOGL_Ent = bOGL_EntList_(handler), v#[2]
-	If Not this\rv Then bOGL_UpdateAxisAngle_ this\r, this\q : this\rv = True
+	If Not this\Rv Then bOGL_UpdateAxisAngle_ this\r, this\q : this\Rv = True
 	bOGL_RotateVector_ v, x, y, z, this\r
 	this\x = this\x + v[0] : this\y = this\y + v[1] : this\z = this\z + v[2]
-	If this\eClass = BOGL_CLASS_LIGHT Then bOGL_UpdateLight_ this
+	bOGL_InvalidateGlobalPosition_ this
 End Function
 
-Function RotateEntity(handler, x#, y#, z#)
+Function RotateEntity(handler, x#, y#, z#, absolute = False)
 	Local this.bOGL_Ent = bOGL_EntList_(handler)
-    bOGL_QuatFromEuler_ this\q, x, y, z
-	this\qv = True : this\rv = False
-	If this\eClass = BOGL_CLASS_LIGHT Then bOGL_UpdateLight_ this
+	If (absolute <> 0) And (this\parentH <> 0)
+		Local p.bOGL_Ent = bOGL_EntList_(this\parentH), q#[3]
+		If Not p\g_Qv Then bOGL_UpdateQuat_ p\g_q, p\g_r
+		If Not p\Gv Then bOGL_UpdateGlobalPosition_ p
+		bOGL_QuatFromEuler_ q, x, y, z
+		p\g_q[0] = -p\g_q[0] : bOGL_QuatMul_ this\q, q, p\g_q : p\g_q[0] = -p\g_q[0]
+	Else
+		bOGL_QuatFromEuler_ this\q, x, y, z : this\Qv = True : this\Rv = False
+	EndIf
+	bOGL_InvalidateGlobalPosition_ this
 End Function
 
 Function TurnEntity(handler, x#, y#, z#)
-	Local this.bOGL_Ent = bOGL_EntList_(handler), turn#[3], res#[3]
-    bOGL_QuatFromEuler_ turn, x, y, z
-	
-	If Not this\qv Then bOGL_UpdateQuat_ this\q, this\r : this\qv = True
+	Local this.bOGL_Ent = bOGL_EntList_(handler), turn#[3], res#[3] : bOGL_QuatFromEuler_ turn, x, y, z
+	If Not this\Qv Then bOGL_UpdateQuat_ this\q, this\r : this\Qv = True
 	bOGL_QuatMul_ res, this\q, turn
 	this\q[0] = res[0] : this\q[1] = res[1] : this\q[2] = res[2] : this\q[3] = res[3]
-	this\rv = False
-	
-	If this\eClass = BOGL_CLASS_LIGHT Then bOGL_UpdateLight_ this
+	this\Rv = False : bOGL_InvalidateGlobalPosition_ this
 End Function
 
 Function PointEntity(handler, x#, y#, z#, roll# = 0.0)
@@ -420,9 +427,10 @@ Function PointEntity(handler, x#, y#, z#, roll# = 0.0)
 	RotateEntity handler, pit, yaw, roll
 End Function
 
-Function ScaleEntity(handler, x#, y#, z#)
+Function ScaleEntity(handler, x#, y#, z#, absolute = False)
 	Local this.bOGL_Ent = bOGL_EntList_(handler)
-	this\sx = x : this\sy = y : this\sz = z
+	If absolute Then x = x / this\g_sx : y = y / this\g_sy : z = z / this\g_sz
+	this\sx = x : this\sy = y : this\sz = z : If this\children Then bOGL_InvalidateGlobalPosition_ this
 End Function
 
 Function PaintEntity(handler, red, green, blue)
@@ -443,34 +451,70 @@ Function EntityTexture(handler, texture)
 End Function
 
 Function ShowEntity(handler, state)
-	Local this.bOGL_Ent = bOGL_EntList_(handler)
-	this\hidden = Not (Not state)
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : this\hidden = Not (Not state)
 End Function
 
-Function CopyEntity(handler)
+Function EntityParent(handler, parentH)
+	Local this.bOGL_Ent = bOGL_EntList_(handler), p.bOGL_Ent, c
+	If this\parentH		;Remove from the list of current parent
+		p = bOGL_EntList_(this\parentH) : For c = 0 To BankSize(p\children) - 4 Step 4
+			If PeekInt(p\children, c) = handler
+				CopyBank p\children, c + 4, p\children, c, BankSize(p\children) - (c + 4)
+				ResizeBank p\children, BankSize(p\children) - 4 : Exit
+			EndIf
+		Next
+	EndIf
+	this\parentH = parentH
+	If parentH
+		p = bOGL_EntList_(parentH)
+		If Not p\children Then p\children = CreateBank(4) : Else ResizeBank p\children, BankSize(p\children) + 4
+		PokeInt p\children, BankSize(p\children) - 4, handler
+	EndIf
+End Function
+
+Function GetParentEntity(handler)
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return this\parentH
+End Function
+
+Function CountChildren(handler)
+	Local this.bOGL_Ent = bOGL_EntList_(handler)
+	If this\children Then Return BankSize(this\children) / 4 : Else Return 0
+End Function
+
+Function GetChildEntity(handler, index)
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return PeekInt(this\children, index * 4)
+End Function
+
+Function CopyEntity(handler, parentH = 0)
 	Local old.bOGL_Ent = bOGL_EntList_(handler), copy.bOGL_Ent
 	
 	Select old\eClass
 		Case BOGL_CLASS_CAM
-			copy = bOGL_EntList_(CreateCamera())
+			copy = bOGL_EntList_(CreateCamera(parentH))
 			copy\c\vpx = old\c\vpx : copy\c\vpy = old\c\vpy : copy\c\vpw = old\c\vpw : copy\c\vph = old\c\vph
 			copy\c\viewangle = old\c\viewangle : copy\c\near = old\c\near : copy\c\far = old\c\far
 			copy\c\fogmode = old\c\fogmode : copy\c\fognear = old\c\fognear : copy\c\fogfar = old\c\fogfar : copy\c\fogcolor = old\c\fogcolor
 		Case BOGL_CLASS_LIGHT
-			copy = bOGL_EntList_(CreateLight(0., 0., 0., old\l\flag))
+			copy = bOGL_EntList_(CreateLight(0., 0., 0., old\l\flag, parentH))
 			CopyBank old\l\pos, 0, copy\l\pos, 0, 16
 			CopyBank old\l\col, 0, copy\l\col, 0, 16
 			CopyBank old\l\att, 0, copy\l\att, 0, 4
 		Case BOGL_CLASS_MESH
-			copy = bOGL_EntList_(CreateCamera())
+			copy = bOGL_EntList_(CreateMesh(parentH))
 			copy\m\texture = old\m\texture : copy\m\texture\rc = copy\m\texture\rc + 1
 			copy\m\argb = old\m\argb : copy\m\alpha = old\m\alpha
 			ResizeBank copy\m\vp, BankSize(old\m\vp) : CopyBank old\m\vp, 0, copy\m\vp, 0, BankSize(old\m\vp)
 			If old\m\vc Then copy\m\vc = CreateBank(BankSize(old\m\vc)) : CopyBank old\m\vc, 0, copy\m\vc, 0, BankSize(old\m\vc)
 			ResizeBank copy\m\poly, BankSize(old\m\poly) : CopyBank old\m\poly, 0, copy\m\poly, 0, BankSize(old\m\poly)
 		Default
-			copy = bOGL_EntList_(CreatePivot())
+			copy = bOGL_EntList_(CreatePivot(parentH))
 	End Select
+	
+	If old\children
+		Local c : For c = 0 To BankSize(old\children) - 4 Step 4
+			CopyEntity PeekInt(old\children, c), copy\handler
+		Next
+	EndIf
 	
 	Return copy\handler	;Note that we haven't copied the entity properties: scale, position, rotation are all default
 End Function
@@ -493,6 +537,12 @@ Function FreeEntity(handler)
 			If this\m\poly Then FreeBank this\m\poly
 			Delete this\m
 	End Select
+	If this\children
+		Local c : For c = 0 To BankSize(this\children) - 4 Step 4
+			FreeEntity PeekInt(this\children, c)
+		Next
+		FreeBank this\children
+	EndIf
 	Delete this : bOGL_FreeHandler_ handler
 End Function
 
@@ -536,31 +586,55 @@ Function ScaleSubMesh(handler, vf, vt, sx#, sy#, sz#, cx#, cy#, cz#)
 	Next
 End Function
 
-Function EntityX#(handler)
-	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return this\x
+Function EntityX#(handler, absolute = False)
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : If absolute
+		If Not this\Gv Then bOGL_UpdateGlobalPosition_ this
+		Return this\g_x
+	EndIf
+	Return this\x
 End Function
 
-Function EntityY#(handler)
-	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return this\y
+Function EntityY#(handler, absolute = False)
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : If absolute
+		If Not this\Gv Then bOGL_UpdateGlobalPosition_ this
+		Return this\g_x
+	EndIf
+	Return this\x
 End Function
 
-Function EntityZ#(handler)
-	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return this\z
+Function EntityZ#(handler, absolute = False)
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : If absolute
+		If Not this\Gv Then bOGL_UpdateGlobalPosition_ this
+		Return this\g_x
+	EndIf
+	Return this\x
 End Function
 
-Function EntityXAngle#(handler)
-	Local e.bOGL_Ent = bOGL_EntList_(handler) : If Not e\qv Then bOGL_UpdateQuat_ e\q, e\r : e\qv = True
+Function EntityXAngle#(handler, absolute = False)
+	Local e.bOGL_Ent = bOGL_EntList_(handler) : If Not e\Qv Then bOGL_UpdateQuat_ e\q, e\r : e\Qv = True
+	If absolute
+		If Not e\Gv Then bOGL_UpdateGlobalPosition_ e
+		Return ATan2(2. * e\g_q[1] * e\g_q[0] - 2. * e\g_q[2] * e\g_q[3], 1. - 2. * e\g_q[1] * e\g_q[1] - 2. * e\g_q[3] * e\g_q[3])
+	EndIf
 	Return ATan2(2. * e\q[1] * e\q[0] - 2. * e\q[2] * e\q[3], 1. - 2. * e\q[1] * e\q[1] - 2. * e\q[3] * e\q[3])
 End Function
 
-Function EntityYAngle#(handler)
-	Local e.bOGL_Ent = bOGL_EntList_(handler) : If Not e\qv Then bOGL_UpdateQuat_ e\q, e\r : e\qv = True
+Function EntityYAngle#(handler, absolute = False)
+	Local e.bOGL_Ent = bOGL_EntList_(handler) : If Not e\Qv Then bOGL_UpdateQuat_ e\q, e\r : e\Qv = True
+	If absolute
+		If Not e\Gv Then bOGL_UpdateGlobalPosition_ e
+		Return ATan2(2. * e\g_q[2] * e\g_q[0] - 2. * e\g_q[1] * e\g_q[3], 1. - 2. * e\g_q[2] * e\g_q[2] - 2. * e\g_q[3] * e\g_q[3])
+	EndIf
 	Return ATan2(2. * e\q[2] * e\q[0] - 2. * e\q[1] * e\q[3], 1. - 2. * e\q[2] * e\q[2] - 2. * e\q[3] * e\q[3])
 End Function
 
-Function EntityZAngle#(handler)
-	Local e.bOGL_Ent = bOGL_EntList_(handler) : If Not e\qv Then bOGL_UpdateQuat_ e\q, e\r : e\qv = True
-	Return ASin(2. * e\q[1] * e\q[2] + 2. * e\q[3] * e\q[0]) 
+Function EntityZAngle#(handler, absolute = False)
+	Local e.bOGL_Ent = bOGL_EntList_(handler) : If Not e\Qv Then bOGL_UpdateQuat_ e\q, e\r : e\Qv = True
+	If absolute
+		If Not e\Gv Then bOGL_UpdateGlobalPosition_ e
+		Return ASin(2. * e\g_q[1] * e\g_q[2] + 2. * e\g_q[3] * e\g_q[0])
+	EndIf
+	Return ASin(2. * e\q[1] * e\q[2] + 2. * e\q[3] * e\q[0])
 End Function
 
 Function CreateTexture(width, height, filter = 1)
@@ -676,6 +750,7 @@ Function RenderWorld()
 	Local lig.bOGL_Light : For lig = Each bOGL_Light
 		If Not lig\ent\hidden
 			light = light + 1 : If light > 7 Then Exit;light = 7
+			bOGL_UpdateLight_ lig\ent
 			glLightfv GL_LIGHT0 + light, lig\glFlag, lig\col
 			glLightfv GL_LIGHT0 + light, GL_POSITION, lig\pos
 			glLightfv GL_LIGHT0 + light, GL_LINEAR_ATTENUATION, lig\att
@@ -684,7 +759,7 @@ Function RenderWorld()
 	Next
 	
 	Local cam.bOGL_Cam : For cam = Each bOGL_Cam
-		If Not cam\ent\hidden
+		If bOGL_EntityIsVisible_(cam\ent)
 			glScissor cam\vpx, cam\vpy, cam\vpw, cam\vph
 			glClearColor ((cam\clscol And $FF0000) Shr 16) / 255., ((cam\clscol And $FF00) Shr 8) / 255., (cam\clscol And $FF) / 255., 1.
 			glClear GL_COLOR_BUFFER_BIT Or GL_DEPTH_BUFFER_BIT
@@ -697,10 +772,11 @@ Function RenderWorld()
 			
 			; Rotate camera
 			glPushMatrix()
-			If Not cam\ent\rv Then bOGL_UpdateAxisAngle_ cam\ent\r, cam\ent\q : cam\ent\rv = True
-			glRotatef cam\ent\r[0], cam\ent\r[1], cam\ent\r[2], cam\ent\r[3]
-			glTranslatef -cam\ent\x, -cam\ent\y, -cam\ent\z
-			glScalef cam\ent\sx, cam\ent\sy, cam\ent\sz
+			If Not cam\ent\Gv Then bOGL_UpdateGlobalPosition_ cam\ent
+			If Not cam\ent\g_Rv Then bOGL_UpdateAxisAngle_ cam\ent\g_r, cam\ent\g_q : cam\ent\g_Rv = True
+			glRotatef cam\ent\g_r[0], cam\ent\g_r[1], cam\ent\g_r[2], cam\ent\g_r[3]
+			glTranslatef -cam\ent\g_x, -cam\ent\g_y, -cam\ent\g_z
+			glScalef cam\ent\g_sx * cam\ent\sx, cam\ent\g_sy * cam\ent\sy, cam\ent\g_sz * cam\ent\sz
 			
 			; Fog
 			If cam\fogmode
@@ -723,17 +799,18 @@ Function RenderWorld()
 			
 			Local msh.bOGL_Mesh, ent.bOGL_Ent : For msh = Each bOGL_Mesh
 				ent = msh\ent
-				If (Not ent\hidden) And (msh\alpha > 0.0)
+				If bOGL_EntityIsVisible_(ent) And (msh\alpha >= BOGL_LIGHT_EPSILON)
 					Local textured = msh\texture <> Null : If textured Then glEnable GL_TEXTURE_2D : Else glDisable GL_TEXTURE_2D
+					If Not ent\Gv Then bOGL_UpdateGlobalPosition_ ent
 					
 					; Rotate entity
 					glPushMatrix()
-					glTranslatef ent\x, ent\y, ent\z
-					If Not ent\rv Then bOGL_UpdateAxisAngle_ ent\r, ent\q : ent\rv = True
-					glRotatef ent\r[0], ent\r[1], ent\r[2], ent\r[3]
+					glTranslatef ent\g_x, ent\g_y, ent\g_z
+					If Not ent\g_Rv Then bOGL_UpdateAxisAngle_ ent\g_r, ent\g_q : ent\g_Rv = True
+					glRotatef ent\g_r[0], ent\g_r[1], ent\g_r[2], ent\g_r[3]
 					
 					; Entity scale
-					glScalef ent\sx, ent\sy, ent\sz
+					glScalef ent\sx * ent\g_sx, ent\sy * ent\g_sy, ent\sz * ent\g_sz
 					
 					; Bind texture and paint the entity
 					If textured Then glBindTexture GL_TEXTURE_2D, msh\texture\glName
@@ -765,15 +842,15 @@ End Function
 
 Function TFormPoint(x#, y#, z#, src, dst, out#[2])
 	If src
-		Local s.bOGL_Ent = bOGL_EntList_(src)
-		If Not s\rv Then bOGL_UpdateAxisAngle_ s\r, s\q : s\rv = True
+		Local s.bOGL_Ent = bOGL_EntList_(src) : If Not s\Gv Then bOGL_UpdateGlobalPosition_ s
+		If Not s\Rv Then bOGL_UpdateAxisAngle_ s\r, s\q : s\Rv = True
 		bOGL_RotateVector_ out, x, y, z, s\r
-		out[0] = s\x + out[0] : out[1] = s\y + out[1] : out[2] = s\z + out[2]
+		out[0] = s\g_x + out[0] * s\g_sx : out[1] = s\g_y + out[1] * s\g_sy : out[2] = s\g_z + out[2] * s\g_sz
 	EndIf
 	If dst
-		Local d.bOGL_Ent = bOGL_EntList_(src)
-		If Not d\rv Then bOGL_UpdateAxisAngle_ d\r, d\q : d\rv = True
-		x = out[0] - d\x : y = out[1] - d\y : z = out[2] - d\z
+		Local d.bOGL_Ent = bOGL_EntList_(dst) : If Not d\Gv Then bOGL_UpdateGlobalPosition_ d
+		If Not d\Rv Then bOGL_UpdateAxisAngle_ d\r, d\q : d\Rv = True
+		x = (out[0] - d\g_x) / d\g_sx : y = (out[1] - d\g_y) / d\g_sy : z = (out[2] - d\g_z) / d\g_sz
 		bOGL_RotateVector_ out, x, y, z, d\r
 	EndIf
 End Function
@@ -858,9 +935,10 @@ Function bOGL_FreeHandler_(handler)
 	If handler < bOGL_EntOpen_ Then bOGL_EntOpen_ = handler
 End Function
 
-Function bOGL_NewEnt_.bOGL_Ent(eClass, hdl)	;New base entity
+Function bOGL_NewEnt_.bOGL_Ent(eClass, hdl, parentH)	;New base entity
 	Local ent.bOGL_Ent = New bOGL_Ent
 	ent\handler = bOGL_EntHandler_(ent)
+	EntityParent ent\handler, parentH
 	ent\eClass = eClass
 	Select eClass
 		Case BOGL_CLASS_CAM : ent\c = Object.bOGL_Cam hdl
@@ -869,6 +947,7 @@ Function bOGL_NewEnt_.bOGL_Ent(eClass, hdl)	;New base entity
 	End Select
 	RotateEntity ent\handler, 0., 0., 0.	;Zero the starting quat
 	ent\sx = 1. : ent\sy = 1. : ent\sz = 1.
+	ent\Gv = False
 	Return ent
 End Function
 
@@ -922,24 +1001,65 @@ Function bOGL_RotateVector_(out#[2], x#, y#, z#, r#[3])	;Rotate a vector x,y,z b
 	out[2] = cth * z + sth * (r[1] * y - r[2] * x) + r[3] * kdv
 End Function
 
-Function bOGL_UpdateLight_(this.bOGL_Ent)
-	If this\l\pos
-		If this\l\flag <> BOGL_LIGHT_DIR
-			PokeFloat this\l\pos, 0, this\x	;Need to update the passable position of point sources
-			PokeFloat this\l\pos, 4, this\y
-			PokeFloat this\l\pos, 8, this\z
-		Else
-			Local dir#[2] : TFormPoint 0, 0, -1, this\handler, 0, dir	;Need to update the orientation of dir sources
-			PokeFloat this\l\pos, 0, this\x - dir[0]
-			PokeFloat this\l\pos, 4, this\y - dir[1]
-			PokeFloat this\l\pos, 8, this\z - dir[2]
+Function bOGL_UpdateGlobalPosition_(ent.bOGL_Ent)
+	If ent\parentH
+		Local par.bOGL_Ent = bOGL_EntList_(ent\parentH), pos#[2] : TFormPoint ent\x * par\sx, ent\y * par\sy, ent\z * par\sz, par\handler, 0, pos
+		ent\g_x = pos[0] : ent\g_y = pos[1] : ent\g_z = pos[2] : ent\g_sx = par\sx : ent\g_sy = par\sy : ent\g_sz = par\sz
+		If Not ent\Qv Then bOGL_UpdateQuat_ ent\q, ent\r : ent\Qv = True
+		If Not par\Qv Then bOGL_UpdateQuat_ par\q, par\r : par\Qv = True
+		Local q#[3] : bOGL_QuatMul_ q, par\g_q, ent\q : ent\g_q[0] = q[0] : ent\g_q[1] = q[1] : ent\g_q[2] = q[2] : ent\g_q[3] = q[3]
+		ent\g_Qv = True : ent\g_Rv = False
+	Else
+		ent\g_x = ent\x : ent\g_y = ent\y : ent\g_z = ent\z : ent\g_sx = 1.0 : ent\g_sy = 1.0 : ent\g_sz = 1.0
+		ent\g_r[0] = ent\r[0] : ent\g_r[1] = ent\r[1] : ent\g_r[2] = ent\r[2] : ent\g_r[3] = ent\r[3] : ent\g_Rv = ent\Rv
+		ent\g_q[0] = ent\q[0] : ent\g_q[1] = ent\q[1] : ent\g_q[2] = ent\q[2] : ent\g_q[3] = ent\q[3] : ent\g_Qv = ent\Qv
+	EndIf
+	ent\Gv = True
+End Function
+
+Function bOGL_UpdateLocalPosition(ent.bOGL_Ent)
+	Local pos#[2] : TFormPoint ent\g_x, ent\g_y, ent\g_z, 0, ent\parentH, pos
+End Function
+
+Function bOGL_InvalidateGlobalPosition_(ent.bOGL_Ent)
+	If ent\Gv
+		ent\Gv = False : If ent\children
+			Local lst = BankSize(ent\children) - 4, c : For c = 0 To lst Step 4
+				bOGL_InvalidateGlobalPosition_ bOGL_EntList_(PeekInt(ent\children, c))
+			Next
 		EndIf
 	EndIf
 End Function
 
+Function bOGL_EntityIsVisible_(ent.bOGL_Ent)
+	If ent\hidden Then Return False
+	While ent\parentH
+		ent = bOGL_EntList_(ent\parentH) : If ent\hidden Then Return False
+	Wend
+	Return True
+End Function
+
+Function bOGL_UpdateLight_(this.bOGL_Ent)
+	If Not this\Gv Then bOGL_UpdateGlobalPosition_ this
+	If this\l\pos
+		If this\l\flag <> BOGL_LIGHT_DIR
+			PokeFloat this\l\pos, 0, this\g_x	;Need to update the passable position of point sources
+			PokeFloat this\l\pos, 4, this\g_y
+			PokeFloat this\l\pos, 8, this\g_z
+		Else
+			Local dir#[2] : TFormPoint 0, 0, -1, this\handler, 0, dir	;Need to update the orientation of dir sources
+			PokeFloat this\l\pos, 0, this\g_x - dir[0]
+			PokeFloat this\l\pos, 4, this\g_y - dir[1]
+			PokeFloat this\l\pos, 8, this\g_z - dir[2]
+		EndIf
+	EndIf
+End Function
+
+
 ;~IDEal Editor Parameters:
-;~F#49#50#57#5C#62#6B#72#79#80#8D#A6#AB#B0#BC#C8#D2#D7#DC#E1#EF
-;~F#F4#F9#FE#103#108#132#13E#158#15D#162#167#16F#178#17E#184#18C#193#19F#1A6#1AB
-;~F#1B0#1B5#1BC#1C1#1DD#1F2#1FA#205#20F#21A#21E#222#226#22B#230#235#25B#273#27A#281
-;~F#288#292#29D#2F9#2FD#316#32D#343#35C#36A#36F#374#37F#388#38F#394#39C
+;~F#4C#55#5C#61#67#70#77#7E#85#92#AB#B0#B5#C0#CC#D6#DB#E0#E5#F3
+;~F#F8#FD#102#107#10C#136#142#15C#161#166#16B#173#17C#182#188#190#19E#1A6#1AD#1B3
+;~F#1B8#1BD#1C4#1C8#1DA#1DE#1E3#1E7#209#224#22C#237#241#24C#254#25C#264#26D#276#27F
+;~F#2A5#2BD#2C4#2CB#2D2#2DC#2E7#346#34A#363#37A#390#3A9#3B9#3BE#3C3#3CE#3D7#3DE#3E3
+;~F#3EB#3FB#3FF#409#411
 ;~C#BlitzPlus
