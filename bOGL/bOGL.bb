@@ -11,6 +11,7 @@
 ; CreateCamera([parent])
 ; CameraRange(handler, near#, far#)
 ; CameraFieldOfView(handler, angle#)
+; CameraDrawMode(handler, mode), CameraClsMode(handler, mode)
 ; CameraClsColor(handler, red, green, blue)
 ; CameraFogMode(handler, mode[, near#[, far#]])
 ; CameraFogColor(handler, red, green, blue[, alpha#])
@@ -38,6 +39,7 @@
 ; ShowEntity(handler, state)
 ; EntityParent(handler, parentH), GetParentEntity(handler)
 ; CountChildren(handler), GetChildEntity(handler, index)
+; SetEntityUserData(handler, val), GetEntityUserData(handler)
 ; CopyEntity(handler)
 ; FreeEntity(handler)
 ; FlipPolygons(handler)
@@ -70,6 +72,8 @@ Global bOGL_bbHwndW, bOGL_bbHwndH	; Window's size.
 Const BOGL_CLASS_MESH = 1, BOGL_CLASS_PIV = 2, BOGL_CLASS_CAM = 3, BOGL_CLASS_LIGHT = 4
 Const BOGL_LIGHT_PT = 1, BOGL_LIGHT_DIR = 2, BOGL_LIGHT_AMB = 3
 Const BOGL_FX_FULLBRIGHT = 1, BOGL_FX_FLATSHADED = 2, BOGL_FX_NOFOG = 4, BOGL_FX_ADDBLEND = 8, BOGL_FX_MULBLEND = 16
+Const BOGL_CAM_OFF = 0, BOGL_CAM_PERSPECTIVE = 1, BOGL_CAM_ORTHO = 2, BOGL_CAM_STENCIL = 3
+Const BOGL_CAM_CLRCOL = 1, BOGL_CAM_CLRZ = 2, BOGL_CAM_CLRSTEN = 4
 Const BOGL_DEFAULT_COLOR = (200 Or (200 Shl 8) Or (200 Shl 16) Or ($FF000000))
 Const BOGL_VERT_STRIDE = 32, BOGL_TRIS_STRIDE = 6, BOGL_COL_STRIDE = 3, BOGL_VERT_CAP = 65536
 Const BOGL_EPSILON# = 0.001, BOGL_LIGHT_EPSILON# = 1.0 / 255.0
@@ -77,7 +81,7 @@ Const BOGL_EPSILON# = 0.001, BOGL_LIGHT_EPSILON# = 1.0 / 255.0
 
 Type bOGL_Ent
 	Field handler, parentH
-	Field hidden
+	Field hidden, userData
 	Field x#, y#, z#, sx#, sy#, sz#, r#[3], q#[3], Rv, Qv
 	Field g_x#, g_y#, g_z#, g_sx#, g_sy#, g_sz#, g_r#[3], g_q#[3], g_Rv, g_Qv, Gv
 	Field eClass, c.bOGL_Cam, l.bOGL_Light, m.bOGL_Mesh
@@ -86,8 +90,8 @@ End Type
 
 Type bOGL_Cam
 	Field ent.bOGL_Ent
-	Field vpx, vpy, vpw, vph
-	Field viewangle#, near#, far#, clscol
+	Field vpx, vpy, vpw, vph, drawmode
+	Field viewangle#, near#, far#, clscol, clsmode
 	Field fogmode, fognear#, fogfar#, fogcolor
 End Type
 
@@ -138,6 +142,7 @@ Function CreateCamera(parentH = 0)
 	this\ent = ent
 	this\vpx = 0 : this\vpy = 0
 	this\vpw = bOGL_bbHwndW : this\vph = bOGL_bbHwndH
+	this\drawmode = BOGL_CAM_PERSPECTIVE : this\clsmode = BOGL_CAM_CLRCOL Or BOGL_CAM_CLRZ
 	this\viewangle# = 45.0
 	this\near# = 1 ;0.1
 	this\far# = 1000
@@ -357,6 +362,14 @@ Function CameraFieldOfView(handler, viewangle#)
 	this\c\viewangle = viewangle
 End Function
 
+Function CameraDrawMode(handler, mode)
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : this\c\drawmode = mode
+End Function
+
+Function CameraClsMode(handler, mode)
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : this\c\clsmode = mode
+End Function
+
 Function CameraClsColor(handler, red, green, blue)
 	Local this.bOGL_Ent = bOGL_EntList_(handler)
 	this\c\clscol = $FF000000 Or ((red And $FF) Shl 16) Or ((green And $FF) Shl 8) Or (blue And $FF)
@@ -487,6 +500,14 @@ End Function
 
 Function GetChildEntity(handler, index)
 	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return PeekInt(this\children, index * 4)
+End Function
+
+Function SetEntityUserData(handler, val)
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : this\userData = val
+End Function
+
+Function GetEntityUserData(handler)
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return this\userData
 End Function
 
 Function CopyEntity(handler, parentH = 0)
@@ -763,14 +784,18 @@ Function RenderWorld()
 	Next
 	
 	Local cam.bOGL_Cam : For cam = Each bOGL_Cam
-		If bOGL_EntityIsVisible_(cam\ent)
+		If bOGL_EntityIsVisible_(cam\ent) And (cam\drawmode = BOGL_CAM_ORTHO Or cam\drawmode = BOGL_CAM_PERSPECTIVE)
 			glScissor cam\vpx, cam\vpy, cam\vpw, cam\vph
 			glClearColor ((cam\clscol And $FF0000) Shr 16) / 255., ((cam\clscol And $FF00) Shr 8) / 255., (cam\clscol And $FF) / 255., 1.
-			glClear GL_COLOR_BUFFER_BIT Or GL_DEPTH_BUFFER_BIT
+			glClear (GL_COLOR_BUFFER_BIT * (cam\clsmode And BOGL_CAM_CLRCOL > 0)) Or (GL_DEPTH_BUFFER_BIT * (cam\clsmode And BOGL_CAM_CLRZ > 0))
 			
 			glMatrixMode GL_PROJECTION
 			glLoadIdentity()
-			gluPerspective cam\viewangle, Float cam\vpw / cam\vph, cam\near, cam\far
+			If cam\drawmode = BOGL_CAM_ORTHO
+				Local oCamY# = bOGL_bbHwndH * cam\viewangle / bOGL_bbHwndW : glOrtho -cam\viewangle, cam\viewangle, oCamY, -oCamY, cam\near, cam\far
+			Else
+				gluPerspective cam\viewangle, Float cam\vpw / cam\vph, cam\near, cam\far
+			EndIf
 			glMatrixMode GL_MODELVIEW
 			glViewport cam\vpx, cam\vpy, cam\vpw, cam\vph
 			
@@ -1071,9 +1096,9 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#4D#56#5D#62#68#71#78#7F#86#93#AC#B1#B6#C1#CD#D7#DC#E1#E6#F4
-;~F#F9#FE#103#108#10D#137#143#15D#162#167#16C#174#17D#183#189#191#19F#1A7#1AE#1B4
-;~F#1B9#1BD#1C1#1C8#1CC#1DE#1E2#1E7#1EB#20D#228#230#23B#245#250#258#260#268#271#27A
-;~F#283#2A9#2C1#2C8#2CF#2D6#2E0#2EB#354#358#371#388#39E#3B7#3C7#3CC#3D1#3DC#3E5#3EC
-;~F#3F1#3F9#409#40D#417#41F
+;~F#51#5A#61#66#6C#75#7C#83#8A#98#B1#B6#BB#C6#D2#DC#E1#E6#EB#F9
+;~F#FE#103#108#10D#112#13C#148#162#167#16C#170#174#179#181#18A#190#196#19E#1AC#1B4
+;~F#1BB#1C1#1C6#1CA#1CE#1D5#1D9#1EB#1EF#1F4#1F8#1FC#200#222#23D#245#250#25A#265#26D
+;~F#275#27D#286#28F#298#2BE#2D6#2DD#2E4#2EB#2F5#300#36D#371#38A#3A1#3B7#3D0#3E0#3E5
+;~F#3EA#3F5#3FE#405#40A#412#422#426#430#438
 ;~C#BlitzPlus
