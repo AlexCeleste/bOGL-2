@@ -451,7 +451,7 @@ Function EntityTexture(handler, texture)
 End Function
 
 Function ShowEntity(handler, state)
-	Local this.bOGL_Ent = bOGL_EntList_(handler) : this\hidden = Not (Not state)
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : this\hidden = (Not state)
 End Function
 
 Function EntityParent(handler, parentH)
@@ -1057,9 +1057,9 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#4C#55#5C#61#67#70#77#7E#85#92#AB#B0#B5#C0#CC#D6#DB#E0#E5#F3
-;~F#F8#FD#102#107#10C#136#142#15C#161#166#16B#173#17C#182#188#190#19E#1A6#1AD#1B3
-;~F#1B8#1BD#1C4#1C8#1DA#1DE#1E3#1E7#209#224#22C#237#241#24C#254#25C#264#26D#276#27F
-;~F#2A5#2BD#2C4#2CB#2D2#2DC#2E7#346#34A#363#37A#390#3A9#3B9#3BE#3C3#3CE#3D7#3DE#3E3
-;~F#3EB#3FB#3FF#409#411
+;~F#55#5C#61#67#70#77#7E#85#92#AB#B0#B5#C0#CC#D6#DB#E0#E5#F3#F8
+;~F#FD#102#107#10C#136#142#15C#161#166#16B#173#17C#182#188#190#19E#1A6#1AD#1B3#1B8
+;~F#1BD#1C8#1DA#1DE#1E3#1E7#209#224#22C#237#241#24C#254#25C#264#26D#276#27F#2A5#2BD
+;~F#2C4#2CB#2D2#2DC#2E7#346#34A#363#37A#390#3A9#3B9#3BE#3C3#3CE#3D7#3DE#3E3#3EB#3FB
+;~F#3FF#409#411
 ;~C#BlitzPlus
