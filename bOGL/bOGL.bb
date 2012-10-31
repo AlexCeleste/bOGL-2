@@ -33,7 +33,7 @@
 ; PointEntity(handler, x#, y#, z#[, roll#])
 ; ScaleEntity(handler, x#, y#, z#[, absolute])
 ; PaintEntity(handler, red, green, blue)
-; EntityAlpha(handler, alpha#)
+; EntityAlpha(handler, alpha#), EntityFX(handler, flags)
 ; EntityTexture(handler, texture)
 ; ShowEntity(handler, state)
 ; EntityParent(handler, parentH), GetParentEntity(handler)
@@ -69,6 +69,7 @@ Global bOGL_bbHwndW, bOGL_bbHwndH	; Window's size.
 
 Const BOGL_CLASS_MESH = 1, BOGL_CLASS_PIV = 2, BOGL_CLASS_CAM = 3, BOGL_CLASS_LIGHT = 4
 Const BOGL_LIGHT_PT = 1, BOGL_LIGHT_DIR = 2, BOGL_LIGHT_AMB = 3
+Const BOGL_FX_FULLBRIGHT = 1, BOGL_FX_FLATSHADED = 2, BOGL_FX_NOFOG = 4, BOGL_FX_ADDBLEND = 8, BOGL_FX_MULBLEND = 16
 Const BOGL_DEFAULT_COLOR = (200 Or (200 Shl 8) Or (200 Shl 16) Or ($FF000000))
 Const BOGL_VERT_STRIDE = 32, BOGL_TRIS_STRIDE = 6, BOGL_COL_STRIDE = 3, BOGL_VERT_CAP = 65536
 Const BOGL_EPSILON# = 0.001, BOGL_LIGHT_EPSILON# = 1.0 / 255.0
@@ -97,7 +98,7 @@ End Type
 
 Type bOGL_Mesh
 	Field ent.bOGL_Ent
-	Field texture.bOGL_Tex, argb, alpha#
+	Field texture.bOGL_Tex, argb, alpha#, FX
 	Field vp, vc, poly	;UV+Normal+Position, Colour, Tris
 End Type
 
@@ -439,8 +440,11 @@ Function PaintEntity(handler, red, green, blue)
 End Function
 
 Function EntityAlpha(handler, alpha#)
-	Local this.bOGL_Ent = bOGL_EntList_(handler)
-	this\m\alpha = alpha
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : this\m\alpha = alpha
+End Function
+
+Function EntityFX(handler, flags)
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : this\m\FX = flags
 End Function
 
 Function EntityTexture(handler, texture)
@@ -816,15 +820,25 @@ Function RenderWorld()
 					If textured Then glBindTexture GL_TEXTURE_2D, msh\texture\glName
 					glColor4f ((msh\argb Shr 16) And $FF) / 255.0, ((msh\argb Shr 8) And $FF) / 255.0, (msh\argb And $FF) / 255.0, msh\alpha
 					
-					; Blending
-					glBlendFunc GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA
-					If msh\alpha < 1 Then glEnable GL_BLEND : Else glDisable GL_BLEND
+					; Blending and FX
+					If msh\FX And BOGL_FX_FULLBRIGHT Then glDisable GL_LIGHTING
+					If msh\FX And BOGL_FX_FLATSHADED Then glShadeModel GL_FLAT
+					If msh\FX And BOGL_FX_NOFOG Then glDisable GL_FOG
+					If msh\FX And BOGL_FX_ADDBLEND
+						glBlendFunc GL_ONE, GL_ONE : glEnable GL_BLEND
+					ElseIf msh\FX And BOGL_FX_MULBLEND
+						glBlendFunc GL_DST_COLOR, GL_ZERO : glEnable GL_BLEND
+					Else
+						glBlendFunc GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA
+						If msh\alpha < 1 Then glEnable GL_BLEND : Else glDisable GL_BLEND
+					EndIf
 					
 					glInterleavedArrays GL_T2F_N3F_V3F, BOGL_VERT_STRIDE, msh\vp
 					If msh\vc Then glEnableClientState GL_COLOR_ARRAY : glColorPointer 3, GL_UNSIGNED_BYTE, 0, msh\vc
 					glDrawElements GL_TRIANGLES, BankSize(msh\poly) / 2, GL_UNSIGNED_SHORT, msh\poly
 					If msh\vc Then glDisableClientState GL_COLOR_ARRAY
 					
+					glEnable GL_LIGHTING : glShadeModel GL_SMOOTH : If cam\fogmode Then glEnable GL_FOG
 					glPopMatrix()
 				EndIf
 			Next
@@ -1057,9 +1071,9 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#55#5C#61#67#70#77#7E#85#92#AB#B0#B5#C0#CC#D6#DB#E0#E5#F3#F8
-;~F#FD#102#107#10C#136#142#15C#161#166#16B#173#17C#182#188#190#19E#1A6#1AD#1B3#1B8
-;~F#1BD#1C8#1DA#1DE#1E3#1E7#209#224#22C#237#241#24C#254#25C#264#26D#276#27F#2A5#2BD
-;~F#2C4#2CB#2D2#2DC#2E7#346#34A#363#37A#390#3A9#3B9#3BE#3C3#3CE#3D7#3DE#3E3#3EB#3FB
-;~F#3FF#409#411
+;~F#4D#56#5D#62#68#71#78#7F#86#93#AC#B1#B6#C1#CD#D7#DC#E1#E6#F4
+;~F#F9#FE#103#108#10D#137#143#15D#162#167#16C#174#17D#183#189#191#19F#1A7#1AE#1B4
+;~F#1B9#1BD#1C1#1C8#1CC#1DE#1E2#1E7#1EB#20D#228#230#23B#245#250#258#260#268#271#27A
+;~F#283#2A9#2C1#2C8#2CF#2D6#2E0#2EB#354#358#371#388#39E#3B7#3C7#3CC#3D1#3DC#3E5#3EC
+;~F#3F1#3F9#409#40D#417#41F
 ;~C#BlitzPlus

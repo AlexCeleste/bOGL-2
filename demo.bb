@@ -32,6 +32,7 @@ FreeTexture texture
 Local child = CreateCube(cube)
 PositionEntity child, 3, 0, 0
 ScaleEntity child, 0.6, 0.6, 0.6
+EntityFX child, BOGL_FX_ADDBLEND : PaintEntity child, 0, 255, 128
 
 
 ; Mainloop
@@ -39,7 +40,7 @@ While Not KeyHit(1)
 	TurnEntity cube, 0.4, 0.6, 0.8
 	TurnEntity child, 0, 0.5, 0
 	
-	Local scl# = 1.0 + Sin(MilliSecs() / 1000.0 * 180) / 4.0
+	Local scl# = 1.0 + Sin(MilliSecs() / 1500.0 * 180) / 4.0
 	ScaleEntity cube, scl, scl, scl
 	
 	; Render world
