@@ -11,10 +11,13 @@ nor are they intended to be. Several commands work differently by design.
 
 Installation:
 Move the folder named "userlibs" to BlitzBasic folder. Overwrite if neccessary
-or add the content of the files in the existing ones. Now you should be able to
+or add the content of the files to the existing ones. Now you should be able to
 run the demo and create your own projects.
 
 Please overwrite any userlib files remaining from bOGL version 1.01.
+
+Licence:
+MIT, see LICENSE file
 
 Credits:
 bOGL 1 by Andres Pajo
@@ -78,10 +81,9 @@ Distance(x1#, y1#, z1#, x2#, y2#, z2#)
 TFormPoint(x#, y#, z#, src, dst, out#[2])
 
 
- Still to come:
-----------------
+ Possible future work:
+-----------------------
 
- - Easy stencil buffer access, for shadows, portals, etc.
  - Upgrade the vertex array rendering to use VBOs
  - Translate to C
 
