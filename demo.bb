@@ -8,6 +8,7 @@ AmbientLight 128, 128, 128
 
 ; Create a camera
 Local camera = CreateCamera()
+;CameraClsColor camera, 255, 0, 255
 
 ; Load a texture
 Local texture = LoadTexture("bOGL.png")
@@ -43,8 +44,8 @@ EntityFX sCube, BOGL_FX_STENCIL_INCR
 Local sCamera = CreateCamera(camera)
 CameraDrawMode sCamera, BOGL_CAM_STENCIL
 
-Const SC_FPS = 60 : Local rTime = Floor(1000.0 / SC_FPS)
 
+Const SC_FPS = 60 : Local rTime = Floor(1000.0 / SC_FPS)
 
 ; Mainloop
 While Not KeyHit(1)
@@ -59,7 +60,7 @@ While Not KeyHit(1)
 	; Render stencil buffer
 ;	ShowEntity sCube, True
 ;	RenderStencil
-;	ShowEntity sCube, False
+	ShowEntity sCube, False
 	
 	; Render world
 	RenderWorld BOGL_STENCIL_OFF

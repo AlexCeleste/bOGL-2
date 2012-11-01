@@ -52,7 +52,8 @@
 ; LoadTexture(file$[, quality, filter])
 ; FreeTexture(handler)
 ; TextureWidth(handler), TextureHeight(handler)
-; GetTextureData(handler), UpdateTexture(handler, x, y, width, height, pixels)
+; GetTextureData(handler), UpdateTexture(handler, x, y, width, height, pixels[, doConvert])
+; GrabBackBuffer(x, y, width, height, pix[, doConvert])
 ; RenderWorld([stencilMode]), RenderStencil()
 ; Distance(x1#, y1#, z1#, x2#, y2#, z2#)
 ; TFormPoint(x#, y#, z#, src, dst, out#[2])
@@ -773,15 +774,30 @@ Function GetTextureData(handler)
 	Return pixels
 End Function
 
-Function UpdateTexture(handler, x, y, width, height, pixels)
-	Local this.bOGL_Tex = Object.bOGL_Tex handler, temp = CreateBank(BankSize(pixels))
-	CopyBank pixels, 0, temp, 0, BankSize(temp)
-	Local p : For p = 0 To BankSize(temp) - 4 Step 4	;Convert to RGBA format
-		Local col = PeekInt(temp, p) : PokeInt temp, p, (col And $FF00FF00) Or ((col And $FF0000) Shr 16) Or ((col And $FF) Shl 16)
-	Next
+Function UpdateTexture(handler, x, y, width, height, pixels, doConvert = True)
+	Local this.bOGL_Tex = Object.bOGL_Tex handler, temp
+	If doConvert
+		temp = CreateBank(BankSize(pixels))
+		CopyBank pixels, 0, temp, 0, BankSize(temp)
+		Local p : For p = 0 To BankSize(temp) - 4 Step 4	;Convert to RGBA format
+			Local col = PeekInt(temp, p) : PokeInt temp, p, (col And $FF00FF00) Or ((col And $FF0000) Shr 16) Or ((col And $FF) Shl 16)
+		Next
+	Else
+		temp = pixels
+	EndIf
 	glBindTexture GL_TEXTURE_2D, this\glName
 	glTexSubImage2D GL_TEXTURE_2D, 0, x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, temp
-	FreeBank temp
+	If doConvert Then FreeBank temp
+End Function
+
+Function GrabBackBuffer(x, y, width, height, pix, doConvert = True)
+	glReadBuffer GL_BACK
+	glReadPixels x, bOGL_bbHwndH - (height + y), width, height, GL_RGBA, GL_UNSIGNED_BYTE, pix
+	If doConvert
+		Local p : For p = 0 To BankSize(pix) - 4 Step 4	;Convert to RGBA format
+			Local col = PeekInt(pix, p) : PokeInt pix, p, (col And $FF00FF00) Or ((col And $FF0000) Shr 16) Or ((col And $FF) Shl 16)
+		Next
+	EndIf
 End Function
 
 Function RenderWorld(stencilMode = BOGL_STENCIL_OFF)
@@ -1175,9 +1191,9 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#53#5C#63#68#6E#77#7E#85#8C#9A#B3#B8#BD#C8#D4#DE#E3#E8#ED#FB
-;~F#100#105#10A#10F#114#13E#14A#164#169#16E#173#177#17C#184#18D#193#199#1A1#1AF#1B7
-;~F#1BE#1C4#1C9#1CD#1D1#1D8#1DC#1EE#1F2#1F7#1FB#1FF#209#20D#233#24F#257#262#26C#277
-;~F#27F#287#28F#298#2A1#2AA#2D0#2E8#2EF#2F6#2FD#307#312#366#397#39B#3B4#3CD#3E3#3FC
-;~F#40C#411#416#421#42A#431#436#43E#44E#452#45C#467#477#48F
+;~F#54#5D#64#69#6F#78#7F#86#8D#9B#B4#B9#BE#C9#D5#DF#E4#E9#EE#FC
+;~F#101#106#10B#110#115#13F#14B#165#16A#16F#174#178#17D#185#18E#194#19A#1A2#1B0#1B8
+;~F#1BF#1C5#1CA#1CE#1D2#1D9#1DD#1EF#1F3#1F8#1FC#200#20A#20E#234#250#258#263#26D#278
+;~F#280#288#290#299#2A2#2AB#2D1#2E9#2F0#2F7#2FE#308#318#322#376#3A7#3AB#3C4#3DD#3F3
+;~F#40C#41C#421#426#431#43A#441#446#44E#45E#462#46C#477#487#49F
 ;~C#BlitzPlus
