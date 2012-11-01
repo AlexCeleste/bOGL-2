@@ -35,22 +35,40 @@ ScaleEntity child, 0.6, 0.6, 0.6
 EntityFX child, BOGL_FX_ADDBLEND : PaintEntity child, 0, 255, 128
 
 
+Local sCube = CreateCube()
+RotateEntity sCube, 0, 0, 45
+PositionEntity sCube, 0, 0, -7
+EntityFX sCube, BOGL_FX_STENCIL_INCR
+
+Local sCamera = CreateCamera(camera)
+CameraDrawMode sCamera, BOGL_CAM_STENCIL
+
+Const SC_FPS = 60 : Local rTime = Floor(1000.0 / SC_FPS)
+
+
 ; Mainloop
 While Not KeyHit(1)
+	Local cTime = MilliSecs()
+	
 	TurnEntity cube, 0.4, 0.6, 0.8
 	TurnEntity child, 0, 0.5, 0
 	
 	Local scl# = 1.0 + Sin(MilliSecs() / 1500.0 * 180) / 4.0
 	ScaleEntity cube, scl, scl, scl
 	
+	; Render stencil buffer
+;	ShowEntity sCube, True
+;	RenderStencil
+;	ShowEntity sCube, False
+	
 	; Render world
-	RenderWorld()
+	RenderWorld BOGL_STENCIL_OFF
 	
 	; Swap the buffer the front buffer
 	SwapBuffers(bOGL_hMainDC)
-	glFinish
 	
-	Delay 10
+	Delay rTime - (MilliSecs() - cTime) - 1
+;	DebugLog MilliSecs() - cTime
 Wend
 End
 

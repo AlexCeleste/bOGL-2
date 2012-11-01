@@ -39,7 +39,7 @@
 ; ShowEntity(handler, state)
 ; EntityParent(handler, parentH), GetParentEntity(handler)
 ; CountChildren(handler), GetChildEntity(handler, index)
-; SetEntityUserData(handler, val), GetEntityUserData(handler)
+; RegisterEntityUserDataSlot(), SetEntityUserData(handler, slot, val), GetEntityUserData(handler, slot)
 ; CopyEntity(handler)
 ; FreeEntity(handler)
 ; FlipPolygons(handler)
@@ -53,7 +53,7 @@
 ; FreeTexture(handler)
 ; TextureWidth(handler), TextureHeight(handler)
 ; GetTextureData(handler), UpdateTexture(handler, x, y, width, height, pixels)
-; RenderWorld()
+; RenderWorld([stencilMode]), RenderStencil()
 ; Distance(x1#, y1#, z1#, x2#, y2#, z2#)
 ; TFormPoint(x#, y#, z#, src, dst, out#[2])
 
@@ -71,9 +71,11 @@ Global bOGL_bbHwndW, bOGL_bbHwndH	; Window's size.
 
 Const BOGL_CLASS_MESH = 1, BOGL_CLASS_PIV = 2, BOGL_CLASS_CAM = 3, BOGL_CLASS_LIGHT = 4
 Const BOGL_LIGHT_PT = 1, BOGL_LIGHT_DIR = 2, BOGL_LIGHT_AMB = 3
-Const BOGL_FX_FULLBRIGHT = 1, BOGL_FX_FLATSHADED = 2, BOGL_FX_NOFOG = 4, BOGL_FX_ADDBLEND = 8, BOGL_FX_MULBLEND = 16
+Const BOGL_FX_FULLBRIGHT = 1, BOGL_FX_FLATSHADED = 2, BOGL_FX_NOFOG = 4, BOGL_FX_ADDBLEND = 8, BOGL_FX_MULBLEND = 16, BOGL_FX_NOCULL = 32
+Const BOGL_FX_STENCIL_KEEP = 0, BOGL_FX_STENCIL_INCR = 128, BOGL_FX_STENCIL_DECR = 256, BOGL_FX_STENCIL_BOTH = 1024
 Const BOGL_CAM_OFF = 0, BOGL_CAM_PERSPECTIVE = 1, BOGL_CAM_ORTHO = 2, BOGL_CAM_STENCIL = 3
-Const BOGL_CAM_CLRCOL = 1, BOGL_CAM_CLRZ = 2, BOGL_CAM_CLRSTEN = 4
+Const BOGL_CAM_CLRCOL = GL_COLOR_BUFFER_BIT, BOGL_CAM_CLRZ = GL_DEPTH_BUFFER_BIT, BOGL_CAM_CLRSTEN = GL_STENCIL_BUFFER_BIT
+Const BOGL_STENCIL_OFF = GL_ALWAYS, BOGL_STENCIL_FALSE = GL_EQUAL, BOGL_STENCIL_TRUE = GL_LESS
 Const BOGL_DEFAULT_COLOR = (200 Or (200 Shl 8) Or (200 Shl 16) Or ($FF000000))
 Const BOGL_VERT_STRIDE = 32, BOGL_TRIS_STRIDE = 6, BOGL_COL_STRIDE = 3, BOGL_VERT_CAP = 65536
 Const BOGL_EPSILON# = 0.001, BOGL_LIGHT_EPSILON# = 1.0 / 255.0
@@ -363,7 +365,8 @@ Function CameraFieldOfView(handler, viewangle#)
 End Function
 
 Function CameraDrawMode(handler, mode)
-	Local this.bOGL_Ent = bOGL_EntList_(handler) : this\c\drawmode = mode
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : this\c\drawmode = mode	;Also reset the cls mode
+	If mode = BOGL_CAM_STENCIL Then this\c\clsmode = BOGL_CAM_CLRZ + BOGL_CAM_CLRSTEN : Else this\c\clsmode = BOGL_CAM_CLRZ + BOGL_CAM_CLRCOL
 End Function
 
 Function CameraClsMode(handler, mode)
@@ -502,12 +505,22 @@ Function GetChildEntity(handler, index)
 	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return PeekInt(this\children, index * 4)
 End Function
 
-Function SetEntityUserData(handler, val)
-	Local this.bOGL_Ent = bOGL_EntList_(handler) : this\userData = val
+Function RegisterEntityUserDataSlot()
+	Local s = bOGL_UDScounter_ : bOGL_UDScounter_ = bOGL_UDScounter_ + 1 : Return s
 End Function
 
-Function GetEntityUserData(handler)
-	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return this\userData
+Function SetEntityUserData(handler, slot, val)
+	Local this.bOGL_Ent = bOGL_EntList_(handler)
+	If Not this\userData
+		CreateBank((slot + 1) * 4)
+	ElseIf BankSize(this\userData) < ((slot + 1) * 4)
+		ResizeBank this\userData, ((slot + 1) * 4)
+	EndIf
+	PokeInt this\userData, slot * 4, val
+End Function
+
+Function GetEntityUserData(handler, slot)
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return PeekInt(this\userData, slot * 4)
 End Function
 
 Function CopyEntity(handler, parentH = 0)
@@ -541,6 +554,10 @@ Function CopyEntity(handler, parentH = 0)
 		Next
 	EndIf
 	
+	If old\userData
+		copy\userData = CreateBank(BankSize(old\userData)) : CopyBank old\userData, 0, copy\userData, 0, BankSize(old\userData)
+	EndIf
+	
 	Return copy\handler	;Note that we haven't copied the entity properties: scale, position, rotation are all default
 End Function
 
@@ -568,6 +585,7 @@ Function FreeEntity(handler)
 		Next
 		FreeBank this\children
 	EndIf
+	If this\userData Then FreeBank this\userData	;Note that this may leave data unreferenced!
 	Delete this : bOGL_FreeHandler_ handler
 End Function
 
@@ -766,8 +784,11 @@ Function UpdateTexture(handler, x, y, width, height, pixels)
 	FreeBank temp
 End Function
 
-Function RenderWorld()
+Function RenderWorld(stencilMode = BOGL_STENCIL_OFF)
 	Local x#, y#, z#, light
+	
+	glStencilMask 0 : glColorMask_Unsafe GL_TRUE,GL_TRUE, GL_TRUE, GL_TRUE	;Disable stencil writes, enable rendering
+	glStencilFunc stencilMode, 0, $FF
 	
 	; Lights
 	glEnable GL_LIGHTING
@@ -785,27 +806,7 @@ Function RenderWorld()
 	
 	Local cam.bOGL_Cam : For cam = Each bOGL_Cam
 		If bOGL_EntityIsVisible_(cam\ent) And (cam\drawmode = BOGL_CAM_ORTHO Or cam\drawmode = BOGL_CAM_PERSPECTIVE)
-			glScissor cam\vpx, cam\vpy, cam\vpw, cam\vph
-			glClearColor ((cam\clscol And $FF0000) Shr 16) / 255., ((cam\clscol And $FF00) Shr 8) / 255., (cam\clscol And $FF) / 255., 1.
-			glClear (GL_COLOR_BUFFER_BIT * (cam\clsmode And BOGL_CAM_CLRCOL > 0)) Or (GL_DEPTH_BUFFER_BIT * (cam\clsmode And BOGL_CAM_CLRZ > 0))
-			
-			glMatrixMode GL_PROJECTION
-			glLoadIdentity()
-			If cam\drawmode = BOGL_CAM_ORTHO
-				Local oCamY# = bOGL_bbHwndH * cam\viewangle / bOGL_bbHwndW : glOrtho -cam\viewangle, cam\viewangle, oCamY, -oCamY, cam\near, cam\far
-			Else
-				gluPerspective cam\viewangle, Float cam\vpw / cam\vph, cam\near, cam\far
-			EndIf
-			glMatrixMode GL_MODELVIEW
-			glViewport cam\vpx, cam\vpy, cam\vpw, cam\vph
-			
-			; Rotate camera
-			glPushMatrix()
-			If Not cam\ent\Gv Then bOGL_UpdateGlobalPosition_ cam\ent
-			If Not cam\ent\g_Rv Then bOGL_UpdateAxisAngle_ cam\ent\g_r, cam\ent\g_q : cam\ent\g_Rv = True
-			glRotatef cam\ent\g_r[0], cam\ent\g_r[1], cam\ent\g_r[2], cam\ent\g_r[3]
-			glTranslatef -cam\ent\g_x, -cam\ent\g_y, -cam\ent\g_z
-			glScalef cam\ent\g_sx * cam\ent\sx, cam\ent\g_sy * cam\ent\sy, cam\ent\g_sz * cam\ent\sz
+			bOGL_InitializeRenderCamera cam		;Set up draw frustum/ortho area, camera position, rotation and scale, viewport and cls
 			
 			; Fog
 			If cam\fogmode
@@ -830,25 +831,17 @@ Function RenderWorld()
 				ent = msh\ent
 				If bOGL_EntityIsVisible_(ent) And (msh\alpha >= BOGL_LIGHT_EPSILON)
 					Local textured = msh\texture <> Null : If textured Then glEnable GL_TEXTURE_2D : Else glDisable GL_TEXTURE_2D
-					If Not ent\Gv Then bOGL_UpdateGlobalPosition_ ent
 					
-					; Rotate entity
-					glPushMatrix()
-					glTranslatef ent\g_x, ent\g_y, ent\g_z
-					If Not ent\g_Rv Then bOGL_UpdateAxisAngle_ ent\g_r, ent\g_q : ent\g_Rv = True
-					glRotatef ent\g_r[0], ent\g_r[1], ent\g_r[2], ent\g_r[3]
-					
-					; Entity scale
-					glScalef ent\sx * ent\g_sx, ent\sy * ent\g_sy, ent\sz * ent\g_sz
+					glPushMatrix : bOGL_PushEntityTransform ent	;push entity position/rotation/scale
 					
 					; Bind texture and paint the entity
 					If textured Then glBindTexture GL_TEXTURE_2D, msh\texture\glName
 					glColor4f ((msh\argb Shr 16) And $FF) / 255.0, ((msh\argb Shr 8) And $FF) / 255.0, (msh\argb And $FF) / 255.0, msh\alpha
 					
 					; Blending and FX
-					If msh\FX And BOGL_FX_FULLBRIGHT Then glDisable GL_LIGHTING
-					If msh\FX And BOGL_FX_FLATSHADED Then glShadeModel GL_FLAT
-					If msh\FX And BOGL_FX_NOFOG Then glDisable GL_FOG
+					If msh\FX And BOGL_FX_FULLBRIGHT Then glDisable GL_LIGHTING : Else glEnable GL_LIGHTING
+					If msh\FX And BOGL_FX_FLATSHADED Then glShadeModel GL_FLAT : Else glShadeModel GL_SMOOTH
+					If msh\FX And BOGL_FX_NOFOG Then glDisable GL_FOG : ElseIf cam\fogmode Then glEnable GL_FOG
 					If msh\FX And BOGL_FX_ADDBLEND
 						glBlendFunc GL_ONE, GL_ONE : glEnable GL_BLEND
 					ElseIf msh\FX And BOGL_FX_MULBLEND
@@ -857,21 +850,70 @@ Function RenderWorld()
 						glBlendFunc GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA
 						If msh\alpha < 1 Then glEnable GL_BLEND : Else glDisable GL_BLEND
 					EndIf
+					If msh\FX And BOGL_FX_NOCULL Then glDisable GL_CULL_FACE : Else glEnable GL_CULL_FACE
 					
 					glInterleavedArrays GL_T2F_N3F_V3F, BOGL_VERT_STRIDE, msh\vp
 					If msh\vc Then glEnableClientState GL_COLOR_ARRAY : glColorPointer 3, GL_UNSIGNED_BYTE, 0, msh\vc
 					glDrawElements GL_TRIANGLES, BankSize(msh\poly) / 2, GL_UNSIGNED_SHORT, msh\poly
 					If msh\vc Then glDisableClientState GL_COLOR_ARRAY
 					
-					glEnable GL_LIGHTING : glShadeModel GL_SMOOTH : If cam\fogmode Then glEnable GL_FOG
-					glPopMatrix()
+					glPopMatrix
 				EndIf
 			Next
-			glPopMatrix()
+			glPopMatrix
 		EndIf
 	Next
-	glFlush()
-	glScissor 0, 0, bOGL_bbHwndW, bOGL_bbHwndH
+	
+	glFlush : glScissor 0, 0, bOGL_bbHwndW, bOGL_bbHwndH
+	Local GLError = glGetError() : If GLError <> GL_NO_ERROR Then DebugLog "OpenGL Error:  " + GLError
+End Function
+
+Function RenderStencil()
+	glStencilMask $FF : glColorMask_Unsafe 0, 0, 0, 0	;Enable stencil writes, disable rendering
+	glStencilFunc GL_ALWAYS, 1, $FF
+	
+	Local cam.bOGL_Cam : For cam = Each bOGL_Cam
+		If bOGL_EntityIsVisible_(cam\ent) And (cam\drawmode = BOGL_CAM_STENCIL)
+			bOGL_InitializeRenderCamera cam		;Clear relevant buffers and push camera matrix and frustum
+			glCullFace GL_BACK
+			
+			Local msh.bOGL_Mesh, ent.bOGL_Ent : For msh = Each bOGL_Mesh
+				ent = msh\ent : If bOGL_EntityIsVisible_(ent, True); And (msh\FX And bogl_stencil
+					glPushMatrix : bOGL_PushEntityTransform ent
+					
+					If (msh\FX And BOGL_FX_STENCIL_INCR) Or (msh\FX And BOGL_FX_STENCIL_BOTH)	;Apply stencil functions
+						glStencilOp GL_KEEP, GL_KEEP, GL_INCR
+					ElseIf msh\FX And BOGL_FX_STENCIL_DECR
+						glStencilOp GL_KEEP, GL_KEEP, GL_DECR
+					EndIf
+					If msh\FX And BOGL_FX_NOCULL Then glDisable GL_CULL_FACE : Else glEnable GL_CULL_FACE
+					
+					glInterleavedArrays GL_T2F_N3F_V3F, BOGL_VERT_STRIDE, msh\vp
+					glDrawElements GL_TRIANGLES, BankSize(msh\poly) / 2, GL_UNSIGNED_SHORT, msh\poly
+					
+					glPopMatrix
+				EndIf
+			Next
+			
+			glEnable GL_CULL_FACE : glCullFace GL_FRONT
+			
+			For msh = Each bOGL_Mesh	;Those meshes set to "both" run DECR on the backfaces
+				ent = msh\ent : If bOGL_EntityIsVisible_(ent) And ((msh\FX And BOGL_FX_STENCIL_BOTH) > 0)
+					glPushMatrix : bOGL_PushEntityTransform ent
+					glStencilOp GL_KEEP, GL_KEEP, GL_DECR
+					glInterleavedArrays GL_T2F_N3F_V3F, BOGL_VERT_STRIDE, msh\vp
+					glDrawElements GL_TRIANGLES, BankSize(msh\poly) / 2, GL_UNSIGNED_SHORT, msh\poly
+					glPopMatrix
+				EndIf
+			Next
+			
+			glPopMatrix		;Camera matrix
+		EndIf
+	Next
+	
+	glEnable GL_CULL_FACE : glCullFace GL_BACK
+	glStencilOp GL_KEEP, GL_KEEP, GL_KEEP	;Reset this to not be affected later
+	glFlush : glScissor 0, 0, bOGL_bbHwndW, bOGL_bbHwndH
 	Local GLError = glGetError() : If GLError <> GL_NO_ERROR Then DebugLog "OpenGL Error:  " + GLError
 End Function
 
@@ -902,7 +944,7 @@ End Function
 Const BOGL_ENTLIST_MINSIZE_ = 1024
 Dim bOGL_EntList_.bOGL_Ent(0), bOGL_EntCpList_.bOGL_Ent(0)
 Global bOGL_EntCnt_, bOGL_EntOpen_, bOGL_EntMax_, bOGL_EntLSz_
-Global bOGL_AmbientLight_
+Global bOGL_AmbientLight_, bOGL_UDScounter_
 
 Function bOGL_Init_(width, height)
 	If Not bOGL_bbHwnd Then RuntimeError "Couldn't get the handle of the window!"
@@ -911,6 +953,7 @@ Function bOGL_Init_(width, height)
 	BlitzGL_Init
 	bOGL_EntOpen_ = 1 : bOGL_EntLSz_ = BOGL_ENTLIST_MINSIZE_
 	Dim bOGL_EntList_.bOGL_Ent(bOGL_EntLSz_)
+	bOGL_UDScounter_ = 0
 	
 	Local pf.ogld_PixelFormat = ogld_MakeDefaultPixelFormat()
 	bOGL_hMainDC = ogld_SetUp_OpenGL(bOGL_bbHwnd, pf)
@@ -919,6 +962,7 @@ Function bOGL_Init_(width, height)
 	glEnable GL_TEXTURE_2D
 	glEnable GL_DEPTH_TEST
 	glEnable GL_SCISSOR_TEST
+	glEnable GL_STENCIL_TEST
 	glShadeModel GL_SMOOTH
 	glHint GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST
 	glEnable GL_CULL_FACE
@@ -1070,8 +1114,11 @@ Function bOGL_InvalidateGlobalPosition_(ent.bOGL_Ent)
 	EndIf
 End Function
 
-Function bOGL_EntityIsVisible_(ent.bOGL_Ent)
+Function bOGL_EntityIsVisible_(ent.bOGL_Ent, stencilTest = False)
 	If ent\hidden Then Return False
+	If stencilTest
+		If Not ((ent\m\FX And BOGL_FX_STENCIL_INCR) Or (ent\m\FX And BOGL_FX_STENCIL_DECR) Or (ent\m\FX And BOGL_FX_STENCIL_BOTH)) Then Return False
+	EndIf
 	While ent\parentH
 		ent = bOGL_EntList_(ent\parentH) : If ent\hidden Then Return False
 	Wend
@@ -1094,11 +1141,43 @@ Function bOGL_UpdateLight_(this.bOGL_Ent)
 	EndIf
 End Function
 
+Function bOGL_InitializeRenderCamera(cam.bOGL_Cam)	;Identical code shared by RenderWorld and RenderStencil
+	glScissor cam\vpx, cam\vpy, cam\vpw, cam\vph
+	glClearColor ((cam\clscol And $FF0000) Shr 16) / 255., ((cam\clscol And $FF00) Shr 8) / 255., (cam\clscol And $FF) / 255., 1.
+	glClear cam\clsmode
+	
+	glMatrixMode GL_PROJECTION
+	glLoadIdentity()
+	If cam\drawmode = BOGL_CAM_ORTHO
+		Local oCamY# = bOGL_bbHwndH * cam\viewangle / bOGL_bbHwndW : glOrtho -cam\viewangle, cam\viewangle, oCamY, -oCamY, cam\near, cam\far
+	Else
+		gluPerspective cam\viewangle, Float cam\vpw / cam\vph, cam\near, cam\far
+	EndIf
+	glMatrixMode GL_MODELVIEW
+	glViewport cam\vpx, cam\vpy, cam\vpw, cam\vph
+	
+	; Rotate camera
+	glPushMatrix()
+	If Not cam\ent\Gv Then bOGL_UpdateGlobalPosition_ cam\ent
+	If Not cam\ent\g_Rv Then bOGL_UpdateAxisAngle_ cam\ent\g_r, cam\ent\g_q : cam\ent\g_Rv = True
+	glRotatef cam\ent\g_r[0], cam\ent\g_r[1], cam\ent\g_r[2], cam\ent\g_r[3]
+	glTranslatef -cam\ent\g_x, -cam\ent\g_y, -cam\ent\g_z
+	glScalef cam\ent\g_sx * cam\ent\sx, cam\ent\g_sy * cam\ent\sy, cam\ent\g_sz * cam\ent\sz
+End Function
+
+Function bOGL_PushEntityTransform(ent.bOGL_Ent)		;Push a mesh's position, rotation and scale for rendering (shared)
+	If Not ent\Gv Then bOGL_UpdateGlobalPosition_ ent
+	glTranslatef ent\g_x, ent\g_y, ent\g_z
+	If Not ent\g_Rv Then bOGL_UpdateAxisAngle_ ent\g_r, ent\g_q : ent\g_Rv = True
+	glRotatef ent\g_r[0], ent\g_r[1], ent\g_r[2], ent\g_r[3]
+	glScalef ent\sx * ent\g_sx, ent\sy * ent\g_sy, ent\sz * ent\g_sz
+End Function
+
 
 ;~IDEal Editor Parameters:
-;~F#51#5A#61#66#6C#75#7C#83#8A#98#B1#B6#BB#C6#D2#DC#E1#E6#EB#F9
-;~F#FE#103#108#10D#112#13C#148#162#167#16C#170#174#179#181#18A#190#196#19E#1AC#1B4
-;~F#1BB#1C1#1C6#1CA#1CE#1D5#1D9#1EB#1EF#1F4#1F8#1FC#200#222#23D#245#250#25A#265#26D
-;~F#275#27D#286#28F#298#2BE#2D6#2DD#2E4#2EB#2F5#300#36D#371#38A#3A1#3B7#3D0#3E0#3E5
-;~F#3EA#3F5#3FE#405#40A#412#422#426#430#438
+;~F#53#5C#63#68#6E#77#7E#85#8C#9A#B3#B8#BD#C8#D4#DE#E3#E8#ED#FB
+;~F#100#105#10A#10F#114#13E#14A#164#169#16E#173#177#17C#184#18D#193#199#1A1#1AF#1B7
+;~F#1BE#1C4#1C9#1CD#1D1#1D8#1DC#1EE#1F2#1F7#1FB#1FF#209#20D#233#24F#257#262#26C#277
+;~F#27F#287#28F#298#2A1#2AA#2D0#2E8#2EF#2F6#2FD#307#312#366#397#39B#3B4#3CD#3E3#3FC
+;~F#40C#411#416#421#42A#431#436#43E#44E#452#45C#467#477#48F
 ;~C#BlitzPlus
