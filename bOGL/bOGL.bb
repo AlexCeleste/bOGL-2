@@ -794,7 +794,7 @@ Function GrabBackBuffer(x, y, width, height, pix, doConvert = True)
 	glReadBuffer GL_BACK
 	glReadPixels x, bOGL_bbHwndH - (height + y), width, height, GL_RGBA, GL_UNSIGNED_BYTE, pix
 	If doConvert
-		Local p : For p = 0 To BankSize(pix) - 4 Step 4	;Convert to RGBA format
+		Local p : For p = 0 To BankSize(pix) - 4 Step 4	;Convert to BGRA format
 			Local col = PeekInt(pix, p) : PokeInt pix, p, (col And $FF00FF00) Or ((col And $FF0000) Shr 16) Or ((col And $FF) Shl 16)
 		Next
 	EndIf
