@@ -822,7 +822,7 @@ Function RenderWorld(stencilMode = BOGL_STENCIL_OFF)
 	
 	Local cam.bOGL_Cam : For cam = Each bOGL_Cam
 		If bOGL_EntityIsVisible_(cam\ent) And (cam\drawmode = BOGL_CAM_ORTHO Or cam\drawmode = BOGL_CAM_PERSPECTIVE)
-			bOGL_InitializeRenderCamera cam		;Set up draw frustum/ortho area, camera position, rotation and scale, viewport and cls
+			bOGL_InitializeRenderCamera_ cam		;Set up draw frustum/ortho area, camera position, rotation and scale, viewport and cls
 			
 			; Fog
 			If cam\fogmode
@@ -843,12 +843,11 @@ Function RenderWorld(stencilMode = BOGL_STENCIL_OFF)
 				glDisable GL_FOG
 			EndIf
 			
-			Local msh.bOGL_Mesh, ent.bOGL_Ent : For msh = Each bOGL_Mesh
-				ent = msh\ent
-				If bOGL_EntityIsVisible_(ent) And (msh\alpha >= BOGL_LIGHT_EPSILON)
+			Local msh.bOGL_Mesh : For msh = Each bOGL_Mesh
+				If bOGL_EntityIsVisible_(msh\ent) And (msh\alpha >= BOGL_LIGHT_EPSILON)
 					Local textured = msh\texture <> Null : If textured Then glEnable GL_TEXTURE_2D : Else glDisable GL_TEXTURE_2D
 					
-					glPushMatrix : bOGL_PushEntityTransform ent	;push entity position/rotation/scale
+					glPushMatrix : bOGL_PushEntityTransform_ msh\ent	;push entity position/rotation/scale
 					
 					; Bind texture and paint the entity
 					If textured Then glBindTexture GL_TEXTURE_2D, msh\texture\glName
@@ -890,12 +889,12 @@ Function RenderStencil()
 	
 	Local cam.bOGL_Cam : For cam = Each bOGL_Cam
 		If bOGL_EntityIsVisible_(cam\ent) And (cam\drawmode = BOGL_CAM_STENCIL)
-			bOGL_InitializeRenderCamera cam		;Clear relevant buffers and push camera matrix and frustum
+			bOGL_InitializeRenderCamera_ cam		;Clear relevant buffers and push camera matrix and frustum
 			glCullFace GL_BACK
 			
-			Local msh.bOGL_Mesh, ent.bOGL_Ent : For msh = Each bOGL_Mesh
-				ent = msh\ent : If bOGL_EntityIsVisible_(ent, True); And (msh\FX And bogl_stencil
-					glPushMatrix : bOGL_PushEntityTransform ent
+			Local msh.bOGL_Mesh : For msh = Each bOGL_Mesh
+				If bOGL_EntityIsVisible_(msh\ent, True); And (msh\FX And bogl_stencil
+					glPushMatrix : bOGL_PushEntityTransform_ msh\ent
 					
 					If (msh\FX And BOGL_FX_STENCIL_INCR) Or (msh\FX And BOGL_FX_STENCIL_BOTH)	;Apply stencil functions
 						glStencilOp GL_KEEP, GL_KEEP, GL_INCR
@@ -914,8 +913,8 @@ Function RenderStencil()
 			glEnable GL_CULL_FACE : glCullFace GL_FRONT
 			
 			For msh = Each bOGL_Mesh	;Those meshes set to "both" run DECR on the backfaces
-				ent = msh\ent : If bOGL_EntityIsVisible_(ent) And ((msh\FX And BOGL_FX_STENCIL_BOTH) > 0)
-					glPushMatrix : bOGL_PushEntityTransform ent
+				If bOGL_EntityIsVisible_(msh\ent) And ((msh\FX And BOGL_FX_STENCIL_BOTH) > 0)
+					glPushMatrix : bOGL_PushEntityTransform_ msh\ent
 					glStencilOp GL_KEEP, GL_KEEP, GL_DECR
 					glInterleavedArrays GL_T2F_N3F_V3F, BOGL_VERT_STRIDE, msh\vp
 					glDrawElements GL_TRIANGLES, BankSize(msh\poly) / 2, GL_UNSIGNED_SHORT, msh\poly
@@ -1116,10 +1115,6 @@ Function bOGL_UpdateGlobalPosition_(ent.bOGL_Ent)
 	ent\Gv = True
 End Function
 
-Function bOGL_UpdateLocalPosition(ent.bOGL_Ent)
-	Local pos#[2] : TFormPoint ent\g_x, ent\g_y, ent\g_z, 0, ent\parentH, pos
-End Function
-
 Function bOGL_InvalidateGlobalPosition_(ent.bOGL_Ent)
 	If ent\Gv
 		ent\Gv = False : If ent\children
@@ -1157,7 +1152,7 @@ Function bOGL_UpdateLight_(this.bOGL_Ent)
 	EndIf
 End Function
 
-Function bOGL_InitializeRenderCamera(cam.bOGL_Cam)	;Identical code shared by RenderWorld and RenderStencil
+Function bOGL_InitializeRenderCamera_(cam.bOGL_Cam)	;Identical code shared by RenderWorld and RenderStencil
 	glScissor cam\vpx, cam\vpy, cam\vpw, cam\vph
 	glClearColor ((cam\clscol And $FF0000) Shr 16) / 255., ((cam\clscol And $FF00) Shr 8) / 255., (cam\clscol And $FF) / 255., 1.
 	glClear cam\clsmode
@@ -1181,7 +1176,7 @@ Function bOGL_InitializeRenderCamera(cam.bOGL_Cam)	;Identical code shared by Ren
 	glScalef cam\ent\g_sx * cam\ent\sx, cam\ent\g_sy * cam\ent\sy, cam\ent\g_sz * cam\ent\sz
 End Function
 
-Function bOGL_PushEntityTransform(ent.bOGL_Ent)		;Push a mesh's position, rotation and scale for rendering (shared)
+Function bOGL_PushEntityTransform_(ent.bOGL_Ent)		;Push a mesh's position, rotation and scale for rendering (shared)
 	If Not ent\Gv Then bOGL_UpdateGlobalPosition_ ent
 	glTranslatef ent\g_x, ent\g_y, ent\g_z
 	If Not ent\g_Rv Then bOGL_UpdateAxisAngle_ ent\g_r, ent\g_q : ent\g_Rv = True
@@ -1194,6 +1189,6 @@ End Function
 ;~F#54#5D#64#69#6F#78#7F#86#8D#9B#B4#B9#BE#C9#D5#DF#E4#E9#EE#FC
 ;~F#101#106#10B#110#115#13F#14B#165#16A#16F#174#178#17D#185#18E#194#19A#1A2#1B0#1B8
 ;~F#1BF#1C5#1CA#1CE#1D2#1D9#1DD#1EF#1F3#1F8#1FC#200#20A#20E#234#250#258#263#26D#278
-;~F#280#288#290#299#2A2#2AB#2D1#2E9#2F0#2F7#2FE#308#318#322#376#3A7#3AB#3C4#3DD#3F3
-;~F#40C#41C#421#426#431#43A#441#446#44E#45E#462#46C#477#487#49F
+;~F#280#288#290#299#2A2#2AB#2D1#2E9#2F0#2F7#2FE#308#318#322#375#3A6#3AA#3C3#3DC#3F2
+;~F#40B#41B#420#425#430#439#440#445#44D#45D#467#472#482#49A
 ;~C#BlitzPlus
