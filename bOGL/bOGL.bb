@@ -38,7 +38,8 @@
 ; EntityTexture(handler, texture)
 ; ShowEntity(handler, state)
 ; EntityParent(handler, parentH), GetParentEntity(handler)
-; CountChildren(handler), GetChildEntity(handler, index)
+; CountChildren(handler), GetChildEntity(handler, index), GetChildByName(handler, name$)
+; SetEntityName(handler, name$), GetEntityName$(handler)
 ; RegisterEntityUserDataSlot(), SetEntityUserData(handler, slot, val), GetEntityUserData(handler, slot)
 ; CopyEntity(handler)
 ; FreeEntity(handler)
@@ -84,7 +85,7 @@ Const BOGL_EPSILON# = 0.001, BOGL_LIGHT_EPSILON# = 1.0 / 255.0
 
 Type bOGL_Ent
 	Field handler, parentH
-	Field hidden, userData
+	Field hidden, userData, name$
 	Field x#, y#, z#, sx#, sy#, sz#, r#[3], q#[3], Rv, Qv
 	Field g_x#, g_y#, g_z#, g_sx#, g_sy#, g_sz#, g_r#[3], g_q#[3], g_Rv, g_Qv, Gv
 	Field eClass, c.bOGL_Cam, l.bOGL_Light, m.bOGL_Mesh
@@ -518,6 +519,25 @@ End Function
 
 Function GetChildEntity(handler, index)
 	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return PeekInt(this\children, index * 4)
+End Function
+
+Function GetChildByName(handler, name$)
+	Local this.bOGL_Ent = bOGL_EntList_(handler), c, ch
+	If this\children
+		For c = 0 To BankSize(this\children) - 4 Step 4
+			ch = PeekInt(this\children, c) : If GetEntityName(ch) = name Then Return ch
+			ch = GetChildByName(ch, name) : If ch Then Return ch
+		Next
+	EndIf
+	Return 0
+End Function
+
+Function SetEntityName(handler, name$)
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : this\name = name
+End Function
+
+Function GetEntityName$(handler)
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return this\name
 End Function
 
 Function RegisterEntityUserDataSlot()
@@ -1250,9 +1270,10 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#54#5D#64#69#6F#74#7C#83#87#8E#92#99#A7#C0#C5#CA#D5#E1#EB#F0
-;~F#F5#FA#108#10D#112#117#11C#121#14B#157#171#176#17B#180#184#189#191#19A#1A0#1A6
-;~F#1AE#1BC#1C4#1CB#1D1#1D6#1DA#1DE#1E5#1EB#1FD#201#206#20A#20E#218#21C#242#25F#267
-;~F#272#27C#287#28F#297#29F#2A8#2B1#2BA#2E0#2F8#2FF#306#30D#317#327#331#387#3BC#3C0
-;~F#3D9#3F6#404#41A#433#443#448#44D#458#461#468#46D#475#485#48F#4AA#4B2#4C2#4DA
+;~F#55#5E#65#6A#70#75#7D#84#88#8F#93#9A#A8#C1#C6#CB#D6#E2#EC#F1
+;~F#F6#FB#109#10E#113#118#11D#122#14C#158#172#177#17C#181#185#18A#192#19B#1A1#1A7
+;~F#1AF#1BD#1C5#1CC#1D2#1D7#1DB#1DF#1E6#1EC#1FE#202#207#20B#216#21A#21E#222#22C#230
+;~F#256#273#27B#286#290#29B#2A3#2AB#2B3#2BC#2C5#2CE#2F4#30C#313#31A#321#32B#33B#345
+;~F#39B#3D0#3D4#3ED#40A#418#42E#447#457#45C#461#46C#475#47C#481#489#499#4A3#4BE#4C6
+;~F#4D6#4EE
 ;~C#BlitzPlus
