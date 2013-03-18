@@ -71,6 +71,8 @@ While Not KeyHit(1)
 	Delay rTime - (MilliSecs() - cTime) - 1
 ;	DebugLog MilliSecs() - cTime
 Wend
+
+EndGraphics3D
 End
 
 

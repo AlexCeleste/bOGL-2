@@ -5,8 +5,8 @@
 
 ; Command reference:
 
-; Graphics3D(title$, width, height, depth, mode)
-; CreateCanvas3D(x, y, width,height, group)
+; Graphics3D(title$, width, height, depth, mode), EndGraphics3D()
+; CreateCanvas3D(x, y, width,height, group), FreeCanvas3D(canvas)
 ; AmbientLight(red, green, blue)
 ; CreateCamera([parent])
 ; CameraRange(handler, near#, far#)
@@ -129,11 +129,19 @@ Function Graphics3D(title$, width, height, depth, mode)
 	Dim bOGL_EntList_.bOGL_Ent(0) : bOGL_Init_ width, height
 End Function
 
+Function EndGraphics3D()
+	bOGL_ClearAll_ : EndGraphics
+End Function
+
 Function CreateCanvas3D(x, y, width, height, group)
 	Local canvas = CreateCanvas(x, y, width, height, group)
 	bOGL_bbHwnd = QueryObject(canvas, 1)
 	bOGL_Init_ width, height
 	Return canvas
+End Function
+
+Function FreeCanvas3D(canvas)
+	bOGL_ClearAll_ : FreeGadget canvas
 End Function
 
 Function AmbientLight(red, green, blue)
@@ -981,7 +989,7 @@ Function bOGL_Init_(width, height)
 	
 	BlitzGL_Init
 	bOGL_EntOpen_ = 1 : bOGL_EntLSz_ = BOGL_ENTLIST_MINSIZE_
-	Dim bOGL_EntList_.bOGL_Ent(bOGL_EntLSz_)
+	Dim bOGL_EntList_.bOGL_Ent(bOGL_EntLSz_), bOGL_EntCpList_.bOGL_Ent(0)
 	bOGL_UDScounter_ = 0 : bOGL_VisCount_ = BOGL_VISCHUNK
 	Local i : For i = 1 To BOGL_VISCHUNK
 		Local v_.bOGL_Visible = New bOGL_Visible
@@ -989,6 +997,7 @@ Function bOGL_Init_(width, height)
 	
 	Local pf.ogld_PixelFormat = ogld_MakeDefaultPixelFormat()
 	bOGL_hMainDC = ogld_SetUp_OpenGL(bOGL_bbHwnd, pf)
+	Delete pf
 	If Not bOGL_hMainDC Then RuntimeError "Could not initialize OpenGl!"
 	
 	glEnable GL_TEXTURE_2D
@@ -1001,6 +1010,20 @@ Function bOGL_Init_(width, height)
 	glCullFace GL_BACK
 	glColorMaterial GL_FRONT, GL_AMBIENT_AND_DIFFUSE	;So lights don't erase colours
 	glEnable GL_COLOR_MATERIAL
+End Function
+
+Function bOGL_ClearAll_()
+	Delete Each bOGL_Visible
+	Local e.bOGL_Ent : For e = Each bOGL_Ent
+		FreeEntity e\handler
+	Next
+	Dim bOGL_EntList_(0) : bOGL_EntLSz_ = 0
+	Local t.bOGL_Tex : For t = Each bOGL_Tex
+		FreeTexture Handle t
+	Next
+	
+	wglDeleteContext wglGetCurrentContext()
+	ReleaseDC bOGL_bbHwnd, bOGL_hMainDC : bOGL_hMainDC = 0
 End Function
 
 Function bOGL_EntHandler_(this.bOGL_Ent)
@@ -1227,9 +1250,9 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#54#5D#64#69#6F#74#7C#83#8A#91#9F#B8#BD#C2#CD#D9#E3#E8#ED#F2
-;~F#100#105#10A#10F#114#119#143#14F#169#16E#173#178#17C#181#189#192#198#19E#1A6#1B4
-;~F#1BC#1C3#1C9#1CE#1D2#1D6#1DD#1E3#1F5#1F9#1FE#202#206#210#214#23A#257#25F#26A#274
-;~F#27F#287#28F#297#2A0#2A9#2B2#2D8#2F0#2F7#2FE#305#30F#31F#329#37F#3B4#3B8#3D1#3ED
-;~F#403#41C#42C#431#436#441#44A#451#456#45E#46E#478#493#49B#4AB#4C3
+;~F#54#5D#64#69#6F#74#7C#83#87#8E#92#99#A7#C0#C5#CA#D5#E1#EB#F0
+;~F#F5#FA#108#10D#112#117#11C#121#14B#157#171#176#17B#180#184#189#191#19A#1A0#1A6
+;~F#1AE#1BC#1C4#1CB#1D1#1D6#1DA#1DE#1E5#1EB#1FD#201#206#20A#20E#218#21C#242#25F#267
+;~F#272#27C#287#28F#297#29F#2A8#2B1#2BA#2E0#2F8#2FF#306#30D#317#327#331#387#3BC#3C0
+;~F#3D9#3F6#404#41A#433#443#448#44D#458#461#468#46D#475#485#48F#4AA#4B2#4C2#4DA
 ;~C#BlitzPlus

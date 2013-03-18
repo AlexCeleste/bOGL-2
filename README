@@ -28,8 +28,8 @@ OGL Direct by Peter Scheutz
  Command reference
 -------------------
 
-Graphics3D(title$, width, height, depth, mode)
-CreateCanvas3D(x, y, width,height, group)
+Graphics3D(title$, width, height, depth, mode), EndGraphics3D()
+CreateCanvas3D(x, y, width,height, group), FreeCanvas3D(canvas)
 AmbientLight(red, green, blue)
 CreateCamera([parent])
 CameraRange(handler, near#, far#)

@@ -46,7 +46,7 @@ Global BlitzGL_DblBank
 
 
 Function BlitzGL_Init()
-	BlitzGL_DblBank = CreateBank(8)
+	If Not BlitzGL_DblBank Then BlitzGL_DblBank = CreateBank(8)
 End Function
 
 
