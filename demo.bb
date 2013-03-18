@@ -40,6 +40,8 @@ Local sCube = CreateCube()
 RotateEntity sCube, 0, 0, 45
 PositionEntity sCube, 0, 0, -7
 EntityFX sCube, BOGL_FX_STENCIL_INCR
+EntityAlpha sCube, 0	;This will hide it from the world render, but stencilling will still work
+
 
 Local sCamera = CreateCamera(camera)
 CameraDrawMode sCamera, BOGL_CAM_STENCIL
@@ -58,20 +60,19 @@ While Not KeyHit(1)
 	ScaleEntity cube, scl, scl, scl
 	
 	; Render stencil buffer
-;	ShowEntity sCube, True
-;	RenderStencil
-	ShowEntity sCube, False
+	RenderStencil
 	
-	; Render world
+	; Render world (try BOGL_STENCIL_TRUE and BOGL_STENCIL_FALSE too)
 	RenderWorld BOGL_STENCIL_OFF
 	
-	; Swap the buffer the front buffer
+	; Swap the back buffer with the front buffer
 	SwapBuffers(bOGL_hMainDC)
 	
 	Delay rTime - (MilliSecs() - cTime) - 1
 ;	DebugLog MilliSecs() - cTime
 Wend
 End
+
 
 ;~IDEal Editor Parameters:
 ;~C#BlitzPlus

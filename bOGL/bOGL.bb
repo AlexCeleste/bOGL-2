@@ -114,6 +114,10 @@ Type bOGL_Tex
 	Field rc, asVar
 End Type
 
+Type bOGL_Visible
+	Field msh.bOGL_Mesh
+End Type
+
 
 ; Interface functions
 ;=====================
@@ -192,10 +196,10 @@ Function CreateMesh(parentH = 0)
 	Local this.bOGL_Mesh = New bOGL_Mesh, ent.bOGL_Ent = bOGL_NewEnt_(BOGL_CLASS_MESH, Handle this, parentH)
 	this\ent = ent
 	this\argb = BOGL_DEFAULT_COLOR : this\alpha = 1.0
-	
 	this\vp = CreateBank(0)
 	this\poly = CreateBank(0)
 	
+	bOGL_VisChanged_ = True
 	Return ent\handler
 End Function
 
@@ -472,7 +476,9 @@ Function EntityTexture(handler, texture)
 End Function
 
 Function ShowEntity(handler, state)
-	Local this.bOGL_Ent = bOGL_EntList_(handler) : this\hidden = (Not state)
+	Local this.bOGL_Ent = bOGL_EntList_(handler)
+	If this\eClass = BOGL_CLASS_MESH Then bOGL_VisChanged_ = bOGL_VisChanged_ Or this\hidden <> (Not state)
+	this\hidden = (Not state)
 End Function
 
 Function EntityParent(handler, parentH)
@@ -579,6 +585,7 @@ Function FreeEntity(handler)
 			If this\m\vc Then FreeBank this\m\vc
 			If this\m\poly Then FreeBank this\m\poly
 			Delete this\m
+			bOGL_VisChanged_ = bOGL_VisChanged_ Or (this\hidden = False)
 	End Select
 	If this\children
 		Local c : For c = 0 To BankSize(this\children) - 4 Step 4
@@ -820,6 +827,8 @@ Function RenderWorld(stencilMode = BOGL_STENCIL_OFF)
 		EndIf
 	Next
 	
+	If bOGL_VisChanged_ Then bOGL_UpdateVisibles_
+	
 	Local cam.bOGL_Cam : For cam = Each bOGL_Cam
 		If bOGL_EntityIsVisible_(cam\ent) And (cam\drawmode = BOGL_CAM_ORTHO Or cam\drawmode = BOGL_CAM_PERSPECTIVE)
 			bOGL_InitializeRenderCamera_ cam		;Set up draw frustum/ortho area, camera position, rotation and scale, viewport and cls
@@ -843,8 +852,9 @@ Function RenderWorld(stencilMode = BOGL_STENCIL_OFF)
 				glDisable GL_FOG
 			EndIf
 			
-			Local msh.bOGL_Mesh : For msh = Each bOGL_Mesh
-				If bOGL_EntityIsVisible_(msh\ent) And (msh\alpha >= BOGL_LIGHT_EPSILON)
+			Local vis.bOGL_Visible : For vis = Each bOGL_Visible
+				Local msh.bOGL_Mesh = vis\msh : If msh = Null Then Exit
+				If msh\alpha >= BOGL_LIGHT_EPSILON
 					Local textured = msh\texture <> Null : If textured Then glEnable GL_TEXTURE_2D : Else glDisable GL_TEXTURE_2D
 					
 					glPushMatrix : bOGL_PushEntityTransform_ msh\ent	;push entity position/rotation/scale
@@ -887,13 +897,16 @@ Function RenderStencil()
 	glStencilMask $FF : glColorMask_Unsafe 0, 0, 0, 0	;Enable stencil writes, disable rendering
 	glStencilFunc GL_ALWAYS, 1, $FF
 	
+	If bOGL_VisChanged_ Then bOGL_UpdateVisibles_
+	
 	Local cam.bOGL_Cam : For cam = Each bOGL_Cam
 		If bOGL_EntityIsVisible_(cam\ent) And (cam\drawmode = BOGL_CAM_STENCIL)
 			bOGL_InitializeRenderCamera_ cam		;Clear relevant buffers and push camera matrix and frustum
 			glCullFace GL_BACK
 			
-			Local msh.bOGL_Mesh : For msh = Each bOGL_Mesh
-				If bOGL_EntityIsVisible_(msh\ent, True); And (msh\FX And bogl_stencil
+			Local vis.bOGL_Visible : For vis = Each bOGL_Visible
+				Local msh.bOGL_Mesh = vis\msh : If msh = Null Then Exit
+				If ((msh\FX And BOGL_FX_STENCIL_INCR) Or (msh\FX And BOGL_FX_STENCIL_DECR) Or (msh\FX And BOGL_FX_STENCIL_BOTH))
 					glPushMatrix : bOGL_PushEntityTransform_ msh\ent
 					
 					If (msh\FX And BOGL_FX_STENCIL_INCR) Or (msh\FX And BOGL_FX_STENCIL_BOTH)	;Apply stencil functions
@@ -912,8 +925,9 @@ Function RenderStencil()
 			
 			glEnable GL_CULL_FACE : glCullFace GL_FRONT
 			
-			For msh = Each bOGL_Mesh	;Those meshes set to "both" run DECR on the backfaces
-				If bOGL_EntityIsVisible_(msh\ent) And ((msh\FX And BOGL_FX_STENCIL_BOTH) > 0)
+			For vis = Each bOGL_Visible	;Those meshes set to "both" run DECR on the backfaces
+				msh = vis\msh : If msh = Null Then Exit
+				If (msh\FX And BOGL_FX_STENCIL_BOTH) <> 0
 					glPushMatrix : bOGL_PushEntityTransform_ msh\ent
 					glStencilOp GL_KEEP, GL_KEEP, GL_DECR
 					glInterleavedArrays GL_T2F_N3F_V3F, BOGL_VERT_STRIDE, msh\vp
@@ -956,10 +970,10 @@ End Function
 ;=====================================================
 
 ; Use an array to map integer handles to objects extremely quickly
-Const BOGL_ENTLIST_MINSIZE_ = 1024
+Const BOGL_ENTLIST_MINSIZE_ = 1024, BOGL_VISCHUNK = 100
 Dim bOGL_EntList_.bOGL_Ent(0), bOGL_EntCpList_.bOGL_Ent(0)
 Global bOGL_EntCnt_, bOGL_EntOpen_, bOGL_EntMax_, bOGL_EntLSz_
-Global bOGL_AmbientLight_, bOGL_UDScounter_
+Global bOGL_AmbientLight_, bOGL_UDScounter_, bOGL_VisChanged_, bOGL_VisCount_
 
 Function bOGL_Init_(width, height)
 	If Not bOGL_bbHwnd Then RuntimeError "Couldn't get the handle of the window!"
@@ -968,7 +982,10 @@ Function bOGL_Init_(width, height)
 	BlitzGL_Init
 	bOGL_EntOpen_ = 1 : bOGL_EntLSz_ = BOGL_ENTLIST_MINSIZE_
 	Dim bOGL_EntList_.bOGL_Ent(bOGL_EntLSz_)
-	bOGL_UDScounter_ = 0
+	bOGL_UDScounter_ = 0 : bOGL_VisCount_ = BOGL_VISCHUNK
+	Local i : For i = 1 To BOGL_VISCHUNK
+		Local v_.bOGL_Visible = New bOGL_Visible
+	Next
 	
 	Local pf.ogld_PixelFormat = ogld_MakeDefaultPixelFormat()
 	bOGL_hMainDC = ogld_SetUp_OpenGL(bOGL_bbHwnd, pf)
@@ -1125,11 +1142,35 @@ Function bOGL_InvalidateGlobalPosition_(ent.bOGL_Ent)
 	EndIf
 End Function
 
-Function bOGL_EntityIsVisible_(ent.bOGL_Ent, stencilTest = False)
+Function bOGL_UpdateVisibles_()		;When a mesh is hidden, shown, created or freed, update the visibles list
+	Local v.bOGL_Visible, c, m.bOGL_Mesh, i
+	For v = Each bOGL_Visible
+		v\msh = Null
+	Next
+	v = First bOGL_Visible
+	For m = Each bOGL_Mesh
+		If bOGL_EntityIsVisible_(m\ent)
+			c = c + 1
+			If c >= bOGL_VisCount_
+				For i = 1 To BOGL_VISCHUNK
+					Local v_.bOGL_Visible = New bOGL_Visible
+				Next
+				bOGL_VisCount_ = bOGL_VisCount_ + BOGL_VISCHUNK
+			EndIf
+			v\msh = m : v = After v
+		EndIf
+	Next
+	While bOGL_VisCount_ > c + (BOGL_VISCHUNK * 2)
+		For i = 1 To BOGL_VISCHUNK
+			Delete Last bOGL_Visible
+		Next
+		bOGL_VisCount_ = bOGL_VisCount_ - BOGL_VISCHUNK
+	Wend
+	bOGL_VisChanged_ = False
+End Function
+
+Function bOGL_EntityIsVisible_(ent.bOGL_Ent)
 	If ent\hidden Then Return False
-	If stencilTest
-		If Not ((ent\m\FX And BOGL_FX_STENCIL_INCR) Or (ent\m\FX And BOGL_FX_STENCIL_DECR) Or (ent\m\FX And BOGL_FX_STENCIL_BOTH)) Then Return False
-	EndIf
 	While ent\parentH
 		ent = bOGL_EntList_(ent\parentH) : If ent\hidden Then Return False
 	Wend
@@ -1186,9 +1227,9 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#54#5D#64#69#6F#78#7F#86#8D#9B#B4#B9#BE#C9#D5#DF#E4#E9#EE#FC
-;~F#101#106#10B#110#115#13F#14B#165#16A#16F#174#178#17D#185#18E#194#19A#1A2#1B0#1B8
-;~F#1BF#1C5#1CA#1CE#1D2#1D9#1DD#1EF#1F3#1F8#1FC#200#20A#20E#234#250#258#263#26D#278
-;~F#280#288#290#299#2A2#2AB#2D1#2E9#2F0#2F7#2FE#308#318#322#375#3A6#3AA#3C3#3DC#3F2
-;~F#40B#41B#420#425#430#439#440#445#44D#45D#467#472#482#49A
+;~F#54#5D#64#69#6F#74#7C#83#8A#91#9F#B8#BD#C2#CD#D9#E3#E8#ED#F2
+;~F#100#105#10A#10F#114#119#143#14F#169#16E#173#178#17C#181#189#192#198#19E#1A6#1B4
+;~F#1BC#1C3#1C9#1CE#1D2#1D6#1DD#1E3#1F5#1F9#1FE#202#206#210#214#23A#257#25F#26A#274
+;~F#27F#287#28F#297#2A0#2A9#2B2#2D8#2F0#2F7#2FE#305#30F#31F#329#37F#3B4#3B8#3D1#3ED
+;~F#403#41C#42C#431#436#441#44A#451#456#45E#46E#478#493#49B#4AB#4C3
 ;~C#BlitzPlus
