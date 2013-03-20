@@ -21,6 +21,7 @@
 ; CreatePivot([parent])
 ; CreateMesh([parent])
 ; AddVertex(mesh, x#, y#, z#[, u#, v#]), AddTriangle(mesh, v0, v1, v2)
+; CountTriangles(mesh), CountVertices(mesh), TriangleVertex(mesh, tri, vert)
 ; VertexCoords(mesh, v, x#, y#, z#), VextexTexCoords(mesh, v, u#, v#)
 ; VertexNormal(mesh, v, nx#, ny#, nz#), VertexColor(mesh, v, r#, g#, b#)
 ; VertexX#(mesh, v), VertexY#(mesh, v), VertexZ#(mesh, v), VertexU#(mesh, v), VertexV#(mesh, v)
@@ -70,6 +71,7 @@ Include "bOGL\blitz_gl.bb"
 Global bOGL_hMainDC					; Render window's device context
 Global bOGL_bbHwnd					; Window's handle.
 Global bOGL_bbHwndW, bOGL_bbHwndH	; Window's size.
+
 
 Const BOGL_CLASS_MESH = 1, BOGL_CLASS_PIV = 2, BOGL_CLASS_CAM = 3, BOGL_CLASS_LIGHT = 4
 Const BOGL_LIGHT_PT = 1, BOGL_LIGHT_DIR = 2, BOGL_LIGHT_AMB = 3
@@ -232,6 +234,18 @@ Function AddTriangle(handler, v0, v1, v2)
 	PokeShort m\poly, idx + 2, v1
 	PokeShort m\poly, idx + 4, v2
 	Return idx / BOGL_TRIS_STRIDE
+End Function
+
+Function CountTriangles(handler)
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return BankSize(this\m\poly / BOGL_TRIS_STRIDE)
+End Function
+
+Function CountVertices(handler)
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return BankSize(this\m\vp / BOGL_VERT_STRIDE)
+End Function
+
+Function TriangleVertex(handler, t, v)
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return PeekInt(this\m\poly, t * BOGL_TRIS_STRIDE + v * 2)
 End Function
 
 Function VertexCoords(handler, v, x#, y#, z#)
@@ -900,8 +914,7 @@ Function RenderWorld(stencilMode = BOGL_STENCIL_OFF)
 					ElseIf msh\FX And BOGL_FX_MULBLEND
 						glBlendFunc GL_DST_COLOR, GL_ZERO : glEnable GL_BLEND
 					Else
-						glBlendFunc GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA
-						If msh\alpha < 1 Then glEnable GL_BLEND : Else glDisable GL_BLEND
+						If msh\alpha < 1 Then glEnable GL_BLEND : glBlendFunc GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA : Else glDisable GL_BLEND
 					EndIf
 					If msh\FX And BOGL_FX_NOCULL Then glDisable GL_CULL_FACE : Else glEnable GL_CULL_FACE
 					
@@ -1270,10 +1283,10 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#55#5E#65#6A#70#75#7D#84#88#8F#93#9A#A8#C1#C6#CB#D6#E2#EC#F1
-;~F#F6#FB#109#10E#113#118#11D#122#14C#158#172#177#17C#181#185#18A#192#19B#1A1#1A7
-;~F#1AF#1BD#1C5#1CC#1D2#1D7#1DB#1DF#1E6#1EC#1FE#202#207#20B#216#21A#21E#222#22C#230
-;~F#256#273#27B#286#290#29B#2A3#2AB#2B3#2BC#2C5#2CE#2F4#30C#313#31A#321#32B#33B#345
-;~F#39B#3D0#3D4#3ED#40A#418#42E#447#457#45C#461#46C#475#47C#481#489#499#4A3#4BE#4C6
-;~F#4D6#4EE
+;~F#57#60#67#6C#72#77#7F#86#8A#91#95#9C#AA#C3#C8#CD#D8#E4#EE#F2
+;~F#F6#FA#FF#104#109#117#11C#121#126#12B#130#15A#166#180#185#18A#18F#193#198#1A0
+;~F#1A9#1AF#1B5#1BD#1CB#1D3#1DA#1E0#1E5#1E9#1ED#1F4#1FA#20C#210#215#219#224#228#22C
+;~F#230#23A#23E#264#281#289#294#29E#2A9#2B1#2B9#2C1#2CA#2D3#2DC#302#31A#321#328#32F
+;~F#339#349#353#3A8#3DD#3E1#3FA#417#425#43B#454#464#469#46E#479#482#489#48E#496#4A6
+;~F#4B0#4CB#4D3#4E3#4FB
 ;~C#BlitzPlus
