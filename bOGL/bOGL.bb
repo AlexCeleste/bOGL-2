@@ -750,11 +750,11 @@ Function CreateTexture(width, height, filter = 1)
 	glBindTexture GL_TEXTURE_2D, this\glName
 	
 	Select filter
-		Case 0	; Nearest Filtered Texture
+		Case False	; Nearest Filtered Texture
 			glTexParameteri GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST
 			glTexParameteri GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST
 			glTexImage2D GL_TEXTURE_2D, 0, 3, this\width, this\height, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels
-		Case 1	; Linear Filtered Texture
+		Case True	; Linear Filtered Texture
 			glTexParameteri GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR
 			glTexParameteri GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR
 			glTexImage2D GL_TEXTURE_2D, 0, 3, this\width, this\height, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels
@@ -813,13 +813,15 @@ Function TextureHeight(handler)
 	EndIf
 End Function
 
-Function GetTextureData(handler)
+Function GetTextureData(handler, doConvert = True)
 	Local this.bOGL_Tex = Object.bOGL_Tex handler, pixels = CreateBank(this\width * this\height * 4)
 	glBindTexture GL_TEXTURE_2D, this\glName
 	glGetTexImage GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels
-	Local p : For p = 0 To BankSize(pixels) - 4 Step 4	;Convert to BGRA format
-		Local col = PeekInt(pixels, p) : PokeInt pixels, p, (col And $FF00FF00) Or ((col And $FF0000) Shr 16) Or ((col And $FF) Shl 16)
-	Next
+	If doConvert
+		Local p : For p = 0 To BankSize(pixels) - 4 Step 4	;Convert to BGRA format
+			Local col = PeekInt(pixels, p) : PokeInt pixels, p, (col And $FF00FF00) Or ((col And $FF0000) Shr 16) Or ((col And $FF) Shl 16)
+		Next
+	EndIf
 	Return pixels
 End Function
 
@@ -836,6 +838,9 @@ Function UpdateTexture(handler, x, y, width, height, pixels, doConvert = True)
 	EndIf
 	glBindTexture GL_TEXTURE_2D, this\glName
 	glTexSubImage2D GL_TEXTURE_2D, 0, x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, temp
+	If this\filter <> False And this\filter <> True		;Regenerate mipmaps
+		gluBuild2DMipmaps GL_TEXTURE_2D, 4, this\width, this\height, GL_RGBA, GL_UNSIGNED_BYTE, pixels
+	EndIf
 	If doConvert Then FreeBank temp
 End Function
 
@@ -1287,6 +1292,6 @@ End Function
 ;~F#F6#FA#FF#104#109#117#11C#121#126#12B#130#15A#166#180#185#18A#18F#193#198#1A0
 ;~F#1A9#1AF#1B5#1BD#1CB#1D3#1DA#1E0#1E5#1E9#1ED#1F4#1FA#20C#210#215#219#224#228#22C
 ;~F#230#23A#23E#264#281#289#294#29E#2A9#2B1#2B9#2C1#2CA#2D3#2DC#302#31A#321#328#32F
-;~F#339#349#353#3A8#3DD#3E1#3FA#417#425#43B#454#464#469#46E#479#482#489#48E#496#4A6
-;~F#4B0#4CB#4D3#4E3#4FB
+;~F#33B#34E#358#3AD#3E2#3E6#3FF#41C#42A#440#459#469#46E#473#47E#487#48E#493#49B#4AB
+;~F#4B5#4D0#4D8#4E8#500
 ;~C#BlitzPlus
