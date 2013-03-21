@@ -736,13 +736,12 @@ Function CreateTexture(width, height, filter = 1)
 	this\rc = 1 : this\asVar = True
 	If filter <> 0 And filter <> 1 Then this\filter = 2 : Else this\filter = filter
 	
-	Local pixels = CreateBank(this\width * this\height * 3)
+	Local pixels = CreateBank(this\width * this\height * 4)
 	Local y : For y = 0 To this\height - 1
-		Local offset = BankSize(pixels) - (y + 1) * this\width * 3
+		Local offset = BankSize(pixels) - (y + 1) * this\width * 4
 		Local x : For x = 0 To this\width - 1
-			PokeShort pixels, offset, $FFFF
-			PokeByte pixels, offset + 2, $FF
-			offset = offset + 3
+			PokeInt pixels, offset, $FFFFFFFF
+			offset = offset + 4
 		Next
 	Next
 	
@@ -753,15 +752,15 @@ Function CreateTexture(width, height, filter = 1)
 		Case False	; Nearest Filtered Texture
 			glTexParameteri GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST
 			glTexParameteri GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST
-			glTexImage2D GL_TEXTURE_2D, 0, 3, this\width, this\height, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels
+			glTexImage2D GL_TEXTURE_2D, 0, GL_RGBA, this\width, this\height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels
 		Case True	; Linear Filtered Texture
 			glTexParameteri GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR
 			glTexParameteri GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR
-			glTexImage2D GL_TEXTURE_2D, 0, 3, this\width, this\height, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels
+			glTexImage2D GL_TEXTURE_2D, 0, GL_RGBA, this\width, this\height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels
 		Default	; MipMapped Texture
 			glTexParameteri GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR
 			glTexParameteri GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST
-			gluBuild2DMipmaps GL_TEXTURE_2D, 3, this\width, this\height, GL_RGB, GL_UNSIGNED_BYTE, pixels
+			gluBuild2DMipmaps GL_TEXTURE_2D, 4, this\width, this\height, GL_RGBA, GL_UNSIGNED_BYTE, pixels
 	End Select
 	
 	FreeBank pixels
@@ -936,7 +935,7 @@ Function RenderWorld(stencilMode = BOGL_STENCIL_OFF)
 	Next
 	
 	glFlush : glScissor 0, 0, bOGL_bbHwndW, bOGL_bbHwndH
-	Local GLError = glGetError() : If GLError <> GL_NO_ERROR Then DebugLog "OpenGL Error:  " + GLError
+;	Local GLError = glGetError() : If GLError <> GL_NO_ERROR Then DebugLog "OpenGL Error:  " + GLError
 End Function
 
 Function RenderStencil()
@@ -989,7 +988,7 @@ Function RenderStencil()
 	glEnable GL_CULL_FACE : glCullFace GL_BACK
 	glStencilOp GL_KEEP, GL_KEEP, GL_KEEP	;Reset this to not be affected later
 	glFlush : glScissor 0, 0, bOGL_bbHwndW, bOGL_bbHwndH
-	Local GLError = glGetError() : If GLError <> GL_NO_ERROR Then DebugLog "OpenGL Error:  " + GLError
+;	Local GLError = glGetError() : If GLError <> GL_NO_ERROR Then DebugLog "OpenGL Error:  " + GLError
 End Function
 
 Function Distance#(x1#, y1#, z1#, x2#, y2#, z2#)
@@ -1291,7 +1290,7 @@ End Function
 ;~F#57#60#67#6C#72#77#7F#86#8A#91#95#9C#AA#C3#C8#CD#D8#E4#EE#F2
 ;~F#F6#FA#FF#104#109#117#11C#121#126#12B#130#15A#166#180#185#18A#18F#193#198#1A0
 ;~F#1A9#1AF#1B5#1BD#1CB#1D3#1DA#1E0#1E5#1E9#1ED#1F4#1FA#20C#210#215#219#224#228#22C
-;~F#230#23A#23E#264#281#289#294#29E#2A9#2B1#2B9#2C1#2CA#2D3#2DC#302#31A#321#328#32F
-;~F#33B#34E#358#3AD#3E2#3E6#3FF#41C#42A#440#459#469#46E#473#47E#487#48E#493#49B#4AB
-;~F#4B5#4D0#4D8#4E8#500
+;~F#230#23A#23E#264#281#289#294#29E#2A9#2B1#2B9#2C1#2CA#2D3#2DC#301#319#320#327#32E
+;~F#33A#34D#357#3AC#3E1#3E5#3FE#41B#429#43F#458#468#46D#472#47D#486#48D#492#49A#4AA
+;~F#4B4#4CF#4D7#4E7#4FF
 ;~C#BlitzPlus
