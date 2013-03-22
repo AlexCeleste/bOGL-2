@@ -9,6 +9,9 @@ bOGL also works with Blitz3D, if you remove the CreateCanvas3D function.
 While the command set is loosely based on that of Blitz3D, they are not compatible,
 nor are they intended to be. Several commands work differently by design.
 
+bOGL is intended to allow for a modular addon structure. A 2D drawing module is
+included and other extensions (e.g. mesh loading) may follow as separate addons.
+
 Installation:
 Move the folder named "userlibs" to BlitzBasic folder. Overwrite if neccessary
 or add the content of the files to the existing ones. Now you should be able to

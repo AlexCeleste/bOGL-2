@@ -18,6 +18,7 @@
 ; SetViewport2D(x, y, w, h), SetVirtualResolution2D(x, y)
 ; BeginDraw2D(), EndDraw2D()
 ; SetColor2D(r, g, b[, a#]), SetBlend2D(mode)
+; SetClsColor2D(r, g, b), Cls2D()
 ; LoadFont2D(fontname$), FreeFont2D(font)
 ; SetFont2D(font[, size, height#, spacing#, italic#])
 ; Text2D(x#, y#, s$[, align])
@@ -56,6 +57,7 @@ Const B2D_TEXT_CENTX = 1, B2D_TEXT_CENTY = 2
 
 Global B2D_ViewportX_, B2D_ViewportY_, B2D_ViewportW_, B2D_ViewportH_, B2D_VResX_, B2D_VResY_
 Global B2D_ColR_#, B2D_ColG_#, B2D_ColB_#, B2D_Alpha_#, B2D_CTex_, B2D_BlendMode_
+Global B2D_ClsColR_#, B2D_ClsColG_#, B2D_ClsColB_#
 Global B2D_XScale_#, B2D_YScale_#, B2D_Rotation_#
 Global B2D_CFont_.B2D_Font, B2D_FSize_#, B2D_FHeight_#, B2D_FSpace_#, B2D_FItalic_#, B2D_TBank_
 
@@ -66,6 +68,7 @@ Function InitDraw2D()
 	B2D_XScale_ = 1.0 : B2D_YScale_ = 1.0 : B2D_Rotation_ = 0.0
 	B2D_ColR_# = 255 : B2D_ColG_# = 255 : B2D_ColB_# = 255 : B2D_Alpha_# = 1.0
 	B2D_CTex_ = 0 : B2D_BlendMode_ = B2D_BLEND_ALPHA
+	SetClsColor2D 255, 255, 255
 End Function
 
 Function SetViewport2D(x, y, w, h)
@@ -90,6 +93,7 @@ Function BeginDraw2D()
 	glColor4f B2D_ColR_, B2D_ColG_, B2D_ColB_, B2D_Alpha_
 	SetBlend2D B2D_BlendMode_
 	B2D_BindMat_ B2D_CTex_
+	glClearColor B2D_ClsColR_, B2D_ClsColG_, B2D_ClsColB_, 1.0
 End Function
 
 Function EndDraw2D()
@@ -115,6 +119,15 @@ Function SetBlend2D(mode)
 		Default : glDisable GL_BLEND
 	End Select
 	B2D_BlendMode_ = mode
+End Function
+
+Function SetClsColor2D(r, g, b)
+	B2D_ClsColR_ = r / 255.0 : B2D_ClsColG_ = g / 255.0 : B2D_ClsColB_ = b / 255.0
+	glClearColor B2D_ClsColR_, B2D_ClsColG_, B2D_ClsColB_, 1.0
+End Function
+
+Function Cls2D()
+	glClear GL_COLOR_BUFFER_BIT
 End Function
 
 Function LoadFont2D(font$)
@@ -499,6 +512,6 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#2F#3E#46#4B#4F#5E#65#6A#77#8C#94#9A#BA#C4#CE#DB#10D#134#13E#142
-;~F#146#14B#157#15E#172#17F#189#194#19D#1A9#1AD#1B1#1BA#1C2#1DD
+;~F#30#40#49#4E#52#62#69#6E#7B#80#84#99#A1#A7#C7#D1#DB#E8#11A#141
+;~F#14B#14F#153#158#164#16B#17F#18C#196#1A1#1AA#1B6#1BA#1BE#1C7#1CF#1EA
 ;~C#BlitzPlus
