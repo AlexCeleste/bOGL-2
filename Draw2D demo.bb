@@ -9,6 +9,7 @@ AmbientLight 128, 128, 128
 
 Local camera = CreateCamera()
 CameraClsColor camera, 32, 32, 64
+CameraViewport camera, 0, 0, 256, 192
 
 Local texture = LoadTexture("bOGL.png")
 
@@ -44,6 +45,10 @@ ApplyMaskColor img, $00000000	;Textures are loaded without alpha, so it needs to
 
 Local f = LoadFont2D("Media\Blitz.png") : SetFont2D f
 
+Local bbPix = CreateBank(256 * 192 * 4)
+Local bgTex = CreateTexture(256, 192, 0)
+
+
 ; Mainloop
 While Not KeyHit(1)
 	Local cTime = MilliSecs()
@@ -54,10 +59,18 @@ While Not KeyHit(1)
 	ScaleEntity cube, scl, scl, scl
 	RenderWorld
 	
+	GrabBackBuffer 0, 0, 256, 192, bbPix, False		;Copy the backbuffer to a texture
+	UpdateTexture bgTex, 0, 0, 256, 192, bbPix, False
+	
 	;2D operations must take place within a BeginDraw2D/EndDraw2D block
 	BeginDraw2D
 	
-	SetBlend2D B2D_BLEND_NONE
+	SetBlend2D B2D_BLEND_NONE	;Draw the low-res 3D scene in the background
+	SetScale2D 4.0, 4.0
+	SetRotation2D 0.0
+	DrawImage2D bgTex, 512, 384
+	SetScale2D 1.0, 1.0
+	
 	SetMaterial2D 0
 	SetColor2D 255, 0, 0
 	Rect2D 1, 1, 2, 100		;Pixel-accurate
@@ -88,6 +101,7 @@ While Not KeyHit(1)
 	
 	SetRotation2D 0
 	Text2D 10, 0, "DRAW2D!"
+	Text2D 10, 20, "Hi-res 2D graphics over a low virtual-resolution 3D scene"
 	
 	EndDraw2D	;Done with the 2D stuff
 	

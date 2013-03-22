@@ -144,6 +144,9 @@ Function LoadFont2D(font$)
 	Next
 	FreeBank pix
 	Local c : For c = 0 To 255
+		If f\width[c] = 0
+			f\width[c] = cw / 4 : f\lo[c] = (cw - f\width[c]) / 2.0 : f\ro[c] = f\lo[c]
+		EndIf
 		f\lo[c] = f\lo[c] * (1.0 / Float f\tex\width)
 		f\ro[c] = f\ro[c] * (1.0 / Float f\tex\width)
 	Next
@@ -151,7 +154,7 @@ Function LoadFont2D(font$)
 	Return Handle f
 End Function
 
-Function SetFont2D(font, size = 1.0, height# = 1.0, spacing# = 2.0, italic# = 0.0)
+Function SetFont2D(font, size = 1.0, height# = 1.0, spacing# = 1.0, italic# = 0.0)
 	B2D_CFont_ = Object.B2D_Font font
 	B2D_FSize_ = size
 	B2D_FHeight_ = height
@@ -512,6 +515,6 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#30#40#49#4E#52#62#69#6E#7B#80#84#99#A1#A7#C7#D1#DB#E8#11A#141
-;~F#14B#14F#153#158#164#16B#17F#18C#196#1A1#1AA#1B6#1BA#1BE#1C7#1CF#1EA
+;~F#30#40#49#4E#52#62#69#6E#7B#80#84#9C#A4#AA#CA#D4#DE#EB#11D#144
+;~F#14E#152#156#15B#167#16E#182#18F#199#1A4#1AD#1B9#1BD#1C1#1CA#1D2#1ED
 ;~C#BlitzPlus
