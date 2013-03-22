@@ -8,7 +8,7 @@ AmbientLight 128, 128, 128
 
 ; Create a camera
 Local camera = CreateCamera()
-;CameraClsColor camera, 255, 0, 255
+CameraClsColor camera, 32, 32, 64
 
 ; Load a texture
 Local texture = LoadTexture("bOGL.png")
@@ -69,7 +69,6 @@ While Not KeyHit(1)
 	SwapBuffers(bOGL_hMainDC)
 	
 	Delay rTime - (MilliSecs() - cTime) - 1
-;	DebugLog MilliSecs() - cTime
 Wend
 
 EndGraphics3D
