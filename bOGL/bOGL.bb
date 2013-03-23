@@ -237,11 +237,11 @@ Function AddTriangle(handler, v0, v1, v2)
 End Function
 
 Function CountTriangles(handler)
-	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return BankSize(this\m\poly / BOGL_TRIS_STRIDE)
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return BankSize(this\m\poly) / BOGL_TRIS_STRIDE
 End Function
 
 Function CountVertices(handler)
-	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return BankSize(this\m\vp / BOGL_VERT_STRIDE)
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return BankSize(this\m\vp) / BOGL_VERT_STRIDE
 End Function
 
 Function TriangleVertex(handler, t, v)
@@ -1272,7 +1272,7 @@ Function bOGL_InitializeRenderCamera_(cam.bOGL_Cam)	;Identical code shared by Re
 	glPushMatrix()
 	If Not cam\ent\Gv Then bOGL_UpdateGlobalPosition_ cam\ent
 	If Not cam\ent\g_Rv Then bOGL_UpdateAxisAngle_ cam\ent\g_r, cam\ent\g_q : cam\ent\g_Rv = True
-	glRotatef cam\ent\g_r[0], cam\ent\g_r[1], cam\ent\g_r[2], cam\ent\g_r[3]
+	glRotatef cam\ent\g_r[0], -cam\ent\g_r[1], -cam\ent\g_r[2], -cam\ent\g_r[3]
 	glTranslatef -cam\ent\g_x, -cam\ent\g_y, -cam\ent\g_z
 	glScalef cam\ent\g_sx * cam\ent\sx, cam\ent\g_sy * cam\ent\sy, cam\ent\g_sz * cam\ent\sz
 End Function
