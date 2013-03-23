@@ -254,7 +254,7 @@ Function VertexCoords(handler, v, x#, y#, z#)
 End Function
 
 Function VertexTexCoords(handler, vi, u#, v#)
-	Local this.bOGL_Ent = bOGL_EntList_(handler), m.bOGL_Mesh = this\m, ptr = v * BOGL_VERT_STRIDE
+	Local this.bOGL_Ent = bOGL_EntList_(handler), m.bOGL_Mesh = this\m, ptr = vi * BOGL_VERT_STRIDE
 	PokeFloat m\vp, ptr, u : PokeFloat m\vp, ptr + 4, v
 End Function
 

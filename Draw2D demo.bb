@@ -30,9 +30,6 @@ ScaleEntity child, 0.6, 0.6, 0.6
 EntityFX child, BOGL_FX_ADDBLEND : PaintEntity child, 0, 255, 128
 
 
-Local sCamera = CreateCamera(camera)
-CameraDrawMode sCamera, BOGL_CAM_STENCIL
-
 Const SC_FPS = 60 : Local rTime = Floor(1000.0 / SC_FPS)
 
 ; Must initialise the 2D drawing library before use
@@ -53,8 +50,7 @@ Local bgTex = CreateTexture(256, 192, 0)
 While Not KeyHit(1)
 	Local cTime = MilliSecs()
 	
-	TurnEntity cube, 0.4, 0.6, 0.8
-	TurnEntity child, 0, 0.5, 0
+	TurnEntity cube, 0.4, 0.6, 0.8 : TurnEntity child, 0, 0.5, 0
 	Local scl# = 1.0 + Sin(MilliSecs() / 1500.0 * 180) / 4.0
 	ScaleEntity cube, scl, scl, scl
 	RenderWorld
