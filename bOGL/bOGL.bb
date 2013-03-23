@@ -22,7 +22,7 @@
 ; CreateMesh([parent])
 ; AddVertex(mesh, x#, y#, z#[, u#, v#]), AddTriangle(mesh, v0, v1, v2)
 ; CountTriangles(mesh), CountVertices(mesh), TriangleVertex(mesh, tri, vert)
-; VertexCoords(mesh, v, x#, y#, z#), VextexTexCoords(mesh, v, u#, v#)
+; VertexCoords(mesh, v, x#, y#, z#), VertexTexCoords(mesh, v, u#, v#)
 ; VertexNormal(mesh, v, nx#, ny#, nz#), VertexColor(mesh, v, r#, g#, b#)
 ; VertexX#(mesh, v), VertexY#(mesh, v), VertexZ#(mesh, v), VertexU#(mesh, v), VertexV#(mesh, v)
 ; CreateCube([parent])
@@ -253,7 +253,7 @@ Function VertexCoords(handler, v, x#, y#, z#)
 	PokeFloat m\vp, ptr + 20, x : PokeFloat m\vp, ptr + 24, y : PokeFloat m\vp, ptr + 28, z
 End Function
 
-Function VextexTexCoords(handler, vi, u#, v#)
+Function VertexTexCoords(handler, vi, u#, v#)
 	Local this.bOGL_Ent = bOGL_EntList_(handler), m.bOGL_Mesh = this\m, ptr = v * BOGL_VERT_STRIDE
 	PokeFloat m\vp, ptr, u : PokeFloat m\vp, ptr + 4, v
 End Function
