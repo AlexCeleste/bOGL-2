@@ -245,7 +245,7 @@ Function CountVertices(handler)
 End Function
 
 Function TriangleVertex(handler, t, v)
-	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return PeekInt(this\m\poly, t * BOGL_TRIS_STRIDE + v * 2)
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return PeekShort(this\m\poly, t * BOGL_TRIS_STRIDE + v * 2)
 End Function
 
 Function VertexCoords(handler, v, x#, y#, z#)
