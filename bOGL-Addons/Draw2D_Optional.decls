@@ -1,5 +1,8 @@
 
 ; Optional function declarations for the Draw2D bOGL addon
+; This file is only really to provide syntax highlighting
+
+; Array parameters (e.g. 'arr3') are represented with underscores (e.g. 'arr__3__')
 
 .lib " "
 

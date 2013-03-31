@@ -54,7 +54,7 @@
 ; LoadTexture(file$[, quality, filter])
 ; FreeTexture(handler)
 ; TextureWidth(handler), TextureHeight(handler)
-; GetTextureData(handler), UpdateTexture(handler, x, y, width, height, pixels[, doConvert])
+; GetTextureData(handler[, doConvert]), UpdateTexture(handler, x, y, width, height, pixels[, doConvert])
 ; GrabBackBuffer(x, y, width, height, pix[, doConvert])
 ; RenderWorld([stencilMode]), RenderStencil()
 ; Distance(x1#, y1#, z1#, x2#, y2#, z2#)
