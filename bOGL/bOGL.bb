@@ -641,10 +641,15 @@ Function FreeEntity(handler)
 End Function
 
 Function FlipPolygons(handler)
-	Local this.bOGL_Ent = bOGL_EntList_(handler), i, m.bOGL_Mesh = this\m
-	For i = 0 To BankSize(m\poly) - BOGL_TRIS_STRIDE Step BOGL_TRIS_STRIDE
+	Local this.bOGL_Ent = bOGL_EntList_(handler), i, tgt, m.bOGL_Mesh = this\m
+	tgt = BankSize(m\poly) - BOGL_TRIS_STRIDE : For i = 0 To tgt Step BOGL_TRIS_STRIDE
 		Local a = PeekShort(m\poly, i + 2), b = PeekShort(m\poly, i + 4)
 		PokeShort m\poly, i + 2, b : PokeShort m\poly, i + 4, a
+	Next
+	tgt = BankSize(m\vp) - BOGL_VERT_STRIDE : For i = 0 To tgt Step BOGL_VERT_STRIDE
+		PokeFloat m\vp, i + 8, -PeekFloat(m\vp, i + 8)
+		PokeFloat m\vp, i + 12, -PeekFloat(m\vp, i + 12)
+		PokeFloat m\vp, i + 16, -PeekFloat(m\vp, i + 16)
 	Next
 End Function
 
@@ -1297,7 +1302,7 @@ End Function
 ;~F#57#60#67#6C#72#77#7F#86#8A#91#95#9C#AA#C3#C8#CD#D8#E4#EE#F2
 ;~F#F6#FA#FF#104#109#117#11C#121#126#12B#130#15A#166#180#185#18A#18F#193#198#1A0
 ;~F#1A9#1AF#1B5#1BD#1CC#1D4#1DB#1E1#1E6#1EA#1EE#1F5#1FB#20D#211#216#21A#225#229#22D
-;~F#231#23B#23F#265#282#28A#28F#29A#2A4#2AF#2B7#2BF#2C7#2D0#2D9#2E2#307#31F#326#32D
-;~F#334#340#353#35D#3B2#3E7#3EB#404#421#42F#445#45E#46E#473#478#483#48C#493#498#4A0
-;~F#4B1#4BB#4D6#4DE#4EE#506
+;~F#231#23B#23F#265#282#28F#294#29F#2A9#2B4#2BC#2C4#2CC#2D5#2DE#2E7#30C#324#32B#332
+;~F#339#345#358#362#3B7#3EC#3F0#409#426#434#44A#463#473#478#47D#488#491#498#49D#4A5
+;~F#4B6#4C0#4DB#4E3#4F3#50B
 ;~C#BlitzPlus
