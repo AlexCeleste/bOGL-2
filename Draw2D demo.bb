@@ -1,7 +1,7 @@
 ;Include bOGL
 Include "bOGL\bOGL.bb"
 ;Include 2D drawing addon
-Include "bOGL\Addons\Draw2D.bb"
+Include "bOGL-Addons\Draw2D.bb"
 
 ; Initialize graphics; Draw2D needs this too
 Graphics3D "bOGL", 1024, 768, 32, 2

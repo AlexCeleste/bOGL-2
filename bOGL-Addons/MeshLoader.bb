@@ -25,11 +25,11 @@ Function LoadMesh(file$, parent = 0)
 	Local mesh, size = FileSize(file), bank
 	
 	Select LOADER_Ext_(file)
-		Case "obj" : mesh = LoadOBJ(file)
+		Case "obj" : mesh = LoadOBJMesh(file)
 			
 		Case "b3d"
 			bank = CreateBank(size) : ReadBytes bank, file, 0, size
-			mesh = LoadB3D(bank, 0, size)
+			mesh = LoadB3DMesh(bank, 0, size)
 			FreeBank bank
 			
 		Default
@@ -40,11 +40,11 @@ Function LoadMesh(file$, parent = 0)
 	Return mesh
 End Function
 
-Function LoadB3D(bk, start, size)
+Function LoadB3DMesh(bk, start, size)
 	
 End Function
 
-Function LoadOBJ(file$)
+Function LoadOBJMesh(file$)
 	Local sz = FileSize(file), f = ReadFile(file)
 	Local norms = CreateBank(sz), uvs = CreateBank(sz), np = 0, up = 0, vc = 0
 	Local name$ = "", mesh = CreateMesh()
@@ -139,7 +139,7 @@ Function LoadOBJ(file$)
 	Return mesh
 End Function
 
-Function SaveOBJ(mesh, file$)
+Function SaveOBJMesh(mesh, file$)
 	Local f = WriteFile(file) : If Not f Then Return
 	Local this.bOGL_Ent = bOGL_EntList_(mesh), m.bOGL_Mesh = this\m
 	WriteLine f, "# Exported from bOGL"

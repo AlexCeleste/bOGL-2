@@ -26,9 +26,9 @@ PositionEntity cube, 0, 0, -10
 EntityTexture cube, texture
 FreeTexture texture
 
-;RotateSubMesh cube, 0, 3, 25, 0, 0, 0, 1, 0
-;TranslateSubMesh cube, 0, 3, 0, 0.5, 0
-;ScaleSubMesh cube, 0, 3, 1.5, 1, 1.5, 0, 1, 0
+RotateSubMesh cube, 0, 3, 25, 0, 0, 0, 1, 0
+TranslateSubMesh cube, 0, 3, 0, 0.5, 0
+ScaleSubMesh cube, 0, 3, 1.5, 1, 1.5, 0, 1, 0
 
 Local child = CreateCube(cube)
 PositionEntity child, 3, 0, 0
@@ -45,6 +45,8 @@ EntityAlpha sCube, 0	;This will hide it from the world render, but stencilling w
 
 Local sCamera = CreateCamera(camera)
 CameraDrawMode sCamera, BOGL_CAM_STENCIL
+
+ShowEntity cube, 0
 
 
 Const SC_FPS = 60 : Local rTime = Floor(1000.0 / SC_FPS)
