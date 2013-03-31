@@ -45,7 +45,7 @@
 ; CopyEntity(handler)
 ; FreeEntity(handler)
 ; FlipPolygons(handler)
-; RotateSubMesh(handler, vf, vt, rx#, ry#, rz#, cx#, cy#, cz#)
+; RotateSubMesh(handler, vf, vt, rx#, ry#, rz#, cx#, cy#, cz#), QuatRotateSubMesh(handler, vf, vt, q#[3], cx#, cy#, cz#)
 ; TranslateSubMesh(handler, vf, vt, tx#, ty#, tz#)
 ; ScaleSubMesh(handler, vf, vt, sx#, sy#, sz#, cx#, cy#, cz#)
 ; EntityX#(handler[, absolute]), EntityY#(handler[, absolute]), EntityZ#(handler[, absolute])
@@ -561,7 +561,7 @@ End Function
 Function SetEntityUserData(handler, slot, val)
 	Local this.bOGL_Ent = bOGL_EntList_(handler)
 	If Not this\userData
-		CreateBank((slot + 1) * 4)
+		this\userData = CreateBank((slot + 1) * 4)
 	ElseIf BankSize(this\userData) < ((slot + 1) * 4)
 		ResizeBank this\userData, ((slot + 1) * 4)
 	EndIf
@@ -648,8 +648,13 @@ Function FlipPolygons(handler)
 End Function
 
 Function RotateSubMesh(handler, vf, vt, rx#, ry#, rz#, cx#, cy#, cz#)
-	Local this.bOGL_Ent = bOGL_EntList_(handler), m.bOGL_Mesh = this\m, v, p, q#[3], r#[3]
-	bOGL_QuatFromEuler_ q, rx, ry, rz : bOGL_UpdateAxisAngle_ r, q
+	Local q#[3] : bOGL_QuatFromEuler_ q, rx, ry, rz
+	QuatRotateSubMesh handler, vf, vt, q, cx, cy, cz
+End Function
+
+Function QuatRotateSubMesh(handler, vf, vt, q#[3], cx#, cy#, cz#)
+	Local this.bOGL_Ent = bOGL_EntList_(handler), m.bOGL_Mesh = this\m, v, p, r#[3]
+	bOGL_UpdateAxisAngle_ r, q
 	For v = vf To vt
 		p = v * BOGL_VERT_STRIDE
 		Local x# = PeekFloat(m\vp, p + 20), y# = PeekFloat(m\vp, p + 24), z# = PeekFloat(m\vp, p + 28)
@@ -1290,7 +1295,7 @@ End Function
 ;~F#57#60#67#6C#72#77#7F#86#8A#91#95#9C#AA#C3#C8#CD#D8#E4#EE#F2
 ;~F#F6#FA#FF#104#109#117#11C#121#126#12B#130#15A#166#180#185#18A#18F#193#198#1A0
 ;~F#1A9#1AF#1B5#1BD#1CB#1D3#1DA#1E0#1E5#1E9#1ED#1F4#1FA#20C#210#215#219#224#228#22C
-;~F#230#23A#23E#264#281#289#294#29E#2A9#2B1#2B9#2C1#2CA#2D3#2DC#301#319#320#327#32E
-;~F#33A#34D#357#3AC#3E1#3E5#3FE#41B#429#43F#458#468#46D#472#47D#486#48D#492#49A#4AA
-;~F#4B4#4CF#4D7#4E7#4FF
+;~F#230#23A#23E#264#281#289#28E#299#2A3#2AE#2B6#2BE#2C6#2CF#2D8#2E1#306#31E#325#32C
+;~F#333#33F#352#35C#3B1#3E6#3EA#403#420#42E#444#45D#46D#472#477#482#48B#492#497#49F
+;~F#4AF#4B9#4D4#4DC#4EC#504
 ;~C#BlitzPlus

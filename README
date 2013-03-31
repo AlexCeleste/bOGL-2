@@ -71,7 +71,7 @@ RegisterEntityUserDataSlot(), SetEntityUserData(handler, slot, val), GetEntityUs
 CopyEntity(handler)
 FreeEntity(handler)
 FlipPolygons(handler)
-RotateSubMesh(handler, vf, vt, rx#, ry#, rz#, cx#, cy#, cz#)
+RotateSubMesh(handler, vf, vt, rx#, ry#, rz#, cx#, cy#, cz#), QuatRotateSubMesh(handler, vf, vt, q#[3], cx#, cy#, cz#)
 TranslateSubMesh(handler, vf, vt, tx#, ty#, tz#)
 ScaleSubMesh(handler, vf, vt, sx#, sy#, sz#, cx#, cy#, cz#)
 EntityX#(handler[, absolute]), EntityY#(handler[, absolute]), EntityZ#(handler[, absolute])
