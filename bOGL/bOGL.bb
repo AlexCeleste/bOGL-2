@@ -454,13 +454,14 @@ Function RotateEntity(handler, x#, y#, z#, absolute = False)
 	Else
 		bOGL_QuatFromEuler_ this\q, x, y, z : this\Qv = True : this\Rv = False
 	EndIf
+	bOGL_NormaliseQuat_ this\q
 	bOGL_InvalidateGlobalPosition_ this
 End Function
 
 Function TurnEntity(handler, x#, y#, z#)
 	Local this.bOGL_Ent = bOGL_EntList_(handler), turn#[3], res#[3] : bOGL_QuatFromEuler_ turn, x, y, z
 	If Not this\Qv Then bOGL_UpdateQuat_ this\q, this\r : this\Qv = True
-	bOGL_QuatMul_ res, this\q, turn
+	bOGL_QuatMul_ res, this\q, turn : bOGL_NormaliseQuat_ res
 	this\q[0] = res[0] : this\q[1] = res[1] : this\q[2] = res[2] : this\q[3] = res[3]
 	this\Rv = False : bOGL_InvalidateGlobalPosition_ this
 End Function
@@ -695,7 +696,7 @@ End Function
 Function EntityY#(handler, absolute = False)
 	Local this.bOGL_Ent = bOGL_EntList_(handler) : If absolute
 		If Not this\Gv Then bOGL_UpdateGlobalPosition_ this
-		Return this\g_x
+		Return this\g_y
 	EndIf
 	Return this\x
 End Function
@@ -703,7 +704,7 @@ End Function
 Function EntityZ#(handler, absolute = False)
 	Local this.bOGL_Ent = bOGL_EntList_(handler) : If absolute
 		If Not this\Gv Then bOGL_UpdateGlobalPosition_ this
-		Return this\g_x
+		Return this\g_z
 	EndIf
 	Return this\x
 End Function
@@ -864,25 +865,25 @@ Function RenderWorld(stencilMode = BOGL_STENCIL_OFF)
 	glStencilMask 0 : glColorMask_Unsafe GL_TRUE,GL_TRUE, GL_TRUE, GL_TRUE	;Disable stencil writes, enable rendering
 	glStencilFunc stencilMode, 0, $FF
 	
-	; Lights
-	glEnable GL_LIGHTING
-	If bOGL_AmbientLight_ Then glLightModelfv GL_LIGHT_MODEL_AMBIENT, bOGL_AmbientLight_
-	Local lig.bOGL_Light : For lig = Each bOGL_Light
-		If Not lig\ent\hidden
-			light = light + 1 : If light > 7 Then Exit;light = 7
-			bOGL_UpdateLight_ lig\ent
-			glLightfv GL_LIGHT0 + light, lig\glFlag, lig\col
-			glLightfv GL_LIGHT0 + light, GL_POSITION, lig\pos
-			glLightfv GL_LIGHT0 + light, GL_LINEAR_ATTENUATION, lig\att
-			glEnable GL_LIGHT0 + light
-		EndIf
-	Next
-	
 	If bOGL_VisChanged_ Then bOGL_UpdateVisibles_
 	
 	Local cam.bOGL_Cam : For cam = Each bOGL_Cam
 		If bOGL_EntityIsVisible_(cam\ent) And (cam\drawmode = BOGL_CAM_ORTHO Or cam\drawmode = BOGL_CAM_PERSPECTIVE)
 			bOGL_InitializeRenderCamera_ cam		;Set up draw frustum/ortho area, camera position, rotation and scale, viewport and cls
+			
+			; Lights
+			glEnable GL_LIGHTING
+			If bOGL_AmbientLight_ Then glLightModelfv GL_LIGHT_MODEL_AMBIENT, bOGL_AmbientLight_
+			Local lig.bOGL_Light : For lig = Each bOGL_Light
+				If Not lig\ent\hidden
+					light = light + 1 : If light > 7 Then Exit;light = 7
+					bOGL_UpdateLight_ lig\ent
+					glLightfv GL_LIGHT0 + light, lig\glFlag, lig\col
+					glLightfv GL_LIGHT0 + light, GL_POSITION, lig\pos
+					glLightfv GL_LIGHT0 + light, GL_LINEAR_ATTENUATION, lig\att
+					glEnable GL_LIGHT0 + light
+				EndIf
+			Next
 			
 			; Fog
 			If cam\fogmode
@@ -1003,15 +1004,15 @@ End Function
 Function TFormPoint(x#, y#, z#, src, dst, out#[2])
 	If src
 		Local s.bOGL_Ent = bOGL_EntList_(src) : If Not s\Gv Then bOGL_UpdateGlobalPosition_ s
-		If Not s\Rv Then bOGL_UpdateAxisAngle_ s\r, s\q : s\Rv = True
-		bOGL_RotateVector_ out, x, y, z, s\r
+		If Not s\g_Rv Then bOGL_UpdateAxisAngle_ s\g_r, s\g_q : s\g_Rv = True
+		bOGL_RotateVector_ out, x, y, z, s\g_r
 		out[0] = s\g_x + out[0] * s\g_sx : out[1] = s\g_y + out[1] * s\g_sy : out[2] = s\g_z + out[2] * s\g_sz
 	EndIf
 	If dst
 		Local d.bOGL_Ent = bOGL_EntList_(dst) : If Not d\Gv Then bOGL_UpdateGlobalPosition_ d
-		If Not d\Rv Then bOGL_UpdateAxisAngle_ d\r, d\q : d\Rv = True
+		If Not d\g_Rv Then bOGL_UpdateAxisAngle_ d\g_r, d\g_q : d\g_Rv = True
 		x = (out[0] - d\g_x) / d\g_sx : y = (out[1] - d\g_y) / d\g_sy : z = (out[2] - d\g_z) / d\g_sz
-		bOGL_RotateVector_ out, x, y, z, d\r
+		bOGL_RotateVector_ out, x, y, z, d\g_r
 	EndIf
 End Function
 
@@ -1187,7 +1188,8 @@ Function bOGL_UpdateGlobalPosition_(ent.bOGL_Ent)
 		ent\g_x = pos[0] : ent\g_y = pos[1] : ent\g_z = pos[2] : ent\g_sx = par\sx : ent\g_sy = par\sy : ent\g_sz = par\sz
 		If Not ent\Qv Then bOGL_UpdateQuat_ ent\q, ent\r : ent\Qv = True
 		If Not par\Qv Then bOGL_UpdateQuat_ par\q, par\r : par\Qv = True
-		Local q#[3] : bOGL_QuatMul_ q, par\g_q, ent\q : ent\g_q[0] = q[0] : ent\g_q[1] = q[1] : ent\g_q[2] = q[2] : ent\g_q[3] = q[3]
+		Local q#[3] : bOGL_QuatMul_ q, par\g_q, ent\q : bOGL_NormaliseQuat_ q
+		ent\g_q[0] = q[0] : ent\g_q[1] = q[1] : ent\g_q[2] = q[2] : ent\g_q[3] = q[3]
 		ent\g_Qv = True : ent\g_Rv = False
 	Else
 		ent\g_x = ent\x : ent\g_y = ent\y : ent\g_z = ent\z : ent\g_sx = 1.0 : ent\g_sy = 1.0 : ent\g_sz = 1.0
@@ -1264,7 +1266,7 @@ Function bOGL_InitializeRenderCamera_(cam.bOGL_Cam)	;Identical code shared by Re
 	glClear cam\clsmode
 	
 	glMatrixMode GL_PROJECTION
-	glLoadIdentity()
+	glLoadIdentity
 	If cam\drawmode = BOGL_CAM_ORTHO
 		Local oCamY# = bOGL_bbHwndH * cam\viewangle / bOGL_bbHwndW : glOrtho -cam\viewangle, cam\viewangle, oCamY, -oCamY, cam\near, cam\far
 	Else
@@ -1274,10 +1276,10 @@ Function bOGL_InitializeRenderCamera_(cam.bOGL_Cam)	;Identical code shared by Re
 	glViewport cam\vpx, cam\vpy, cam\vpw, cam\vph
 	
 	; Rotate camera
-	glPushMatrix()
+	glPushMatrix
 	If Not cam\ent\Gv Then bOGL_UpdateGlobalPosition_ cam\ent
-	If Not cam\ent\g_Rv Then bOGL_UpdateAxisAngle_ cam\ent\g_r, cam\ent\g_q : cam\ent\g_Rv = True
-	glRotatef cam\ent\g_r[0], -cam\ent\g_r[1], -cam\ent\g_r[2], -cam\ent\g_r[3]
+	bOGL_NormaliseQuat_ cam\ent\g_q : bOGL_UpdateAxisAngle_ cam\ent\g_r, cam\ent\g_q : cam\ent\g_Rv = True	;Always normalise
+	glRotatef -cam\ent\g_r[0], cam\ent\g_r[1], cam\ent\g_r[2], cam\ent\g_r[3]
 	glTranslatef -cam\ent\g_x, -cam\ent\g_y, -cam\ent\g_z
 	glScalef cam\ent\g_sx * cam\ent\sx, cam\ent\g_sy * cam\ent\sy, cam\ent\g_sz * cam\ent\sz
 End Function
@@ -1294,8 +1296,8 @@ End Function
 ;~IDEal Editor Parameters:
 ;~F#57#60#67#6C#72#77#7F#86#8A#91#95#9C#AA#C3#C8#CD#D8#E4#EE#F2
 ;~F#F6#FA#FF#104#109#117#11C#121#126#12B#130#15A#166#180#185#18A#18F#193#198#1A0
-;~F#1A9#1AF#1B5#1BD#1CB#1D3#1DA#1E0#1E5#1E9#1ED#1F4#1FA#20C#210#215#219#224#228#22C
-;~F#230#23A#23E#264#281#289#28E#299#2A3#2AE#2B6#2BE#2C6#2CF#2D8#2E1#306#31E#325#32C
-;~F#333#33F#352#35C#3B1#3E6#3EA#403#420#42E#444#45D#46D#472#477#482#48B#492#497#49F
-;~F#4AF#4B9#4D4#4DC#4EC#504
+;~F#1A9#1AF#1B5#1BD#1CC#1D4#1DB#1E1#1E6#1EA#1EE#1F5#1FB#20D#211#216#21A#225#229#22D
+;~F#231#23B#23F#265#282#28A#28F#29A#2A4#2AF#2B7#2BF#2C7#2D0#2D9#2E2#307#31F#326#32D
+;~F#334#340#353#35D#3B2#3E7#3EB#404#421#42F#445#45E#46E#473#478#483#48C#493#498#4A0
+;~F#4B1#4BB#4D6#4DE#4EE#506
 ;~C#BlitzPlus
