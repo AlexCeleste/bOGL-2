@@ -202,6 +202,21 @@ Function SetMD2AnimTime(ent, time#)
 	MD2_UpdateFramePosition_ m, Floor(time), Ceil(time)
 End Function
 
+Function GetMD2AnimTime(ent)
+	Local m.bOGL_MD2Model = Object.bOGL_MD2Model GetEntityUserData(ent, MD2_private_UDSlot_)
+	Return m\animTime
+End Function
+
+Function GetMD2NumFrames(ent)
+	Local m.bOGL_MD2Model = Object.bOGL_MD2Model GetEntityUserData(ent, MD2_private_UDSlot_)
+	Return m\numFrames
+End Function
+
+Function GetMD2AnimMode(ent)
+	Local m.bOGL_MD2Model = Object.bOGL_MD2Model GetEntityUserData(ent, MD2_private_UDSlot_)
+	Return m\animMode
+End Function
+
 Function GetMD2SeqByName(out[1], ent, name$)
 	Local m.bOGL_MD2Model = Object.bOGL_MD2Model GetEntityUserData(ent, MD2_private_UDSlot_)
 	Local c, n$, char
@@ -553,5 +568,5 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#F#25#2C#41#54#9F#C0#C5#CC#E5#F7#104#10F#126#158#183
+;~F#F#25#2C#41#54#9F#C0#C5#CC#D1#D6#DB#F4#106#113#11E#135#167#192
 ;~C#BlitzPlus

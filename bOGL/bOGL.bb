@@ -706,7 +706,7 @@ Function EntityY#(handler, absolute = False)
 		If Not this\Gv Then bOGL_UpdateGlobalPosition_ this
 		Return this\g_y
 	EndIf
-	Return this\x
+	Return this\y
 End Function
 
 Function EntityZ#(handler, absolute = False)
@@ -714,7 +714,7 @@ Function EntityZ#(handler, absolute = False)
 		If Not this\Gv Then bOGL_UpdateGlobalPosition_ this
 		Return this\g_z
 	EndIf
-	Return this\x
+	Return this\z
 End Function
 
 Function EntityXAngle#(handler, absolute = False)
@@ -1210,7 +1210,7 @@ End Function
 
 Function bOGL_RescaleNormals_(msh.bOGL_Mesh)	;Compensate for entity scale (assumes few scale operations)
 	Local p, vp = msh\vp, tgt = BankSize(vp) - BOGL_VERT_STRIDE
-	Local gx# = msh\ent\g_sx * msh\ent\sx, gy# = msh\ent\g_sy * msh\ent\sy, gz# = msh\ent\g_sz * msh\ent\sz
+	Local gx# = Abs(msh\ent\g_sx * msh\ent\sx), gy# = Abs(msh\ent\g_sy * msh\ent\sy), gz# = Abs(msh\ent\g_sz * msh\ent\sz)
 	For p = 0 To tgt Step BOGL_VERT_STRIDE
 		Local nx# = PeekFloat(vp, p + 8), ny# = PeekFloat(vp, p + 12), nz# = PeekFloat(vp, p + 16)
 		Local l# = Sqr(nx * nx + ny * ny + nz * nz)
