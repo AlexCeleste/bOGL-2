@@ -109,7 +109,7 @@ End Type
 Type bOGL_Mesh
 	Field ent.bOGL_Ent
 	Field texture.bOGL_Tex, argb, alpha#, FX
-	Field vp, vc, poly	;UV+Normal+Position, Colour, Tris
+	Field vp, vc, poly, Nv	;UV+Normal+Position, Colour, Tris, normals valid
 End Type
 
 Type bOGL_Tex
@@ -476,7 +476,7 @@ End Function
 Function ScaleEntity(handler, x#, y#, z#, absolute = False)
 	Local this.bOGL_Ent = bOGL_EntList_(handler)
 	If absolute Then x = x / this\g_sx : y = y / this\g_sy : z = z / this\g_sz
-	this\sx = x : this\sy = y : this\sz = z : If this\children Then bOGL_InvalidateGlobalPosition_ this
+	this\sx = x : this\sy = y : this\sz = z : bOGL_InvalidateGlobalPosition_ this, True
 End Function
 
 Function PaintEntity(handler, red, green, blue)
@@ -666,6 +666,9 @@ Function QuatRotateSubMesh(handler, vf, vt, q#[3], cx#, cy#, cz#)
 		Local x# = PeekFloat(m\vp, p + 20), y# = PeekFloat(m\vp, p + 24), z# = PeekFloat(m\vp, p + 28)
 		Local vec#[2] : bOGL_RotateVector_ vec, x - cx, y - cy, z - cz, r
 		PokeFloat m\vp, p + 20, cx + vec[0] : PokeFloat m\vp, p + 24, cy + vec[1] : PokeFloat m\vp, p + 28, cz + vec[2]
+		x = PeekFloat(m\vp, p + 8) : y = PeekFloat(m\vp, p + 12) : z = PeekFloat(m\vp, p + 16)
+		bOGL_RotateVector_ vec, x - cx, y - cy, z - cz, r
+		PokeFloat m\vp, p + 8, cx + vec[0] : PokeFloat m\vp, p + 12, cy + vec[1] : PokeFloat m\vp, p + 16, cz + vec[2]
 	Next
 End Function
 
@@ -915,6 +918,7 @@ Function RenderWorld(stencilMode = BOGL_STENCIL_OFF)
 					Local textured = msh\texture <> Null : If textured Then glEnable GL_TEXTURE_2D : Else glDisable GL_TEXTURE_2D
 					
 					glPushMatrix : bOGL_PushEntityTransform_ msh\ent	;push entity position/rotation/scale
+					If Not msh\Nv Then bOGL_RescaleNormals_ msh
 					
 					; Bind texture and paint the entity
 					If textured Then glBindTexture GL_TEXTURE_2D, msh\texture\glName
@@ -1204,8 +1208,20 @@ Function bOGL_UpdateGlobalPosition_(ent.bOGL_Ent)
 	ent\Gv = True
 End Function
 
-Function bOGL_InvalidateGlobalPosition_(ent.bOGL_Ent)
+Function bOGL_RescaleNormals_(msh.bOGL_Mesh)	;Compensate for entity scale (assumes few scale operations)
+	Local p, vp = msh\vp, tgt = BankSize(vp) - BOGL_VERT_STRIDE
+	Local gx# = msh\ent\g_sx * msh\ent\sx, gy# = msh\ent\g_sy * msh\ent\sy, gz# = msh\ent\g_sz * msh\ent\sz
+	For p = 0 To tgt Step BOGL_VERT_STRIDE
+		Local nx# = PeekFloat(vp, p + 8), ny# = PeekFloat(vp, p + 12), nz# = PeekFloat(vp, p + 16)
+		Local l# = Sqr(nx * nx + ny * ny + nz * nz)
+		PokeFloat vp, p + 8, (nx / l) * gx : PokeFloat vp, p + 12, (ny / l) * gy : PokeFloat vp, p + 16, (nz / l) * gz
+	Next
+	msh\Nv = True
+End Function
+
+Function bOGL_InvalidateGlobalPosition_(ent.bOGL_Ent, scl = False)
 	If ent\Gv
+		If scl Then If ent\eClass = BOGL_CLASS_MESH Then ent\m\Nv = False
 		ent\Gv = False : If ent\children
 			Local lst = BankSize(ent\children) - 4, c : For c = 0 To lst Step 4
 				bOGL_InvalidateGlobalPosition_ bOGL_EntList_(PeekInt(ent\children, c))
@@ -1302,7 +1318,7 @@ End Function
 ;~F#57#60#67#6C#72#77#7F#86#8A#91#95#9C#AA#C3#C8#CD#D8#E4#EE#F2
 ;~F#F6#FA#FF#104#109#117#11C#121#126#12B#130#15A#166#180#185#18A#18F#193#198#1A0
 ;~F#1A9#1AF#1B5#1BD#1CC#1D4#1DB#1E1#1E6#1EA#1EE#1F5#1FB#20D#211#216#21A#225#229#22D
-;~F#231#23B#23F#265#282#28F#294#29F#2A9#2B4#2BC#2C4#2CC#2D5#2DE#2E7#30C#324#32B#332
-;~F#339#345#358#362#3B7#3EC#3F0#409#426#434#44A#463#473#478#47D#488#491#498#49D#4A5
-;~F#4B6#4C0#4DB#4E3#4F3#50B
+;~F#231#23B#23F#265#282#28F#294#2A2#2AC#2B7#2BF#2C7#2CF#2D8#2E1#2EA#30F#327#32E#335
+;~F#33C#348#35B#365#3BB#3F0#3F4#40D#42A#438#44E#467#477#47C#481#48C#495#49C#4A1#4A9
+;~F#4BA#4C5#4D0#4EB#4F3#503#51B
 ;~C#BlitzPlus
