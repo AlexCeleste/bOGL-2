@@ -3,10 +3,12 @@
 ;==================================
 
 
-; This module provides functions to load static meshes from .b3d amd .obj files
+; This module provides functions to load static meshes from .bo3d amd .obj files
 ; and to save static meshes to .obj format
-; B3D meshes are loaded as entity hierarchies where appropriate
-; B3D meshes may also be loaded directly out of banks
+; BO3D meshes are loaded as entity hierarchies where appropriate
+; BO3D meshes may also be loaded directly out of banks
+
+; (BO3D is a custom format optimised for bOGL, described in bo3d_spec.txt)
 
 
 Include "bOGL\bOGL.bb"
@@ -14,6 +16,7 @@ Include "bOGL\bOGL.bb"
 
 Const LOADER_OBJ_UV_STRIDE = 8, LOADER_OBJ_NORM_STRIDE = 12
 Global LOADER_private_SplitCt_ : Dim LOADER_private_SplitRes_$(0)
+Global LOADER_private_FBank_
 
 
 ; Interface
@@ -27,21 +30,23 @@ Function LoadMesh(file$, parent = 0)
 	Select LOADER_Ext_(file)
 		Case "obj" : mesh = LoadOBJMesh(file)
 			
-		Case "b3d"
+		Case "bo3d"
 			bank = CreateBank(size) : ReadBytes bank, file, 0, size
-			mesh = LoadB3DMesh(bank, 0, size)
+			mesh = LoadBO3D(bank, 0, size)
 			FreeBank bank
 			
 		Default
 			DebugLog "Unsupported file type for LoadMesh: '" + LOADER_Ext_(file) + "'"
 	End Select
 	
-	EntityParent mesh, parent
+	If mesh Then EntityParent mesh, parent
 	Return mesh
 End Function
 
-Function LoadB3DMesh(bk, start, size)
+Function LoadBO3D(bk, start, size)
+	LOADER_private_FBank_ = CreateBank(4)
 	
+	FreeBank LOADER_private_FBank_
 End Function
 
 Function LoadOBJMesh(file$)
@@ -169,6 +174,7 @@ Function SaveOBJMesh(mesh, file$)
 		l = l + v + "/" + v + "/" + v
 		WriteLine f, "f " + l
 	Next
+	CloseFile f
 End Function
 
 
@@ -215,7 +221,46 @@ Function LOADER_Split_(s$, on$ = " ", compact = True)
 	EndIf
 End Function
 
+Function LOADER_HalfToFloat#(h)
+	Local signBit, exponent, fraction, fBits
+	
+	signBit = (h And 32768) <> 0
+	exponent = (h And %0111110000000000) Shr 10
+	fraction = (h And %0000001111111111)
+	
+	If exponent = $1F Then exponent = $FF : ElseIf exponent Then exponent = (exponent - 15) + 127
+	fBits = (signBit Shl 31) Or (exponent Shl 23) Or (fraction Shl 13)
+	
+	PokeInt LOADER_private_FBank_, 0, fBits
+	Return PeekFloat(LOADER_private_FBank_, 0)
+End Function
+
+Function LOADER_FloatToHalf(f#)
+	Local signBit, exponent, fraction, fBits
+	
+	PokeFloat LOADER_private_FBank_, 0, f
+	fBits = PeekInt(LOADER_private_FBank_, 0)
+	
+	signBit = (fBits And (1 Shl 31)) <> 0
+	exponent = (fBits And $75800000) Shr 23
+	fraction = fBits And $007FFFFF
+	
+	If exponent
+		exponent = exponent - 127
+		If Abs(exponent) > $1F
+			If exponent <> ($FF - 127) Then fraction = 0
+			exponent = $1F * Sgn(exponent)
+		Else
+			exponent = exponent + 15
+		EndIf
+	EndIf
+	fraction = fraction Shr 13
+	
+	Return (signBit Shl 15) Or (exponent Shl 10) Or fraction
+End Function
+
+
 
 ;~IDEal Editor Parameters:
-;~F#2A#2E#8D
+;~F#33#92
 ;~C#BlitzPlus

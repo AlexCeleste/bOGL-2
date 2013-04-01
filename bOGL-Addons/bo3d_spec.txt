@@ -1,0 +1,191 @@
+
+ BO3D file format specification
+================================
+
+This document specifies a format for storing mesh, texture, bone and animation
+keyframe information to be loaded by the bOGL 3D engine for BlitzPlus.
+
+bOGL has only comparatively very simple entity definitions with a very limited
+range of options, and has no need for the large amount of data provided by
+complicated formats such as B3D. The format chose a flat layout because it is
+tailored for the bOGL engine and therefore trades protability for size and
+simplicity of loading and linking.
+
+
+ Type definitions
+==================
+
+A BO3D file stores integer, floating point, and character data. Integer and
+floating point elements are 32-bit and little-endian in the current format
+version. Integers may for the most part be interpreted as unsigned unless the
+context obviously demands otherwise (will be specified).
+
+Unsigned integers of other fixed widths may be specified (e.g. char[4] to
+represent bgra colours). "Short" integers are half of the word size.
+
+Floating point values within compound lists may have a width different from the
+word size for compression purposes. This width is specified in the file header.
+The current format version only requires that 32-bit and 16-bit floats are
+supported by the reader. These values are referred to as "vfloats" below.
+
+The format of character data is not specified, as only its length in bytes is
+relevant to the storage format.
+
+Elements of an entity sublist need not be aligned to the word size, and are
+instead densely packed. If the total size of the list is not a perfect multiple
+of the word size, it is padded so that the start of the next list will be
+aligned. Padding may however be specified in an element definition if needed.
+
+Version numbers follow the major/minor format established by B3D, where major =
+version / 100, and minor = version % 100. How to interpret these numbers is up
+to the implementation.
+
+The version of the file format described in this document is:  100
+
+The word size and alignment required by this version is:  4 bytes
+
+The number of bits in one byte is assumed to be:  8
+
+
+ File structure
+================
+
+A BO3D file consists of a flat list of entity definitions. Each definition
+corresponds to a mesh or pivot in a loaded bOGL scene. Scene hierarchy is
+described explicitly by giving each definition an index for its parent entity.
+
+The top level of the file contains a header:
+
+  0:int magic number
+  4:int version
+  8:int number of entities
+ 12:int byte length of entity list
+ 16:int bit length of vertex floats (see below)
+
+From offset 20, the rest of the file is a packed list of entity definitions,
+each new definition beginning immediately upon the end of the previous.
+
+
+ Entity structure
+==================
+
+An entity definition consists of a header containing core entity properties,
+followed by zero or more lists containing vertex and other data (offsets from
+the start of the entity definition):
+
+  0:int byte length of entity definition
+  4:int index of parent definition, or -1
+  8:float[3] local position vector
+ 20:float[3] local scale vector
+ 32:float[4] local rotation quaternion
+ 48:int number of keyframes
+ 52:int byte length of name string
+ 56:int number of vertices
+
+If the number of vertices is zero, the entity is loaded as a pivot. The entity
+definition header ends after 60 bytes and the next element is the keyframe list.
+Otherwise, the entity is loaded as a mesh, and the header continues:
+
+ 60:int number of vertex colours (should be the same as vertices, or zero)
+ 64:int number of triangles
+ 68:int byte length of texture name string (zero for untextured)
+ 72:char[4] entity colour (bgra, unsigned bytes)
+ 76:float alpha
+ 80:int entity FX flags
+ 84:int number of bones
+
+After this point the remainder of the entity definition is made up of packed
+element lists for its variable-length components. The byte lengths of each list
+are constant multiples of the element counts given in the entity header, rounded
+up to the word-alignment boundary (four, for the current format version).
+
+Lists have no header, since the size, number, and (lack of) padding of elements
+is known. If a list has zero elements, no data is stored, and the next list in
+the expected sequence will begin at the same offset (unless it has no elements
+either...).
+
+If the total lengths of the lists + header exceed the size given at offset 0 for
+the entire definition, the definition is corrupt. Whether to attempt to load any
+data, or to abandon the effort immediately, is up to the implementation.
+
+
+ List structures
+=================
+
+Each list is a headerless packed block of elements. The start of each list is
+aligned to the word size boundary. Elements are packed, and will therefore may
+need to specify padding bytes in order to be aligned properly.
+
+The lists that can appear in an entity definition are, in order:
+
+Keyframes (for animation)
+Name string
+Vertices (UVs, Normal, Position: corresponds to GL_T2F_N3F_V3F)
+Vertex colours (RGB)
+Triangles
+Texture name string
+Bones
+
+A pivot definition may only include the keyframe list and name string.
+
+
+Keyframe element (size 44):
+
+  0:int frame number
+  4:float[3] local position vector
+ 16:float[3] local scale vector
+ 28:float[4] local rotation quaternion
+
+ 
+Name string:
+
+The name string is an unspecified list of bytes padded to the nearest word size.
+The length is given in the entity definition and rounded up if necessary for
+padding.
+
+
+Vertex position element:
+
+If the bit width of vertex floats ("vfloats") is 32 (IEEE single precision):
+
+  0:vfloat[2] texture U/V coordinate
+  8:vfloat[3] normal X/Y/Z vector (not necessarily unit)
+ 20:vfloat[3] vertex X/Y/Z position
+
+If the bit width of vfloats is 16 (IEEE half precision):
+
+  0:vfloat[2] texture U/V coordinate
+  4:vfloat[3] normal X/Y/Z vector (not necessarily unit)
+ 10:vfloat[3] vertex X/Y/Z position
+
+
+Vertex colour element:
+
+  0:unsigned char[3] vertex R/G/B colour
+
+Colour elements are densely packed and are not expected to be aligned to the
+word boundary.
+
+
+Triangle element:
+
+  0:short[3] triangle vertices 0/1/2
+
+Triangle elements are densely packed and are not expected to be aligned to the
+word boundary.
+
+
+Texture name string:
+
+As for entity name string.
+
+
+Bone element:
+
+  0:int entity index (within the file's entity list)
+  4:int first vertex affected by bone
+  8:int last vertex affected by bone
+
+Bones affect a range of vertices. The affected vertices must be directly
+contiguous, and are not weighted or shared with any other bone.
+
