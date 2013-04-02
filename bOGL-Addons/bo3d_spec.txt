@@ -59,11 +59,14 @@ The top level of the file contains a header:
   0:int magic number
   4:int version
   8:int number of entities
- 12:int byte length of entity list
+ 12:int byte length of entity list (just the list, not this header)
  16:int bit length of vertex floats (see below)
 
 From offset 20, the rest of the file is a packed list of entity definitions,
 each new definition beginning immediately upon the end of the previous.
+
+The first entity defined in the file is the root node of the loaded entity
+structure.
 
 
  Entity structure
@@ -73,26 +76,27 @@ An entity definition consists of a header containing core entity properties,
 followed by zero or more lists containing vertex and other data (offsets from
 the start of the entity definition):
 
-  0:int byte length of entity definition
+  0:int byte length of entity definition (including this header)
   4:int index of parent definition, or -1
   8:float[3] local position vector
  20:float[3] local scale vector
  32:float[4] local rotation quaternion
- 48:int number of keyframes
- 52:int byte length of name string
- 56:int number of vertices
+ 48:int length of animation (zero for none)
+ 52:int number of keyframes
+ 56:int byte length of name string
+ 60:int number of vertices
 
 If the number of vertices is zero, the entity is loaded as a pivot. The entity
 definition header ends after 60 bytes and the next element is the keyframe list.
 Otherwise, the entity is loaded as a mesh, and the header continues:
 
- 60:int number of vertex colours (should be the same as vertices, or zero)
- 64:int number of triangles
- 68:int byte length of texture name string (zero for untextured)
- 72:char[4] entity colour (bgra, unsigned bytes)
- 76:float alpha
- 80:int entity FX flags
- 84:int number of bones
+ 64:int number of vertex colours (should be the same as vertices, or zero)
+ 68:int number of triangles
+ 72:int byte length of texture name string (zero for untextured)
+ 76:char[4] entity colour (bgra, unsigned bytes)
+ 80:float alpha
+ 84:int entity FX flags
+ 88:int number of bones
 
 After this point the remainder of the entity definition is made up of packed
 element lists for its variable-length components. The byte lengths of each list
