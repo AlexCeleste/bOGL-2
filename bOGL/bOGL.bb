@@ -636,7 +636,7 @@ Function FreeEntity(handler)
 		Next
 		FreeBank e\children
 	EndIf
-	If e\parentH Then EntityParent handler, 0
+	If e\parentH Then SetEntityParent handler, 0
 	If e\userData Then FreeBank e\userData	;Note that this may leave data unreferenced!
 	Delete e : bOGL_FreeHandler_ handler
 End Function
@@ -1129,7 +1129,7 @@ End Function
 Function bOGL_NewEnt_.bOGL_Ent(eClass, hdl, parentH)	;New base entity
 	Local ent.bOGL_Ent = New bOGL_Ent
 	ent\handler = bOGL_EntHandler_(ent)
-	EntityParent ent\handler, parentH
+	SetEntityParent ent\handler, parentH
 	ent\eClass = eClass
 	Select eClass
 		Case BOGL_CLASS_CAM : ent\c = Object.bOGL_Cam hdl
