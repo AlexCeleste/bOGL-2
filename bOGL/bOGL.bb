@@ -38,7 +38,7 @@
 ; EntityAlpha(handler, alpha#), EntityFX(handler, flags)
 ; EntityTexture(handler, texture)
 ; ShowEntity(handler, state)
-; EntityParent(handler, parentH), GetParentEntity(handler)
+; SetEntityParent(handler, parentH), GetEntityParent(handler)
 ; CountChildren(handler), GetChildEntity(handler, index), GetChildByName(handler, name$)
 ; SetEntityName(handler, name$), GetEntityName$(handler)
 ; RegisterEntityUserDataSlot(), SetEntityUserData(handler, slot, val), GetEntityUserData(handler, slot)
@@ -505,7 +505,7 @@ Function ShowEntity(handler, state)
 	this\hidden = (Not state)
 End Function
 
-Function EntityParent(handler, parentH)
+Function SetEntityParent(handler, parentH)
 	Local this.bOGL_Ent = bOGL_EntList_(handler), p.bOGL_Ent, c
 	If this\parentH		;Remove from the list of current parent
 		p = bOGL_EntList_(this\parentH) : For c = 0 To BankSize(p\children) - 4 Step 4
@@ -523,7 +523,7 @@ Function EntityParent(handler, parentH)
 	EndIf
 End Function
 
-Function GetParentEntity(handler)
+Function GetEntityParent(handler)
 	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return this\parentH
 End Function
 
