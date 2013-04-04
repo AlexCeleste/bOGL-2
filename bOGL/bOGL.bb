@@ -574,70 +574,71 @@ Function GetEntityUserData(handler, slot)
 End Function
 
 Function CopyEntity(handler, parentH = 0)
-	Local old.bOGL_Ent = bOGL_EntList_(handler), copy.bOGL_Ent
+	Local old.bOGL_Ent = bOGL_EntList_(handler), cp.bOGL_Ent
 	
 	Select old\eClass
 		Case BOGL_CLASS_CAM
-			copy = bOGL_EntList_(CreateCamera(parentH))
-			copy\c\vpx = old\c\vpx : copy\c\vpy = old\c\vpy : copy\c\vpw = old\c\vpw : copy\c\vph = old\c\vph
-			copy\c\viewangle = old\c\viewangle : copy\c\near = old\c\near : copy\c\far = old\c\far
-			copy\c\fogmode = old\c\fogmode : copy\c\fognear = old\c\fognear : copy\c\fogfar = old\c\fogfar : copy\c\fogcolor = old\c\fogcolor
+			cp = bOGL_EntList_(CreateCamera(parentH))
+			cp\c\vpx = old\c\vpx : cp\c\vpy = old\c\vpy : cp\c\vpw = old\c\vpw : cp\c\vph = old\c\vph
+			cp\c\viewangle = old\c\viewangle : cp\c\near = old\c\near : cp\c\far = old\c\far
+			cp\c\fogmode = old\c\fogmode : cp\c\fognear = old\c\fognear : cp\c\fogfar = old\c\fogfar : cp\c\fogcolor = old\c\fogcolor
 		Case BOGL_CLASS_LIGHT
-			copy = bOGL_EntList_(CreateLight(0., 0., 0., old\l\flag, parentH))
-			CopyBank old\l\pos, 0, copy\l\pos, 0, 16
-			CopyBank old\l\col, 0, copy\l\col, 0, 16
-			CopyBank old\l\att, 0, copy\l\att, 0, 4
+			cp = bOGL_EntList_(CreateLight(0., 0., 0., old\l\flag, parentH))
+			CopyBank old\l\pos, 0, cp\l\pos, 0, 16
+			CopyBank old\l\col, 0, cp\l\col, 0, 16
+			CopyBank old\l\att, 0, cp\l\att, 0, 4
 		Case BOGL_CLASS_MESH
-			copy = bOGL_EntList_(CreateMesh(parentH))
-			copy\m\texture = old\m\texture : copy\m\texture\rc = copy\m\texture\rc + 1
-			copy\m\argb = old\m\argb : copy\m\alpha = old\m\alpha
-			ResizeBank copy\m\vp, BankSize(old\m\vp) : CopyBank old\m\vp, 0, copy\m\vp, 0, BankSize(old\m\vp)
-			If old\m\vc Then copy\m\vc = CreateBank(BankSize(old\m\vc)) : CopyBank old\m\vc, 0, copy\m\vc, 0, BankSize(old\m\vc)
-			ResizeBank copy\m\poly, BankSize(old\m\poly) : CopyBank old\m\poly, 0, copy\m\poly, 0, BankSize(old\m\poly)
+			cp = bOGL_EntList_(CreateMesh(parentH))
+			cp\m\texture = old\m\texture : cp\m\texture\rc = cp\m\texture\rc + 1
+			cp\m\argb = old\m\argb : cp\m\alpha = old\m\alpha
+			ResizeBank cp\m\vp, BankSize(old\m\vp) : CopyBank old\m\vp, 0, cp\m\vp, 0, BankSize(old\m\vp)
+			If old\m\vc Then cp\m\vc = CreateBank(BankSize(old\m\vc)) : CopyBank old\m\vc, 0, cp\m\vc, 0, BankSize(old\m\vc)
+			ResizeBank cp\m\poly, BankSize(old\m\poly) : CopyBank old\m\poly, 0, cp\m\poly, 0, BankSize(old\m\poly)
 		Default
-			copy = bOGL_EntList_(CreatePivot(parentH))
+			cp = bOGL_EntList_(CreatePivot(parentH))
 	End Select
 	
 	If old\children
 		Local c : For c = 0 To BankSize(old\children) - 4 Step 4
-			CopyEntity PeekInt(old\children, c), copy\handler
+			CopyEntity PeekInt(old\children, c), cp\handler
 		Next
 	EndIf
 	
 	If old\userData
-		copy\userData = CreateBank(BankSize(old\userData)) : CopyBank old\userData, 0, copy\userData, 0, BankSize(old\userData)
+		cp\userData = CreateBank(BankSize(old\userData)) : CopyBank old\userData, 0, cp\userData, 0, BankSize(old\userData)
 	EndIf
 	
-	Return copy\handler	;Note that we haven't copied the entity properties: scale, position, rotation are all default
+	Return cp\handler	;Note that we haven't copied the entity properties: scale, position, rotation are all default
 End Function
 
 Function FreeEntity(handler)
-	Local this.bOGL_Ent = bOGL_EntList_(handler)
-	Select this\eClass
+	Local e.bOGL_Ent = bOGL_EntList_(handler)
+	Select e\eClass
 		Case BOGL_CLASS_CAM
-			If this\c\fogcolor Then FreeBank this\c\fogcolor
-			Delete this\c
+			If e\c\fogcolor Then FreeBank e\c\fogcolor
+			Delete e\c
 		Case BOGL_CLASS_LIGHT
-			If this\l\pos Then FreeBank this\l\pos
-			If this\l\col Then FreeBank this\l\col
-			If this\l\att Then FreeBank this\l\att
-			Delete this\l
+			If e\l\pos Then FreeBank e\l\pos
+			If e\l\col Then FreeBank e\l\col
+			If e\l\att Then FreeBank e\l\att
+			Delete e\l
 		Case BOGL_CLASS_MESH
-			If this\m\texture <> Null Then bOGL_ReleaseTexture_ this\m\texture
-			If this\m\vp Then FreeBank this\m\vp
-			If this\m\vc Then FreeBank this\m\vc
-			If this\m\poly Then FreeBank this\m\poly
-			Delete this\m
-			bOGL_VisChanged_ = bOGL_VisChanged_ Or (this\hidden = False)
+			If e\m\texture <> Null Then bOGL_ReleaseTexture_ e\m\texture
+			If e\m\vp Then FreeBank e\m\vp
+			If e\m\vc Then FreeBank e\m\vc
+			If e\m\poly Then FreeBank e\m\poly
+			Delete e\m
+			bOGL_VisChanged_ = bOGL_VisChanged_ Or (e\hidden = False)
 	End Select
-	If this\children
-		Local c : For c = 0 To BankSize(this\children) - 4 Step 4
-			FreeEntity PeekInt(this\children, c)
+	If e\children
+		Local c : For c = BankSize(e\children) - 4 To 0 Step -4	;Backwards as bank will shrink
+			FreeEntity PeekInt(e\children, c)
 		Next
-		FreeBank this\children
+		FreeBank e\children
 	EndIf
-	If this\userData Then FreeBank this\userData	;Note that this may leave data unreferenced!
-	Delete this : bOGL_FreeHandler_ handler
+	If e\parentH Then EntityParent handler, 0
+	If e\userData Then FreeBank e\userData	;Note that this may leave data unreferenced!
+	Delete e : bOGL_FreeHandler_ handler
 End Function
 
 Function FlipPolygons(handler)
@@ -1318,7 +1319,7 @@ End Function
 ;~F#57#60#67#6C#72#77#7F#86#8A#91#95#9C#AA#C3#C8#CD#D8#E4#EE#F2
 ;~F#F6#FA#FF#104#109#117#11C#121#126#12B#130#15A#166#180#185#18A#18F#193#198#1A0
 ;~F#1A9#1AF#1B5#1BD#1CC#1D4#1DB#1E1#1E6#1EA#1EE#1F5#1FB#20D#211#216#21A#225#229#22D
-;~F#231#23B#23F#265#282#28F#294#2A2#2AC#2B7#2BF#2C7#2CF#2D8#2E1#2EA#30F#327#32E#335
-;~F#33C#348#35B#365#3BB#3F0#3F4#40D#42A#438#44E#467#477#47C#481#48C#495#49C#4A1#4A9
-;~F#4BA#4C5#4D0#4EB#4F3#503#51B
+;~F#231#23B#23F#265#283#290#295#2A3#2AD#2B8#2C0#2C8#2D0#2D9#2E2#2EB#310#328#32F#336
+;~F#33D#349#35C#366#3BC#3F1#3F5#40E#42B#439#44F#468#478#47D#482#48D#496#49D#4A2#4AA
+;~F#4BB#4C6#4D1#4EC#4F4#504#51C
 ;~C#BlitzPlus
