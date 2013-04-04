@@ -40,6 +40,8 @@ Version numbers follow the major/minor format established by B3D, where major =
 version / 100, and minor = version % 100. How to interpret these numbers is up
 to the implementation.
 
+The "magic number" is 'BO3D' (0x44334f42)
+
 The version of the file format described in this document is:  100
 
 The word size and alignment required by this version is:  4 bytes
