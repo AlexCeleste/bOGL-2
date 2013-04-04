@@ -8,45 +8,100 @@
 ; BO3D meshes are loaded as entity hierarchies where appropriate
 ; BO3D meshes may also be loaded directly out of banks
 
+; This module does not provide any animation functionality: see "Animation.bb"
+; for procedures to also load animation key data, or "MD2.bb" for a different
+; animation system altogether
+
 ; (BO3D is a custom format optimised for bOGL, described in bo3d_spec.txt)
 
 
 Include "bOGL\bOGL.bb"
 
 
+Type bOGL_BoneEntData_
+	Field ent.bOGL_Ent, bones
+End Type
+
+
 Const LOADER_OBJ_UV_STRIDE = 8, LOADER_OBJ_NORM_STRIDE = 12
 Global LOADER_private_SplitCt_ : Dim LOADER_private_SplitRes_$(0)
-Global LOADER_private_FBank_
+Global LOADER_private_FBank_, LOADER_VFSize_ : Dim LOADER_Ents_(0)
+Global LOADER_private_UDSlot_, LOADER_header_.bOGL_BoneEntData_, LOADER_buffer_.bOGL_BoneEntData_
 
 
 ; Interface
 ;===========
 
+Function InitMeshLoaderAddon()		;Only call this once per program
+	LOADER_private_UDSlot_ = RegisterEntityUserDataSlot()
+	LOADER_header_ = New bOGL_BoneEntData_
+	LOADER_buffer_ = New bOGL_BoneEntData_
+	LOADER_private_FBank_ = CreateBank(4)
+End Function
+
 Function LoadMesh(file$, parent = 0)
 	If FileType(file) <> 1 Then Return 0
 	
-	Local mesh, size = FileSize(file), bank
+	Local mesh, size = FileSize(file), bank, f
 	
 	Select LOADER_Ext_(file)
 		Case "obj" : mesh = LoadOBJMesh(file)
 			
 		Case "bo3d"
-			bank = CreateBank(size) : ReadBytes bank, file, 0, size
+			bank = CreateBank(size) : f = ReadFile(file)
+			ReadBytes bank, f, 0, size
 			mesh = LoadBO3D(bank, 0, size)
-			FreeBank bank
+			CloseFile f : FreeBank bank
 			
 		Default
 			DebugLog "Unsupported file type for LoadMesh: '" + LOADER_Ext_(file) + "'"
 	End Select
 	
-	If mesh Then EntityParent mesh, parent
+	If mesh Then SetEntityParent mesh, parent
 	Return mesh
 End Function
 
 Function LoadBO3D(bk, start, size)
-	LOADER_private_FBank_ = CreateBank(4)
+	If LOADER_header_ = Null Then RuntimeError "Loader addon was not initialised!"
 	
-	FreeBank LOADER_private_FBank_
+	If size < 20 Then Return 0		;Size of the BO3D header: minimum possible valid file size
+	If PeekInt(bk, start + 0) <> $44334f42 Then Return 0	;Magic number check
+	If PeekInt(bk, start + 4) > 100 Then Return 0		;Version check
+	Local eCount = PeekInt(bk, start + 8)
+	Local eListSize = PeekInt(bk, start + 12)
+	LOADER_VFSize_ = PeekInt(bk, start + 16)
+	If LOADER_VFSize_ <> 16 And LOADER_VFSize_ <> 32 Then Return 0	;Invalid VFloat size
+	If eCount = 0 Then Return 0		;No entities... nothing to return
+	
+	Dim LOADER_Ents_(eCount)
+	Local p[0], tgt = start + size, doFail = False, i
+	p[0] = start + 20	;Skip the header
+	For i = 0 To eCount - 1
+		LOADER_Ents_(i) = LOADER_LoadEntityDef_(bk, p, tgt, i - 1)
+		If Not LOADER_Ents_(i) Then doFail = True : Exit
+	Next
+	
+	If doFail	;Loading an entity def failed: cleanup all of the loaded entities and return 0
+		For i = 0 To eCount - 1
+		;	If LOADER_Ents_(i) Then EntityParent LOADER_Ents_(i), 0
+		Next
+		For i = 0 To eCount - 1
+		;	If LOADER_Ents_(i) Then FreeEntity LOADER_Ents_(i)
+		Next
+		Dim LOADER_Ents_(0) : Return 0
+	EndIf
+	
+	For i = 0 To eCount - 1	;Update bone banks with correct entity handles
+		
+	Next
+	
+	For i = 1 To eCount - 1	;Ensure all entities are attached to the root node
+		If Not GetEntityParent(LOADER_Ents_(i)) Then SetEntityParent LOADER_Ents_(i), LOADER_Ents_(0)
+	Next
+	
+	Local ent = LOADER_Ents_(0)
+	Dim LOADER_Ents_(0)
+	Return ent
 End Function
 
 Function LoadOBJMesh(file$)
@@ -177,9 +232,132 @@ Function SaveOBJMesh(mesh, file$)
 	CloseFile f
 End Function
 
+Function UpdateBonedMeshes()
+	;!TODO
+End Function
+
+Function LOADER_ClearUnused()
+	Local m.bOGL_BoneEntData_
+	For m = Each bOGL_BoneEntData_
+		If m\ent = Null
+			If m <> LOADER_header_ And m <> LOADER_buffer_
+				FreeBank m\bones
+				Delete m
+			EndIf
+		EndIf
+	Next
+	LOADER_private_NewCounter_ = 0
+End Function
+
 
 ; Internal
 ;==========
+
+Const LOADER_ALLOC_TICKER = 25
+Global LOADER_private_NewCounter_
+
+Function LOADER_LoadEntityDef_(bk, p[0], tgt, ID)
+	If LOADER_private_NewCounter_ = LOADER_ALLOC_TICKER Then LOADER_ClearUnused
+	LOADER_private_NewCounter_ = LOADER_private_NewCounter_ + 1
+	
+	Local st = p[0], maxSz = tgt - st
+	If maxSz < 64 Then Return 0	;Minimum entity def header size
+	
+	Local sz = PeekInt(bk, st)	;Entity def size
+	If sz > maxSz Then Return 0	;Check that the whole def fits within the range
+	p[0] = p[0] + LOADER_AlignedSize_(sz)	;Increment the entity pointer
+	
+	;Create the entity base - if it has vertices, it's a mesh; if not, it's a pivot
+	Local entH : If PeekInt(bk, st + 60) Then entH = CreateMesh() Else entH = CreatePivot()
+	Local ent.bOGL_Ent = bOGL_EntList_(entH)
+	bOGL_InvalidateGlobalPosition_ ent, True
+	
+	;Read base entity (pivot) data
+	Local pID = PeekInt(bk, st + 4)		;Parent ID (within file)
+	If pID >= 0 And pID < ID Then SetEntityParent entH, LOADER_Ents_(pID)	;No circular parent loops
+	
+	;Local position vector
+	ent\x = PeekFloat(bk, st + 8) : ent\y = PeekFloat(bk, st + 12) : ent\z = PeekFloat(bk, st + 16)
+	;Local scale vector
+	ent\sx = PeekFloat(bk, st + 20) : ent\sy = PeekFloat(bk, st + 24) : ent\sz = PeekFloat(bk, st + 28)
+	;Local rotation quaternion
+	ent\q[0] = PeekFloat(bk, st + 32) : ent\q[1] = PeekFloat(bk, st + 36)
+	ent\q[2] = PeekFloat(bk, st + 40) : ent\q[3] = PeekFloat(bk, st + 44)
+	ent\Qv = True : ent\Rv = False
+	
+	;Anim length and keyframes are just loaded dumbly since this is not an anim module
+	Local aLen = PeekInt(bk, st + 48), kC = PeekInt(bk, st + 52)
+	
+	Local nLen = PeekInt(bk, st + 56)		;Byte length of name string
+	Local vertC = PeekInt(bk, st + 60)		;Number of vertices
+	
+	Local vColC, triC, tnLen, boneC
+	
+	If vertC	;If it's a mesh, also read mesh-specific extended header
+		If sz < 92 Then FreeEntity entH : Return 0		;At a minimum must have space for the header
+		
+		vColC = PeekInt(bk, st + 64)
+		triC = PeekInt(bk, st + 68)
+		tnLen = PeekInt(bk, st + 72)
+		ent\m\argb = $FFFFFFFF;PeekInt(bk, st + 76)
+		ent\m\alpha = PeekFloat(bk, st + 80)
+		ent\m\FX = PeekInt(bk, st + 84)
+		boneC = PeekInt(bk, st + 88)
+	EndIf
+	
+	If vertC < 0 Or nLen < 0 Or vColC < 0 Or triC < 0 Or tnLen < 0 Or boneC < 0		;Invalid, corrupt sizes
+		FreeEntity entH : Return 0
+	EndIf
+	
+	;Last check that the def is large enough to hold all requested data
+	If sz < kC * 44 + LOADER_AlignedSize_(nLen) + vertC * 8 * (LOADER_VFSize_ / 8) + vColC * 3 + triC * 6 + LOADER_AlignedSize_(tnLen) + boneC * 12
+		FreeEntity entH : Return 0
+	EndIf
+	;After this point, the entity def will definitely be loaded: everything fits in the required range
+	
+	st = st + 64 + (28 * (vertC <> 0))	;Inc past the header
+	
+	;Skip keyframes (this is not the animation module)
+	st = st + LOADER_AlignedSize_(kC * 44)
+	
+	ent\name = LOADER_PeekChars_(bk, st, nLen)
+	st = st + LOADER_AlignedSize_(nLen)
+	
+	If vertC	;Remaining properties are all mesh properties
+		ResizeBank ent\m\vp, vertC * BOGL_VERT_STRIDE
+		CopyBank bk, st, ent\m\vp, 0, vertC * 8 * (LOADER_VFSize_ / 8)	;This line will become dangerous if VFSize is ever more than 32
+		If LOADER_VFSize_ = 16 Then LOADER_ExpandVertexData_ ent\m\vp
+		st = st + LOADER_AlignedSize_(vertC * 8 * (LOADER_VFSize_ / 8))
+		
+		If vColC = vertC
+			ent\m\vc = CreateBank(vColC * BOGL_COL_STRIDE)
+			CopyBank bk, st, ent\m\vc, 0, vColC * BOGL_COL_STRIDE
+		EndIf
+		st = st + LOADER_AlignedSize_(vColC * 3)
+		
+		ResizeBank ent\m\poly, triC * BOGL_TRIS_STRIDE
+		CopyBank bk, st, ent\m\poly, 0, triC * 6
+		st = st + LOADER_AlignedSize_(triC * 6)
+		
+		If tnLen
+			Local tName$ = LOADER_PeekChars_(bk, st, tnLen)
+			Local tex = LoadTexture(tName)
+			If tex Then EntityTexture entH, tex : FreeTexture tex
+		EndIf
+		st = st + LOADER_AlignedSize_(tnLen)
+		
+		;bones
+	EndIf
+	
+	Return entH
+End Function
+
+Function LOADER_ExpandVertexData_(vp)
+	Local f, fc = BankSize(vp) / 4
+	For f = fc - 1 To 0 Step -1
+		PokeFloat vp, f * 4, LOADER_HalfToFloat_(PeekShort(vp, f * 2))
+	Next
+End Function
 
 ;Get the file extension off a name
 Function LOADER_Ext_$(name$)
@@ -221,7 +399,7 @@ Function LOADER_Split_(s$, on$ = " ", compact = True)
 	EndIf
 End Function
 
-Function LOADER_HalfToFloat#(h)
+Function LOADER_HalfToFloat_#(h)
 	Local signBit, exponent, fraction, fBits
 	
 	signBit = (h And 32768) <> 0
@@ -235,14 +413,14 @@ Function LOADER_HalfToFloat#(h)
 	Return PeekFloat(LOADER_private_FBank_, 0)
 End Function
 
-Function LOADER_FloatToHalf(f#)
+Function LOADER_FloatToHalf_(f#)
 	Local signBit, exponent, fraction, fBits
 	
 	PokeFloat LOADER_private_FBank_, 0, f
 	fBits = PeekInt(LOADER_private_FBank_, 0)
 	
 	signBit = (fBits And (1 Shl 31)) <> 0
-	exponent = (fBits And $75800000) Shr 23
+	exponent = (fBits And $7F800000) Shr 23
 	fraction = fBits And $007FFFFF
 	
 	If exponent
@@ -253,14 +431,26 @@ Function LOADER_FloatToHalf(f#)
 		Else
 			exponent = exponent + 15
 		EndIf
+		exponent = exponent And %11111
 	EndIf
 	fraction = fraction Shr 13
 	
 	Return (signBit Shl 15) Or (exponent Shl 10) Or fraction
 End Function
 
+Function LOADER_AlignedSize_(s)
+	If s Mod 4 Then Return s + (4 - s Mod 4) Else Return s
+End Function
+
+Function LOADER_PeekChars_$(bk, st, sLen)
+	Local s$, c
+	For c = 0 To sLen - 1
+		s = s + Chr(PeekByte(bk, st + c))
+	Next
+	Return s
+End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#33#92
+;~F#14#22#29#3F#6A#C9#EE#102#162#16A#172#191#19F#1B8#1BC
 ;~C#BlitzPlus

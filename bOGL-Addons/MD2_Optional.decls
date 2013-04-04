@@ -2,7 +2,7 @@
 ; Optional function declarations for the MD2 bOGL addon
 ; This file is only really to provide syntax highlighting
 
-; Array parameters (e.g. 'arr3') are represented with underscores (e.g. 'arr__3__')
+; Array parameters (e.g. 'arr[3]') are represented with underscores (e.g. 'arr__3__')
 
 .lib " "
 
@@ -18,4 +18,3 @@ GetMD2NumFrames(ent)
 GetMD2AnimMode(ent)
 GetMD2SeqByName(out__1__, ent, name$)
 MD2_ClearUnused()
-

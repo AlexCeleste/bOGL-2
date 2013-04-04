@@ -2,7 +2,7 @@
 ; Optional function declarations for bOGL
 ; This file is only really to provide syntax highlighting
 
-; Array parameters (e.g. 'arr3') are represented with underscores (e.g. 'arr__3__')
+; Array parameters (e.g. 'arr[3]') are represented with underscores (e.g. 'arr__3__')
 
 .lib " "
 
