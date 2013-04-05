@@ -51,7 +51,7 @@ Function UpdateMD2Anims()
 			Local n.bOGL_MD2Model = m
 			m = Before m
 			Insert n After Last bOGL_MD2Model
-			If n\mesh = Null Or n\bone = Null Then doClear = True
+			If n\mesh = Null Or n\bone = Null Then doClear = True Else MD2_UpdateFramePosition_ n, n\fromF, n\toF
 		Else
 			MD2_UpdateFramePosition_ m, m\fromF, m\toF
 			MD2_UpdateAnimation_ m
@@ -63,17 +63,20 @@ Function UpdateMD2Anims()
 	Insert MD2_header_ Before First bOGL_MD2Model
 End Function
 
-Function LoadMD2Model(file$, parent = 0)
-	If FileType(file) <> 1 Then Return 0
+Function LoadMD2Model(file$, parent = 0, numInstances = 1)
+	If FileType(file) <> 1 Or numInstances < 1 Then Return 0
 	Local sz = FileSize(file), bk = CreateBank(sz), mesh = CreateMesh(parent)
 	Local f = ReadFile(file)
 	ReadBytes bk, f, 0, sz
 	CloseFile f
-	Local bone = LoadMD2SubMesh(bk, 0, sz, mesh, False)
+	Local bone = LoadMD2SubMesh(bk, 0, sz, mesh, numInstances, numInstances > 1)
 	If Not bone
 		FreeEntity mesh : mesh = 0
 	Else
-		SetEntityUserData mesh, MD2_private_UDSlot_, GetEntityUserData(bone, MD2_private_UDSlot_)
+		If numInstances = 1		;Use mesh as root
+			SetEntityUserData mesh, MD2_private_UDSlot_, GetEntityUserData(bone, MD2_private_UDSlot_)
+			SetEntityUserData bone, MD2_private_UDSlot_, 0
+		EndIf
 		If MD2_private_TexName_ <> ""
 			Local tex = LoadTexture(MD2_private_TexName_, 0)
 			If tex Then EntityTexture mesh, tex : FreeTexture tex
@@ -82,7 +85,7 @@ Function LoadMD2Model(file$, parent = 0)
 	FreeBank bk : Return mesh	;Return 0 on failure
 End Function
 
-Function LoadMD2SubMesh(bk, st, sz, targetMesh, doAutoMove = True)
+Function LoadMD2SubMesh(bk, st, sz, targetMesh, numInstances, doAutoMove = True)
 	If sz < 68 Then Return 0	;Size of MD2 header; return 0 for invalid (too short) data
 	If st + sz < BankSize(bk) Then Return 0
 	If PeekInt(bk, st) <> 844121161 Or PeekInt(bk, st + 4) <> 8 Then Return 0	;Magic number & format version
@@ -108,42 +111,49 @@ Function LoadMD2SubMesh(bk, st, sz, targetMesh, doAutoMove = True)
 	If ofsFrames + numFrames * frameSize > ofsLimit Or ofsFrames < 68 Then Return 0
 	;After this point, the model will get loaded, although errors might cause corruptions
 	
-	Local bone = CreatePivot(targetMesh), firstVertex = CountVertices(targetMesh)
-	Local m.bOGL_MD2Model = MD2_NewModel_(bone, targetMesh, firstVertex, numVerts, numFrames), i
-	
+	Local frameBank = CreateBank(numFrames * MD2_FRAME_SIZE + 4), i, instance
+	PokeInt frameBank, numFrames * MD2_FRAME_SIZE, numInstances		;Set reference count for frames
 	For i = 0 To numFrames - 1
-		CopyBank bk, ofsFrames + frameSize * i, m\frames, MD2_FRAME_SIZE * i, MD2_FRAME_SIZE - 4
-		Local fr = CreateBank(frameSize - (MD2_FRAME_SIZE - 4))
-		CopyBank bk, ofsFrames + frameSize * i + (MD2_FRAME_SIZE - 4), fr, 0, BankSize(fr)
-		PokeInt m\frames, MD2_FRAME_SIZE * i + (MD2_FRAME_SIZE - 4), fr
+		CopyBank bk, ofsFrames + frameSize * i, frameBank, MD2_FRAME_SIZE * i, MD2_FRAME_SIZE - 4
+		Local frB = CreateBank(frameSize - (MD2_FRAME_SIZE - 4))
+		CopyBank bk, ofsFrames + frameSize * i + (MD2_FRAME_SIZE - 4), frB, 0, BankSize(frB)
+		PokeInt frameBank, MD2_FRAME_SIZE * i + (MD2_FRAME_SIZE - 4), frB
 	Next
 	
-	For i = 0 To numVerts - 1
-		AddVertex targetMesh, 0, 0, 0
+	For instance = 0 To numInstances - 1
+		Local bone = CreatePivot(targetMesh)
+		Local m.bOGL_MD2Model = MD2_NewModel_(bone, targetMesh, CountVertices(targetMesh), numVerts, numFrames, doAutoMove)
+		m\frames = frameBank
+		
+		For i = 0 To numVerts - 1
+			AddVertex targetMesh, 0, 0, 0
+		Next
+		
+		Dim MD2_VertC_(numVerts)
+		
+		For i = 0 To numTris - 1
+			Local v0 = PeekShort(bk, ofsTris + i * 12), v1 = PeekShort(bk, ofsTris + i * 12 + 2), v2 = PeekShort(bk, ofsTris + i * 12 + 4)
+			
+			;MD2_SetVertexUVs_ will create new vertices if necessary and add their frame data to handle welds
+			Local u# = PeekShort(bk, ofsTexCoords + PeekShort(bk, ofsTris + i * 12 + 6) * 4) / skinWidth
+			Local v# = PeekShort(bk, ofsTexCoords + PeekShort(bk, ofsTris + i * 12 + 6) * 4 + 2) / skinHeight
+			v0 = MD2_SetVertexUVs_(m, v0 + m\firstVert, u, v)
+			
+			u = PeekShort(bk, ofsTexCoords + PeekShort(bk, ofsTris + i * 12 + 8) * 4) / skinWidth
+			v = PeekShort(bk, ofsTexCoords + PeekShort(bk, ofsTris + i * 12 + 8) * 4 + 2) / skinHeight
+			v1 = MD2_SetVertexUVs_(m, v1 + m\firstVert, u, v)
+			
+			u = PeekShort(bk, ofsTexCoords + PeekShort(bk, ofsTris + i * 12 + 10) * 4) / skinWidth
+			v = PeekShort(bk, ofsTexCoords + PeekShort(bk, ofsTris + i * 12 + 10) * 4 + 2) / skinHeight
+			v2 = MD2_SetVertexUVs_(m, v2 + m\firstVert, u, v)
+			
+			AddTriangle targetMesh, v0, v1, v2
+		Next
+		
+		Dim MD2_VertC_(0)
+		
+		MD2_UpdateFramePosition_ m, 0, 0
 	Next
-	
-	Dim MD2_VertC_(numVerts)
-	
-	For i = 0 To numTris - 1
-		Local v0 = PeekShort(bk, ofsTris + i * 12), v1 = PeekShort(bk, ofsTris + i * 12 + 2), v2 = PeekShort(bk, ofsTris + i * 12 + 4)
-		
-		;MD2_SetVertexUVs_ will create new vertices if necessary and add their frame data to handle welds
-		Local u# = PeekShort(bk, ofsTexCoords + PeekShort(bk, ofsTris + i * 12 + 6) * 4) / skinWidth
-		Local v# = PeekShort(bk, ofsTexCoords + PeekShort(bk, ofsTris + i * 12 + 6) * 4 + 2) / skinHeight
-		v0 = MD2_SetVertexUVs_(m, v0, u, v)
-		
-		u = PeekShort(bk, ofsTexCoords + PeekShort(bk, ofsTris + i * 12 + 8) * 4) / skinWidth
-		v = PeekShort(bk, ofsTexCoords + PeekShort(bk, ofsTris + i * 12 + 8) * 4 + 2) / skinHeight
-		v1 = MD2_SetVertexUVs_(m, v1, u, v)
-		
-		u = PeekShort(bk, ofsTexCoords + PeekShort(bk, ofsTris + i * 12 + 10) * 4) / skinWidth
-		v = PeekShort(bk, ofsTexCoords + PeekShort(bk, ofsTris + i * 12 + 10) * 4 + 2) / skinHeight
-		v2 = MD2_SetVertexUVs_(m, v2, u, v)
-		
-		AddTriangle targetMesh, v0, v1, v2
-	Next
-	
-	Dim MD2_VertC_(0)
 	
 	MD2_private_TexName_ = ""
 	If numSkins		;Note that bOGL only supports single-texturing
@@ -153,8 +163,25 @@ Function LoadMD2SubMesh(bk, st, sz, targetMesh, doAutoMove = True)
 		Next
 	EndIf
 	
-	MD2_UpdateFramePosition_ m, 0, 0
-	Return bone
+	Return bone		;If more than one are created... assume they will be found attached as children
+End Function
+
+Function CopyMD2Mesh(rootMesh, parent = 0)
+	Local mesh = CopyEntity(rootMesh, parent), ci, m.bOGL_MD2Model
+	
+	For ci = 0 To CountChildren(mesh) - 1
+		m = Object.bOGL_MD2Model GetEntityUserData(GetChildEntity(rootMesh, ci), MD2_private_UDSlot_)
+		If m <> Null
+			Local ch = GetChildEntity(mesh, ci)
+			SetEntityUserData ch, MD2_private_UDSlot_, Handle MD2_CopyModel_(m, ch, mesh)
+		EndIf
+	Next
+	m = Object.bOGL_MD2Model GetEntityUserData(rootMesh, MD2_private_UDSlot_)
+	If m <> Null
+		SetEntityUserData mesh, MD2_private_UDSlot_, Handle MD2_CopyModel_(m, GetChildEntity(mesh, 0), mesh)
+	EndIf
+	
+	Return mesh
 End Function
 
 Function AnimateMD2(ent, mode = MD2_MODE_LOOP, speed# = 1.0, fF = 0, lF = -1, trans = 0)
@@ -177,7 +204,7 @@ Function AnimateMD2(ent, mode = MD2_MODE_LOOP, speed# = 1.0, fF = 0, lF = -1, tr
 		m\fromF = fF : m\toF = fF + 1
 	Else
 		m\trans = 1.0 / Float trans
-		If Abs(m\animTime - fF) < trans
+		If Abs(m\animTime - fF) < m\trans
 			m\nextMode = MD2_MODE_TRANS
 			m\animMode = mode
 			m\animTime = fF
@@ -186,6 +213,7 @@ Function AnimateMD2(ent, mode = MD2_MODE_LOOP, speed# = 1.0, fF = 0, lF = -1, tr
 			m\nextMode = mode
 			m\animMode = MD2_MODE_TRANS
 			m\fromF = Floor(m\animTime) : m\toF = fF
+			m\animTime = m\fromF
 		EndIf
 	EndIf
 End Function
@@ -260,26 +288,38 @@ Const MD2_ALLOC_TICKER = 25
 Global MD2_private_NewCounter_
 
 ; Allocate a new MD2 instance. This also checks for MD2s attached to dead entities and removes them
-Function MD2_NewModel_.bOGL_MD2Model(bone, mesh, fv, vc, fc)
+Function MD2_NewModel_.bOGL_MD2Model(bone, mesh, fv, vc, fc, am)
 	If MD2_private_NewCounter_ = MD2_ALLOC_TICKER Then MD2_ClearUnused
 	MD2_private_NewCounter_ = MD2_private_NewCounter_ + 1
 	Local m.bOGL_MD2Model = New bOGL_MD2Model
 	Insert m Before First bOGL_MD2Model
 	m\bone = bOGL_EntList_(bone) : m\mesh = bOGL_EntList_(mesh)
-	m\numFrames = fc : m\frames = CreateBank(fc * MD2_FRAME_SIZE)
-	m\numVerts = vc : m\firstVert = fv
+	m\numFrames = fc : m\numVerts = vc : m\firstVert = fv : m\autoMove = am
 	SetEntityUserData mesh, MD2_private_UDSlot_, 0
 	SetEntityUserData bone, MD2_private_UDSlot_, Handle m
 	Return m
 End Function
 
+Function MD2_CopyModel_.bOGL_MD2Model(m.bOGL_MD2Model, bone, mesh)
+	Local c.bOGL_MD2Model = MD2_NewModel_(bone, mesh, m\firstVert, m\numVerts, m\numFrames, m\autoMove)
+	c\frames = m\frames
+	PokeInt c\frames, BankSize(c\frames) - 4, PeekInt(c\frames, BankSize(c\frames) - 4) + 1	;Retain
+	c\autoMove = m\autoMove
+	MD2_UpdateFramePosition_ c, 0, 0
+	Return c
+End Function
+
 Function MD2_FreeModel_(m.bOGL_MD2Model)
-	Local i : For i = 0 To m\numFrames - 1
-		FreeBank PeekInt(m\frames, (i + 1) * MD2_FRAME_SIZE - 4)
-	Next
-	FreeBank m\frames
-	SetEntityUserData m\mesh\handler, MD2_private_UDSlot_, 0
-	SetEntityUserData m\bone\handler, MD2_private_UDSlot_, 0
+	If PeekInt(m\frames, BankSize(m\frames) - 4) <= 1	;Frame data is shared among copies
+		Local i : For i = 0 To m\numFrames - 1
+			FreeBank PeekInt(m\frames, (i + 1) * MD2_FRAME_SIZE - 4)
+		Next
+		FreeBank m\frames
+	Else
+		PokeInt m\frames, BankSize(m\frames) - 4, PeekInt(m\frames, BankSize(m\frames) - 4) - 1
+	EndIf
+	If m\mesh <> Null Then SetEntityUserData m\mesh\handler, MD2_private_UDSlot_, 0
+	If m\bone <> Null Then SetEntityUserData m\bone\handler, MD2_private_UDSlot_, 0
 	Delete m
 End Function
 
@@ -568,5 +608,6 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#F#25#2C#41#54#9F#C0#C5#CC#D1#D6#DB#F4#106#113#11E#135#167#192
+;~F#F#25#2C#41#57#A8#BA#DC#E1#E8#ED#F2#F7#110#122#12E#137#146#15D#18F
+;~F#1BA
 ;~C#BlitzPlus

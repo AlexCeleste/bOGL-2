@@ -72,6 +72,21 @@ Local currentSeq = 0
 AnimateMD2 dragon, MD2_MODE_LOOP, 0.15, seq(currentSeq, 0), seq(currentSeq, 1), 8
 
 
+; Load multiple instances of an MD2 sharing one surface
+Local herd = LoadMD2Model("Media\dragon.md2", 0, 3)
+tex = LoadTexture("Media\dragon2.png")
+EntityTexture herd, tex
+FreeTexture tex
+PositionEntity herd, 0, 2.44, -15
+
+Local c : For c = 0 To 2
+	ScaleEntity GetChildEntity(herd, c), 0.1, 0.1, -0.1
+	RotateEntity GetChildEntity(herd, c), -90, 90, 0
+	PositionEntity GetChildEntity(herd, c), -15 + (15 * c), 0, 0
+	AnimateMD2 GetChildEntity(herd, c), MD2_MODE_LOOP, 0.15, seq(6 + c, 0), seq(6 + c, 1), 8
+Next
+
+
 Include "bogl-Addons\Draw2D.bb"
 InitDraw2D : LoadFont2D("Media\Blitz.png")
 
@@ -83,9 +98,9 @@ While Not KeyHit(1)
 	
 	TurnEntity yPiv, 0, (KeyDown(205) - KeyDown(203)) * 0.5, 0
 	TurnEntity xPiv, (KeyDown(208) - KeyDown(200)) * 0.5, 0, 0
-	MoveEntity camera, 0, 0, (KeyDown(44) - KeyDown(30)) * 0.1
-	If EntityXAngle(xPiv) > -5 Then RotateEntity xPiv, -5, 0, 0 : ElseIf EntityXAngle(xPiv) < -89 Then RotateEntity xPiv, -89, 0, 0
-	If EntityZ(camera) < 8 Then PositionEntity camera, 0, 0, 8 : ElseIf EntityZ(camera) > 29 Then PositionEntity camera, 0, 0, 29
+	MoveEntity camera, 0, 0, (KeyDown(44) - KeyDown(30)); * 0.1
+;	If EntityXAngle(xPiv) > -5 Then RotateEntity xPiv, -5, 0, 0 : ElseIf EntityXAngle(xPiv) < -89 Then RotateEntity xPiv, -89, 0, 0
+;	If EntityZ(camera) < 8 Then PositionEntity camera, 0, 0, 8 : ElseIf EntityZ(camera) > 29 Then PositionEntity camera, 0, 0, 29
 	
 	UpdateMD2Anims	;Necessary to move the MD2 system on a step and update the renderable meshes
 	
