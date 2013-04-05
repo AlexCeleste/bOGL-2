@@ -49,8 +49,6 @@ While Not KeyHit(1)
 	If EntityXAngle(xPiv) > 0 Then RotateEntity xPiv, 0, 0, 0 : ElseIf EntityXAngle(xPiv) < -89 Then RotateEntity xPiv, -89, 0, 0
 	If EntityZ(camera) < 8 Then PositionEntity camera, 0, 0, 8 : ElseIf EntityZ(camera) > 29 Then PositionEntity camera, 0, 0, 29
 	
-	UpdateBonedMeshes	;Necessary to update the vertex positions to reflect bone movement
-	
 	RenderWorld
 	
 	BeginDraw2D
