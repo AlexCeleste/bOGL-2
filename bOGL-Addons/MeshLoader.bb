@@ -19,7 +19,8 @@ Include "bOGL\bOGL.bb"
 
 
 Type bOGL_BoneEntData_
-	Field ent.bOGL_Ent, bones
+	Field ent.bOGL_Ent, isActive
+	Field bones
 End Type
 
 
@@ -62,7 +63,7 @@ Function LoadMesh(file$, parent = 0)
 End Function
 
 Function LoadBO3D(bk, start, size)
-	If LOADER_header_ = Null Then RuntimeError "Loader addon was not initialised!"
+	If Not LOADER_private_FBank_ Then RuntimeError "Loader addon was not initialised!"
 	
 	If size < 20 Then Return 0		;Size of the BO3D header: minimum possible valid file size
 	If PeekInt(bk, start + 0) <> $44334f42 Then Return 0	;Magic number check
@@ -83,10 +84,10 @@ Function LoadBO3D(bk, start, size)
 	
 	If doFail	;Loading an entity def failed: cleanup all of the loaded entities and return 0
 		For i = 0 To eCount - 1
-		;	If LOADER_Ents_(i) Then EntityParent LOADER_Ents_(i), 0
+			If LOADER_Ents_(i) Then SetEntityParent LOADER_Ents_(i), 0
 		Next
 		For i = 0 To eCount - 1
-		;	If LOADER_Ents_(i) Then FreeEntity LOADER_Ents_(i)
+			If LOADER_Ents_(i) Then FreeEntity LOADER_Ents_(i)
 		Next
 		Dim LOADER_Ents_(0) : Return 0
 	EndIf
@@ -233,7 +234,33 @@ Function SaveOBJMesh(mesh, file$)
 End Function
 
 Function UpdateBonedMeshes()
-	;!TODO
+	Insert LOADER_header_ After Last bOGL_BoneEntData_
+	Local m.bOGL_BoneEntData_, doClear = False : For m = Each bOGL_BoneEntData_
+		If m = LOADER_buffer_ Then Exit
+		
+		If m\ent = Null Or m\isActive = False
+			Local n.bOGL_BoneEntData_ = m
+			m = Before m
+			Insert n After Last bOGL_BoneEntData_
+			If n\ent = Null Then doClear = True
+		Else
+			LOADER_UpdateBones_ m
+		EndIf
+		
+		If m = Null Then m = LOADER_header_ : Insert m Before First bOGL_BoneEntData_
+	Next
+	If doClear Then LOADER_ClearUnused
+	Insert LOADER_header_ Before First bOGL_BoneEntData_
+End Function
+
+; Cause a mesh to resume being deformed by its bones
+Function ActivateMeshBones(ent)
+	
+End Function
+
+; Stop a mesh from being deformed by any bones
+Function DeactivateMeshBones(ent)
+	
 End Function
 
 Function LOADER_ClearUnused()
@@ -359,6 +386,10 @@ Function LOADER_ExpandVertexData_(vp)
 	Next
 End Function
 
+Function LOADER_UpdateBones_(m.bOGL_BoneEntData_)
+	
+End Function
+
 ;Get the file extension off a name
 Function LOADER_Ext_$(name$)
 	While Instr(name, ".")
@@ -452,5 +483,5 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#14#22#29#3F#6A#C9#EE#102#162#16A#172#191#19F#1B8#1BC
+;~F#23#2A#6B#CA#109#11D#17D#189#191#1B0#1BE#1D7#1DB
 ;~C#BlitzPlus

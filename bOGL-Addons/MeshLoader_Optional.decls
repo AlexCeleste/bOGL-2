@@ -7,10 +7,11 @@
 .lib " "
 
 InitMeshLoaderAddon()
-LoadMesh(file$, parent)
-LoadBO3D(bk, start, size)
-LoadOBJMesh(file$)
+LoadMesh%(file$, parent)
+LoadBO3D%(bk, start, size)
+LoadOBJMesh%(file$)
 SaveOBJMesh(mesh, file$)
 UpdateBonedMeshes()
+ActivateMeshBones(ent)
+DeactivateMeshBones(ent)
 LOADER_ClearUnused()
-
