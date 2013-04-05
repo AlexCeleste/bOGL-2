@@ -1016,7 +1016,7 @@ Function TFormPoint(x#, y#, z#, src, dst, out#[2])
 		Local s.bOGL_Ent = bOGL_EntList_(src) : If Not s\Gv Then bOGL_UpdateGlobalPosition_ s
 		If Not s\g_Rv Then bOGL_UpdateAxisAngle_ s\g_r, s\g_q : s\g_Rv = True
 		bOGL_RotateVector_ out, x, y, z, s\g_r
-		out[0] = s\g_x + out[0] * s\g_sx : out[1] = s\g_y + out[1] * s\g_sy : out[2] = s\g_z + out[2] * s\g_sz
+		out[0] = s\g_x + out[0] * s\sx * s\g_sx : out[1] = s\g_y + out[1] * s\sy * s\g_sy : out[2] = s\g_z + out[2] * s\sz * s\g_sz
 	EndIf
 	If dst
 		Local d.bOGL_Ent = bOGL_EntList_(dst) : If Not d\Gv Then bOGL_UpdateGlobalPosition_ d
