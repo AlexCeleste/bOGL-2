@@ -869,8 +869,6 @@ Function GrabBackBuffer(x, y, width, height, pix, doConvert = True)
 End Function
 
 Function RenderWorld(stencilMode = BOGL_STENCIL_OFF)
-	Local x#, y#, z#, light
-	
 	glStencilMask 0 : glColorMask_Unsafe GL_TRUE,GL_TRUE, GL_TRUE, GL_TRUE	;Disable stencil writes, enable rendering
 	glStencilFunc stencilMode, 0, $FF
 	
@@ -883,6 +881,7 @@ Function RenderWorld(stencilMode = BOGL_STENCIL_OFF)
 			; Lights
 			glEnable GL_LIGHTING
 			If bOGL_AmbientLight_ Then glLightModelfv GL_LIGHT_MODEL_AMBIENT, bOGL_AmbientLight_
+			Local light = 0
 			Local lig.bOGL_Light : For lig = Each bOGL_Light
 				If Not lig\ent\hidden
 					light = light + 1 : If light > 7 Then Exit;light = 7
@@ -1320,6 +1319,6 @@ End Function
 ;~F#F6#FA#FF#104#109#117#11C#121#126#12B#130#15A#166#180#185#18A#18F#193#198#1A0
 ;~F#1A9#1AF#1B5#1BD#1CC#1D4#1DB#1E1#1E6#1EA#1EE#1F5#1FB#20D#211#216#21A#225#229#22D
 ;~F#231#23B#23F#265#283#290#295#2A3#2AD#2B8#2C0#2C8#2D0#2D9#2E2#2EB#310#328#32F#336
-;~F#33D#349#35C#366#3BC#3F1#3F5#40E#42B#439#44F#468#478#47D#482#48D#496#49D#4A2#4AA
-;~F#4BB#4C6#4D1#4EC#4F4#504#51C
+;~F#33D#349#35C#366#3BB#3F0#3F4#40D#42A#438#44E#467#477#47C#481#48C#495#49C#4A1#4A9
+;~F#4BA#4C5#4D0#4EB#4F3#503#51B
 ;~C#BlitzPlus

@@ -73,6 +73,7 @@ Function LoadBO3D(bk, start, size)
 	LOADER_VFSize_ = PeekInt(bk, start + 16)
 	If LOADER_VFSize_ <> 16 And LOADER_VFSize_ <> 32 Then Return 0	;Invalid VFloat size
 	If eCount = 0 Then Return 0		;No entities... nothing to return
+	If eListSize > size + 20 Then Return 0		;Entity list doesn't fit
 	
 	Dim LOADER_Ents_(eCount)
 	Local p[0], tgt = start + size, doFail = False, i
@@ -106,9 +107,8 @@ Function LoadBO3D(bk, start, size)
 End Function
 
 Function LoadOBJMesh(file$)
-	Local sz = FileSize(file), f = ReadFile(file)
+	Local sz = FileSize(file), f = ReadFile(file), mesh = CreateMesh()
 	Local norms = CreateBank(sz), uvs = CreateBank(sz), np = 0, up = 0, vc = 0
-	Local name$ = "", mesh = CreateMesh()
 	
 	While Not Eof(f)
 		Local def$ = ReadLine(f) : LOADER_Split_ def
@@ -483,5 +483,5 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#23#2A#6B#CA#109#11D#17D#189#191#1B0#1BE#1D7#1DB
+;~F#23#2A#CA#109#11D#17D#189#191#1B0#1BE#1D7#1DB
 ;~C#BlitzPlus

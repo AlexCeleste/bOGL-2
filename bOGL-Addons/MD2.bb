@@ -360,9 +360,19 @@ Function MD2_UpdateFramePosition_(m.bOGL_MD2Model, pTime, nTime)
 	Local pFr = PeekInt(m\frames, pTime * MD2_FRAME_SIZE + 40), nFr = PeekInt(m\frames, nTime * MD2_FRAME_SIZE + 40)
 	
 	Local i, vt = m\numVerts - 1, pVal, nVal, vx#, vy#, vz#, vnx#, vny#, vnz#
-	Local varr = m\mesh\m\vp, vptr, voff = m\firstVert, tfv#[2], bone = m\bone\handler, mesh = m\mesh\handler
+	Local varr = m\mesh\m\vp, vptr, voff = m\firstVert, tfv#[2], r#[3];, bone = m\bone\handler, mesh = m\mesh\handler
 	
 	If m\autoMove
+		If Not m\bone\Rv Then bOGL_UpdateAxisAngle_ m\bone\r, m\bone\q : m\bone\Rv = True
+		If Not m\bone\Gv Then bOGL_UpdateGlobalPosition_ m\bone
+		
+		r[0] = m\bone\r[0] : r[1] = m\bone\r[1] : r[2] = m\bone\r[2] : r[3] = m\bone\r[3]
+		Local bsx# = m\bone\sx, bsy# = m\bone\sy, bsz# = m\bone\sz
+		Local btx# = m\bone\x, bty# = m\bone\y, btz# = m\bone\z
+		
+		;Note that these use mesh scale, NOT bone scale
+		Local gnx# = Abs(m\mesh\g_sx * m\mesh\sx), gny# = Abs(m\mesh\g_sy * m\mesh\sy), gnz# = Abs(m\mesh\g_sz * m\mesh\sz)
+		
 		For i = 0 To vt		;Loop is copied from below (to inline), tForm inserted
 			pVal = PeekInt(pFr, i * 4) : nVal = PeekInt(nFr, i * 4)
 			vx = ((pVal And $FF) * tw0 + (nVal And $FF) * tw1) * sx + tx
@@ -373,11 +383,17 @@ Function MD2_UpdateFramePosition_(m.bOGL_MD2Model, pTime, nTime)
 			vny = MD2_VertN_((pVal And $FF000000) Shr 24, 1) * tw0 + MD2_VertN_((nVal And $FF000000) Shr 24, 1) * tw1
 			vnz = MD2_VertN_((pVal And $FF000000) Shr 24, 2) * tw0 + MD2_VertN_((nVal And $FF000000) Shr 24, 2) * tw1
 			
-			TFormPoint vx, vy, vz, bone, mesh, tfv
-			
 			vptr = (i + voff) * BOGL_VERT_STRIDE
-			PokeFloat varr, vptr + 20, tfv[0] : PokeFloat varr, vptr + 24, tfv[1] : PokeFloat varr, vptr + 28, tfv[2]
-			PokeFloat varr, vptr + 8, vnx : PokeFloat varr, vptr + 12, vny : PokeFloat varr, vptr + 16, vnz
+			
+			bOGL_RotateVector_ tfv, vx, vy, vz, r
+			PokeFloat varr, vptr + 20, tfv[0] * bsx + btx
+			PokeFloat varr, vptr + 24, tfv[1] * bsy + bty
+			PokeFloat varr, vptr + 28, tfv[2] * bsz + btz
+			
+			bOGL_RotateVector_ tfv, vnx, vny, vnz, r
+			PokeFloat varr, vptr + 8, tfv[0] * gnx
+			PokeFloat varr, vptr + 12, tfv[1] * gny
+			PokeFloat varr, vptr + 16, tfv[2] * gnz
 		Next
 	Else
 		For i = 0 To vt
@@ -608,6 +624,6 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#F#25#2C#41#57#A8#BA#DC#E1#E8#ED#F2#F7#110#122#12E#137#146#15D#18F
-;~F#1BA
+;~F#F#25#2C#41#57#A8#BA#DC#E1#E8#ED#F2#F7#110#122#12E#137#146#15D#19F
+;~F#1CA
 ;~C#BlitzPlus
