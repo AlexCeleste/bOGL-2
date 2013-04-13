@@ -26,10 +26,10 @@ End Type
 
 
 Const MD2_MODE_STOP = 0, MD2_MODE_LOOP = 1, MD2_MODE_PING = 2, MD2_MODE_ONCE = 3, MD2_MODE_TRANS = 4
-Const MD2_FRAME_SIZE = 44
+Const MD2_FRAME_SIZE = 44, MD2_SIN_ACC = 16
 Global MD2_private_UDSlot_ = -1, MD2_private_TexName_$
 Global MD2_buffer_.bOGL_MD2Model, MD2_header_.bOGL_MD2Model
-Dim MD2_VertN_#(0, 0), MD2_VertC_(0)
+Dim MD2_VertN_#(0, 0), MD2_VertC_(0) : Global MD2_SineLT_#[360 * MD2_SIN_ACC + 1]
 
 
 ; Interface
@@ -40,6 +40,9 @@ Function InitMD2Addon()		;Only call this once per program
 	MD2_header_ = New bOGL_MD2Model
 	MD2_buffer_ = New bOGL_MD2Model
 	MD2_InitVertexNormals_
+	Local i : For i = 0 To 360 * MD2_SIN_ACC + 1
+		MD2_SineLT_[i] = Sin(Float i / Float MD2_SIN_ACC)
+	Next
 End Function
 
 Function UpdateMD2Anims()
@@ -385,12 +388,12 @@ Function MD2_UpdateFramePosition_(m.bOGL_MD2Model, pTime, nTime)
 			
 			vptr = (i + voff) * BOGL_VERT_STRIDE
 			
-			bOGL_RotateVector_ tfv, vx, vy, vz, r
+			MD2_RotateVectorFast_ tfv, vx, vy, vz, r
 			PokeFloat varr, vptr + 20, tfv[0] * bsx + btx
 			PokeFloat varr, vptr + 24, tfv[1] * bsy + bty
 			PokeFloat varr, vptr + 28, tfv[2] * bsz + btz
 			
-			bOGL_RotateVector_ tfv, vnx, vny, vnz, r
+			MD2_RotateVectorFast_ tfv, vnx, vny, vnz, r
 			PokeFloat varr, vptr + 8, tfv[0] * gnx
 			PokeFloat varr, vptr + 12, tfv[1] * gny
 			PokeFloat varr, vptr + 16, tfv[2] * gnz
@@ -411,6 +414,18 @@ Function MD2_UpdateFramePosition_(m.bOGL_MD2Model, pTime, nTime)
 			PokeFloat varr, vptr + 8, vnx : PokeFloat varr, vptr + 12, vny : PokeFloat varr, vptr + 16, vnz
 		Next
 	EndIf
+End Function
+
+; Rotate a vector x,y,z by normalised axis-angle r (Rodrigues' rotation)
+; This uses a lookup table instead of "real" sin/cos, so is not accurate
+; On most machines it seems to be faster though
+Function MD2_RotateVectorFast_(out#[2], x#, y#, z#, r#[3])
+	Local cth# = MD2_SineLT_[Int((r[0] + 90.) * Float MD2_SIN_ACC) Mod (360 * MD2_SIN_ACC + 1)]
+	Local sth# = MD2_SineLT_[r[0] * Float MD2_SIN_ACC]	; vrot = v cos(theta) + (k cross v) sin(theta) + k(k dot v)(1 - cos(theta))
+	Local kdv# = (r[1] * x + r[2] * y + r[3] * z) * (1. - cth)	;(k dot v)(1 - cos(theta))
+	out[0] = cth * x + sth * (r[2] * z - r[3] * y) + r[1] * kdv
+	out[1] = cth * y + sth * (r[3] * x - r[1] * z) + r[2] * kdv
+	out[2] = cth * z + sth * (r[1] * y - r[2] * x) + r[3] * kdv
 End Function
 
 Function MD2_UpdateAnimation_(m.bOGL_MD2Model)
@@ -624,6 +639,6 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#F#25#2C#41#57#A8#BA#DC#E1#E8#ED#F2#F7#110#122#12E#137#146#15D#19F
-;~F#1CA
+;~F#F#25#2F#44#5A#AB#BD#DF#E4#EB#F0#F5#FA#113#125#131#13A#149#160#1A5
+;~F#1AE#1D9
 ;~C#BlitzPlus
