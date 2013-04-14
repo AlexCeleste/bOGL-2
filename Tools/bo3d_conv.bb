@@ -161,7 +161,7 @@ End Function
 ; Recursively navigate the B3D tree structure, dump data in global lists
 ; Heavily modified version of Mark's DumpChunks
 Function ReadChunks(p.Ent)
-	Local flags, sz, i, e.Ent = p, b.Brush
+	Local flags, sz, i, e.Ent = p, b.Brush, m.Ent
 	
 	While b3dChunkSize() > 0
 		Local chunk$ = b3dReadChunk()
@@ -327,10 +327,11 @@ Function ReadChunks(p.Ent)
 				
 			Case "BONE"
 				sz = 8
+				m = e
 				Repeat
-					p = p\parent
-					If p = Null Then RuntimeError "Cannot apply bone weights without parent mesh ('" + fileName + "')"
-				Until p\vertc
+					m = m\parent
+					If m = Null Then RuntimeError "Cannot apply bone weights without parent mesh ('" + fileName + "')"
+				Until m\vertc
 				Local nw = 0, verts = CreateBank((b3dChunkSize() / sz) * 4)
 				;read all weights
 				While b3dChunkSize() > 0
@@ -338,11 +339,11 @@ Function ReadChunks(p.Ent)
 					b3dReadFloat	;Weighting not supported
 					nw = nw + 1
 				Wend
-				p\bc = p\bc + 1
-				If p\bones Then ResizeBank p\bones, p\bc * 12 Else p\bones = CreateBank(p\bc * 12)
-				PokeInt p\bones, (p\bc - 1) * 12, e\index
-				PokeInt p\bones, (p\bc - 1) * 12 + 4, verts
-				PokeInt p\bones, (p\bc - 1) * 12 + 8, Handle e
+				m\bc = m\bc + 1
+				If m\bones Then ResizeBank m\bones, m\bc * 12 Else m\bones = CreateBank(m\bc * 12)
+				PokeInt m\bones, (m\bc - 1) * 12, e\index
+				PokeInt m\bones, (m\bc - 1) * 12 + 4, verts
+				PokeInt m\bones, (m\bc - 1) * 12 + 8, Handle e
 				
 			Default
 				SkipChunk
@@ -617,7 +618,7 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#23#27#2E#40#68#76#A2#163#170#195#199#1A6#1B1#1B7#1BD#1C3#1CA#1D6#1DC#1FE
-;~F#20E#228#23B#242#246#24A#24E#256#260#265
-;~L#-fsize=16 robot.b3d
+;~F#23#27#2E#40#68#76#A2#164#171#196#19A#1A7#1B2#1B8#1BE#1C4#1CB#1D7#1DD#1FF
+;~F#20F#229#23C#243#247#24B#24F#257#261#266
+;~L#-fsize=16 ninja.b3d
 ;~C#Blitz3D
