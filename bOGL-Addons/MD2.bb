@@ -11,6 +11,7 @@
 
 
 Include "bOGL\bOGL.bb"
+Include "bOGL-Addons\MeshUtils.bb"
 
 
 Type bOGL_MD2Model
@@ -26,10 +27,10 @@ End Type
 
 
 Const MD2_MODE_STOP = 0, MD2_MODE_LOOP = 1, MD2_MODE_PING = 2, MD2_MODE_ONCE = 3, MD2_MODE_TRANS = 4
-Const MD2_FRAME_SIZE = 44, MD2_SIN_ACC = 16
+Const MD2_FRAME_SIZE = 44
 Global MD2_private_UDSlot_ = -1, MD2_private_TexName_$
 Global MD2_buffer_.bOGL_MD2Model, MD2_header_.bOGL_MD2Model
-Dim MD2_VertN_#(0, 0), MD2_VertC_(0) : Global MD2_SineLT_#[360 * MD2_SIN_ACC + 1]
+Dim MD2_VertN_#(0, 0), MD2_VertC_(0)
 
 
 ; Interface
@@ -40,9 +41,7 @@ Function InitMD2Addon()		;Only call this once per program
 	MD2_header_ = New bOGL_MD2Model
 	MD2_buffer_ = New bOGL_MD2Model
 	MD2_InitVertexNormals_
-	Local i : For i = 0 To 360 * MD2_SIN_ACC + 1
-		MD2_SineLT_[i] = Sin(Float i / Float MD2_SIN_ACC)
-	Next
+	MESH_InitMeshUtils_
 End Function
 
 Function UpdateMD2Anims()
@@ -219,6 +218,8 @@ Function AnimateMD2(ent, mode = MD2_MODE_LOOP, speed# = 1.0, fF = 0, lF = -1, tr
 			m\animTime = m\fromF
 		EndIf
 	EndIf
+	
+	Insert m Before First bOGL_MD2Model
 End Function
 
 Function SetMD2AutoMove(ent, doAutoMove)
@@ -388,12 +389,12 @@ Function MD2_UpdateFramePosition_(m.bOGL_MD2Model, pTime, nTime)
 			
 			vptr = (i + voff) * BOGL_VERT_STRIDE
 			
-			MD2_RotateVectorFast_ tfv, vx, vy, vz, r
+			MESH_RotateVectorFast_ tfv, vx, vy, vz, r
 			PokeFloat varr, vptr + 20, tfv[0] * bsx + btx
 			PokeFloat varr, vptr + 24, tfv[1] * bsy + bty
 			PokeFloat varr, vptr + 28, tfv[2] * bsz + btz
 			
-			MD2_RotateVectorFast_ tfv, vnx, vny, vnz, r
+			MESH_RotateVectorFast_ tfv, vnx, vny, vnz, r
 			PokeFloat varr, vptr + 8, tfv[0] * gnx
 			PokeFloat varr, vptr + 12, tfv[1] * gny
 			PokeFloat varr, vptr + 16, tfv[2] * gnz
@@ -414,18 +415,6 @@ Function MD2_UpdateFramePosition_(m.bOGL_MD2Model, pTime, nTime)
 			PokeFloat varr, vptr + 8, vnx : PokeFloat varr, vptr + 12, vny : PokeFloat varr, vptr + 16, vnz
 		Next
 	EndIf
-End Function
-
-; Rotate a vector x,y,z by normalised axis-angle r (Rodrigues' rotation)
-; This uses a lookup table instead of "real" sin/cos, so is not accurate
-; On most machines it seems to be faster though
-Function MD2_RotateVectorFast_(out#[2], x#, y#, z#, r#[3])
-	Local cth# = MD2_SineLT_[Int((r[0] + 90.) * Float MD2_SIN_ACC) Mod (360 * MD2_SIN_ACC + 1)]
-	Local sth# = MD2_SineLT_[r[0] * Float MD2_SIN_ACC]	; vrot = v cos(theta) + (k cross v) sin(theta) + k(k dot v)(1 - cos(theta))
-	Local kdv# = (r[1] * x + r[2] * y + r[3] * z) * (1. - cth)	;(k dot v)(1 - cos(theta))
-	out[0] = cth * x + sth * (r[2] * z - r[3] * y) + r[1] * kdv
-	out[1] = cth * y + sth * (r[3] * x - r[1] * z) + r[2] * kdv
-	out[2] = cth * z + sth * (r[1] * y - r[2] * x) + r[3] * kdv
 End Function
 
 Function MD2_UpdateAnimation_(m.bOGL_MD2Model)
@@ -639,6 +628,6 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#F#25#2F#44#5A#AB#BD#DF#E4#EB#F0#F5#FA#113#125#131#13A#149#160#1A5
-;~F#1AE#1D9
+;~F#10#26#2E#43#59#AA#BC#E0#E5#EC#F1#F6#FB#114#126#132#13B#14A#161#1A3
+;~F#1CE
 ;~C#BlitzPlus

@@ -33,6 +33,8 @@ Local ninja = LoadMesh("Media\ninja.bo3d")
 tex = LoadTexture("Media\nskinbr.jpg")	;Texture it normally
 EntityTexture ninja, tex : FreeTexture tex
 
+Local bone = GetChildByName(ninja, "Joint11")
+
 
 Include "bogl-Addons\Draw2D.bb"
 InitDraw2D : LoadFont2D("Media\Blitz.png")
@@ -45,14 +47,17 @@ While Not KeyHit(1)
 	
 	TurnEntity yPiv, 0, (KeyDown(205) - KeyDown(203)) * 0.5, 0
 	TurnEntity xPiv, (KeyDown(208) - KeyDown(200)) * 0.5, 0, 0
-	MoveEntity camera, 0, 0, (KeyDown(44) - KeyDown(30)) * 0.1
-	If EntityXAngle(xPiv) > 0 Then RotateEntity xPiv, 0, 0, 0 : ElseIf EntityXAngle(xPiv) < -89 Then RotateEntity xPiv, -89, 0, 0
-	If EntityZ(camera) < 8 Then PositionEntity camera, 0, 0, 8 : ElseIf EntityZ(camera) > 29 Then PositionEntity camera, 0, 0, 29
+	MoveEntity camera, 0, 0, (KeyDown(44) - KeyDown(30)); * 0.1
+;	If EntityXAngle(xPiv) > 0 Then RotateEntity xPiv, 0, 0, 0 : ElseIf EntityXAngle(xPiv) < -89 Then RotateEntity xPiv, -89, 0, 0
+;	If EntityZ(camera) < 8 Then PositionEntity camera, 0, 0, 8 : ElseIf EntityZ(camera) > 29 Then PositionEntity camera, 0, 0, 29
+	
+	TurnEntity bone, 1, 0, 0
+	UpdateBonedMeshes
 	
 	RenderWorld
 	
 	BeginDraw2D
-	Text2D 5, 5, "Static model loaded from compressed BO3D"
+	Text2D 5, 5, "Skinned model loaded from compressed BO3D"
 	Text2D 5, 25, "Arrow keys to rotate camera, A and Z to zoom"
 	EndDraw2D
 	

@@ -16,11 +16,12 @@
 
 
 Include "bOGL\bOGL.bb"
+Include "bOGL-Addons\MeshUtils.bb"
 
 
 Type bOGL_BoneEntData_
 	Field ent.bOGL_Ent, isActive
-	Field bones
+	Field bones, verts
 End Type
 
 
@@ -38,6 +39,7 @@ Function InitMeshLoaderAddon()		;Only call this once per program
 	LOADER_header_ = New bOGL_BoneEntData_
 	LOADER_buffer_ = New bOGL_BoneEntData_
 	LOADER_private_FBank_ = CreateBank(4)
+	MESH_InitMeshUtils_
 End Function
 
 Function LoadMesh(file$, parent = 0)
@@ -79,7 +81,7 @@ Function LoadBO3D(bk, start, size)
 	Local p[0], tgt = start + size, doFail = False, i
 	p[0] = start + 20	;Skip the header
 	For i = 0 To eCount - 1
-		LOADER_Ents_(i) = LOADER_LoadEntityDef_(bk, p, tgt, i - 1)
+		LOADER_Ents_(i) = LOADER_LoadEntityDef_(bk, p, tgt, i)
 		If Not LOADER_Ents_(i) Then doFail = True : Exit
 	Next
 	
@@ -93,17 +95,39 @@ Function LoadBO3D(bk, start, size)
 		Dim LOADER_Ents_(0) : Return 0
 	EndIf
 	
-	For i = 0 To eCount - 1	;Update bone banks with correct entity handles
-		
-	Next
-	
-	For i = 1 To eCount - 1	;Ensure all entities are attached to the root node
+	For i = 1 To eCount - 1	;Ensure all entities are attached to the root node and have updated tforms
 		If Not GetEntityParent(LOADER_Ents_(i)) Then SetEntityParent LOADER_Ents_(i), LOADER_Ents_(0)
+		Local ent.bOGL_Ent = bOGL_EntList_(LOADER_Ents_(i))
+		bOGL_UpdateGlobalPosition_ ent
+		bOGL_UpdateAxisAngle_ ent\g_r, ent\g_q : ent\g_Rv = True
 	Next
 	
-	Local ent = LOADER_Ents_(0)
+	For i = 0 To eCount - 1	;Update bone banks with correct entity handles
+		Local boneData.bOGL_BoneEntData_ = Object.bOGL_BoneEntData_ GetEntityUserData(LOADER_Ents_(i), LOADER_private_UDSlot_), bi
+		If boneData <> Null
+			For bi = 0 To BankSize(boneData\bones) / 12 - 1
+				Local bone = LOADER_Ents_(PeekInt(boneData\bones, bi * 12))
+				PokeInt boneData\bones, bi * 12, bone
+				
+				Local verts = PeekInt(boneData\verts, (bi + 1) * 4)
+				If verts
+					Local vp, vt = BankSize(verts) - 24, tfv#[2]
+					For vp = 0 To vt Step 24
+						TFormPoint PeekFloat(verts, vp + 12), PeekFloat(verts, vp + 16), PeekFloat(verts, vp + 20), boneData\ent\handler, bone, tfv
+						PokeFloat verts, vp + 12, tfv[0]
+						PokeFloat verts, vp + 16, tfv[1]
+						PokeFloat verts, vp + 20, tfv[2]
+					Next
+				EndIf
+				
+			Next
+			Insert boneData Before First bOGL_BoneEntData_
+		EndIf
+	Next
+	
+	Local ret = LOADER_Ents_(0)
 	Dim LOADER_Ents_(0)
-	Return ent
+	Return ret
 End Function
 
 Function LoadOBJMesh(file$)
@@ -233,6 +257,7 @@ Function SaveOBJMesh(mesh, file$)
 	CloseFile f
 End Function
 
+; Call this once per loop to deform parent meshes
 Function UpdateBonedMeshes()
 	Insert LOADER_header_ After Last bOGL_BoneEntData_
 	Local m.bOGL_BoneEntData_, doClear = False : For m = Each bOGL_BoneEntData_
@@ -255,12 +280,32 @@ End Function
 
 ; Cause a mesh to resume being deformed by its bones
 Function ActivateMeshBones(ent)
-	
+	Local boneData.bOGL_BoneEntData_ = Object.bOGL_BoneEntData_ GetEntityUserData(ent, LOADER_private_UDSlot_)
+	boneData\isActive = True : Insert boneData Before First bOGL_BoneEntData_
 End Function
 
 ; Stop a mesh from being deformed by any bones
 Function DeactivateMeshBones(ent)
-	
+	Local boneData.bOGL_BoneEntData_ = Object.bOGL_BoneEntData_ GetEntityUserData(ent, LOADER_private_UDSlot_)
+	boneData\isActive = False
+End Function
+
+; Copy a boned mesh and all of its bones (relies on bones being named)
+Function CopyBonedMesh(ent, parent = 0)
+	Local copy = CopyEntity(ent, parent)
+	Local boneData.bOGL_BoneEntData_ = Object.bOGL_BoneEntData_ GetEntityUserData(ent, LOADER_private_UDSlot_)
+	Local copyData.bOGL_BoneEntData_ = New bOGL_BoneEntData_
+	SetEntityUserData copy, LOADER_private_UDSlot_, Handle copyData
+	copyData\ent = bOGL_EntList_(copy)
+	copyData\isActive = boneData\isActive
+	copyData\bones = CreateBank(BankSize(boneData\bones))
+	CopyBank boneData\bones, 0, copyData\bones, 0, BankSize(boneData\bones)
+	Local bi : For bi = 0 To BankSize(copyData\bones) / 12 - 1
+		PokeInt copyData\bones, bi * 12, GetChildByName(copy, GetEntityName(PeekInt(copyData\bones, bi * 12)))
+	Next
+	copyData\verts = boneData\verts
+	PokeInt copyData\verts, 0, PeekInt(copyData\verts, 0) + 1
+	Return copy
 End Function
 
 Function LOADER_ClearUnused()
@@ -269,6 +314,14 @@ Function LOADER_ClearUnused()
 		If m\ent = Null
 			If m <> LOADER_header_ And m <> LOADER_buffer_
 				FreeBank m\bones
+				If PeekInt(m\verts, 0) < 2
+					Local v : For v = 4 To BankSize(m\verts) - 4 Step 4
+						FreeBank PeekInt(m\verts, v)
+					Next
+					FreeBank m\verts
+				Else
+					PokeInt m\verts, 0, PeekInt(m\verts, 0) - 1
+				EndIf
 				Delete m
 			EndIf
 		EndIf
@@ -350,6 +403,7 @@ Function LOADER_LoadEntityDef_(bk, p[0], tgt, ID)
 	ent\name = LOADER_PeekChars_(bk, st, nLen)
 	st = st + LOADER_AlignedSize_(nLen)
 	
+	SetEntityUserData entH, LOADER_private_UDSlot_, 0
 	If vertC	;Remaining properties are all mesh properties
 		ResizeBank ent\m\vp, vertC * BOGL_VERT_STRIDE
 		CopyBank bk, st, ent\m\vp, 0, vertC * 8 * (LOADER_VFSize_ / 8)	;This line will become dangerous if VFSize is ever more than 32
@@ -373,7 +427,29 @@ Function LOADER_LoadEntityDef_(bk, p[0], tgt, ID)
 		EndIf
 		st = st + LOADER_AlignedSize_(tnLen)
 		
-		;bones
+		If boneC	;Bones
+			Local boneData.bOGL_BoneEntData_ = New bOGL_BoneEntData_, i
+			boneData\ent = ent : boneData\isActive = True
+			boneData\bones = CreateBank(12 * boneC)	;Array of bone handles
+			boneData\verts = CreateBank(4 * boneC + 4)	;Refcounted array of vertex banks
+			For i = 0 To boneC - 1
+				PokeInt boneData\bones, i * 12, PeekInt(bk, st + i * 12)	;Poke def indices for now
+				Local fV = PeekInt(bk, st + i * 12 + 4), lV = PeekInt(bk, st + i * 12 + 8)
+				PokeInt boneData\bones, i * 12 + 4, fV
+				PokeInt boneData\bones, i * 12 + 8, lV
+				If fV <= lV
+					Local vBank = CreateBank((lV - fV + 1) * 24), v
+					For v = fV To lV
+						CopyBank ent\m\vp, v * BOGL_VERT_STRIDE + 8, vBank, (v - fV) * 24, 24
+					Next
+					PokeInt boneData\verts, (i + 1) * 4, vBank
+				Else
+					PokeInt boneData\verts, (i + 1) * 4, 0
+				EndIf
+			Next
+			PokeInt boneData\verts, 0, 1
+			SetEntityUserData entH, LOADER_private_UDSlot_, Handle boneData
+		EndIf
 	EndIf
 	
 	Return entH
@@ -387,7 +463,30 @@ Function LOADER_ExpandVertexData_(vp)
 End Function
 
 Function LOADER_UpdateBones_(m.bOGL_BoneEntData_)
+	Local ent.bOGL_Ent = m\ent, msh.bOGL_Mesh = ent\m
+	If Not ent\Gv Then bOGL_UpdateGlobalPosition_ ent
+	If Not ent\g_Rv Then bOGL_UpdateAxisAngle_ ent\g_r, ent\g_q
 	
+	Local boneC = BankSize(m\bones) / 12, bi
+	
+	For bi = 0 To boneC - 1
+		Local bone.bOGL_Ent = bOGL_EntList_(PeekInt(m\bones, bi * 12)), vBank = PeekInt(m\verts, (bi + 1) * 4)
+		Local fV = PeekInt(m\bones, bi * 12 + 4), lV = PeekInt(m\bones, bi * 12 + 8), v, tfv#[2]
+		If Not bone\Gv Then bOGL_UpdateGlobalPosition_ bone
+		If Not bone\g_Rv Then bOGL_UpdateAxisAngle_ bone\g_r, bone\g_q : bone\g_Rv = True
+		
+		If vBank
+			For v = fV To lV
+				Local vi = v - fV, ptr = v * BOGL_VERT_STRIDE
+				
+				MESH_TFormFast_ PeekFloat(vBank, vi * 24 + 12), PeekFloat(vBank, vi * 24 + 16), PeekFloat(vBank, vi * 24 + 20), bone, ent, tfv
+				PokeFloat msh\vp, ptr + 20, tfv[0] : PokeFloat msh\vp, ptr + 24, tfv[1] : PokeFloat msh\vp, ptr + 28, tfv[2]
+				
+				MESH_TFormFast_ PeekFloat(vBank, vi * 24), PeekFloat(vBank, vi * 24 + 4), PeekFloat(vBank, vi * 24 + 8), bone, ent, tfv
+				PokeFloat msh\vp, ptr + 8, tfv[0] : PokeFloat msh\vp, ptr + 12, tfv[1] : PokeFloat msh\vp, ptr + 16, tfv[2]
+			Next
+		EndIf
+	Next
 End Function
 
 ;Get the file extension off a name
@@ -483,5 +582,5 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#23#2A#CA#109#11D#17D#189#191#1B0#1BE#1D7#1DB
+;~F#15#24#2C#42#84#E2#104#119#11F#125#136#152#1C9#1D0#1EC#1F4#213#221#23A#23E
 ;~C#BlitzPlus
