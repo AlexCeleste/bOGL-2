@@ -189,7 +189,7 @@ Function ReadChunks(p.Ent)
 					If flags And 1
 						PokeFloat e\kfs, e\kc * 44 + 4, b3dReadFloat()
 						PokeFloat e\kfs, e\kc * 44 + 8, b3dReadFloat()
-						PokeFloat e\kfs, e\kc * 44 + 12, b3dReadFloat()
+						PokeFloat e\kfs, e\kc * 44 + 12, -b3dReadFloat()
 					Else
 						PokeFloat e\kfs, e\kc * 44 + 4, e\px
 						PokeFloat e\kfs, e\kc * 44 + 8, e\py
@@ -206,13 +206,10 @@ Function ReadChunks(p.Ent)
 					EndIf
 					If flags And 4
 						Local q#[3], r#[3]
-						q[0] = b3dReadFloat()
+						q[0] = -b3dReadFloat()
 						q[1] = b3dReadFloat()
 						q[2] = b3dReadFloat()
-						q[3] = b3dReadFloat()
-						AxisAngleFromQuat r, q
-						r[1] = -r[1]
-						QuatFromAxisAngle q, r
+						q[3] = -b3dReadFloat()
 						NormaliseQuat q
 						PokeFloat e\kfs, e\kc * 44 + 28, q[0]
 						PokeFloat e\kfs, e\kc * 44 + 32, q[1]
@@ -258,14 +255,14 @@ Function ReadChunks(p.Ent)
 				e\name = b3dReadString()
 				e\px = b3dReadFloat()
 				e\py = b3dReadFloat()
-				e\pz = b3dReadFloat()
+				e\pz = -b3dReadFloat()
 				e\sx = b3dReadFloat()
 				e\sy = b3dReadFloat()
 				e\sz = b3dReadFloat()
-				e\rw = b3dReadFloat()
+				e\rw = -b3dReadFloat()
 				e\rx = b3dReadFloat()
 				e\ry = b3dReadFloat()
-				e\rz = b3dReadFloat()
+				e\rz = -b3dReadFloat()
 				
 			Case "VRTS"
 				flags = b3dReadInt()
@@ -570,23 +567,6 @@ Function FloatToBits(f#)
 	Return PeekInt(Half_CBank_, 0)
 End Function
 
-
-Function QuatFromAxisAngle(q#[3], r#[3])	;Convert normalised axis-angle r[3] to normalised quaternion q[3]
-	q[0] = Cos(r[0] / 2.)		;w
-	q[1] = r[1] * Sin(r[0] / 2.) : q[2] = r[2] * Sin(r[0] / 2.) : q[3] = r[3] * Sin(r[0] / 2.)
-End Function
-
-Function AxisAngleFromQuat(r#[3], q#[3])	;Convert normalised quaternion q[3] to normalised axis-angle r[3]
-	If Abs q[0] > 1. Then NormaliseQuat q
-	r[0] = 2 * ACos(q[0])
-	Local s# = Sqr(1. - q[0] * q[0])
-	If s >= 0.001
-		r[1] = q[1] / s : r[2] = q[2] / s : r[3] = q[3] / s
-	Else
-		r[1] = 1. : r[2] = 0. : r[3] = 0.
-	EndIf
-End Function
-
 Function NormaliseQuat(q#[3])
 	Local l# = Sqr(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3])
 	q[0] = q[0] / l : q[1] = q[1] / l : q[2] = q[2] / l : q[3] = q[3] / l
@@ -656,9 +636,11 @@ End Function
 ;~C#Blitz3D
  
 ;~C#Blitz3D
+ 
+;~C#Blitz3D
 ;~IDEal Editor Parameters:
-;~F#23#27#40#68#76#171#17E#1A3#1A7#1B4#1BF#1C5#1CB#1D1#1D8#1E4#1EA#20C#21C#236
-;~F#25F#266#26A#26E#272#27A#284#289
+;~F#23#27#2E#40#68#76#A2#16E#17B#1A0#1A4#1B1#1BC#1C2#1C8#1CE#1D5#1E1#1E7#209
+;~F#219#233#239#24B#252#256#25A#25E#266#270#275
 ;~L#-fsize=16 ninja.b3d
  
 ;~C#Blitz3D
