@@ -39,6 +39,16 @@ Function MESH_RotateVectorFast_(out#[2], x#, y#, z#, r#[3])
 	out[2] = cth * z + sth * (r[1] * y - r[2] * x) + r[3] * kdv
 End Function
 
+; Quaternion normalised linear interpolation
+; Faster than a SLERP and produces adequate results for most uses (smaller rotations)
+Function MESH_QuatNLERP_(out#[3], f#[3], t#[3], pol#)
+	out[0] = (1. - pol) * f[0] + pol * t[0]
+	out[1] = (1. - pol) * f[1] + pol * t[1]
+	out[2] = (1. - pol) * f[2] + pol * t[2]
+	out[3] = (1. - pol) * f[3] + pol * t[3]
+	bOGL_NormaliseQuat_ out
+End Function
+
 
 ;~IDEal Editor Parameters:
 ;~C#BlitzPlus

@@ -345,7 +345,7 @@ Function LOADER_LoadEntityDef_(bk, p[0], tgt, ID)
 	
 	Local sz = PeekInt(bk, st)	;Entity def size
 	If sz > maxSz Then Return 0	;Check that the whole def fits within the range
-	p[0] = p[0] + LOADER_AlignedSize_(sz)	;Increment the entity pointer
+	p[0] = p[0] + LOADER_AlignSz_(sz)	;Increment the entity pointer
 	
 	;Create the entity base - if it has vertices, it's a mesh; if not, it's a pivot
 	Local entH : If PeekInt(bk, st + 60) Then entH = CreateMesh() Else entH = CreatePivot()
@@ -385,12 +385,13 @@ Function LOADER_LoadEntityDef_(bk, p[0], tgt, ID)
 		boneC = PeekInt(bk, st + 88)
 	EndIf
 	
-	If vertC < 0 Or nLen < 0 Or vColC < 0 Or triC < 0 Or tnLen < 0 Or boneC < 0		;Invalid, corrupt sizes
+	If kC < 0 Or vertC < 0 Or nLen < 0 Or vColC < 0 Or triC < 0 Or tnLen < 0 Or boneC < 0		;Invalid, corrupt sizes
 		FreeEntity entH : Return 0
 	EndIf
 	
 	;Last check that the def is large enough to hold all requested data
-	If sz < kC * 44 + LOADER_AlignedSize_(nLen) + vertC * 8 * (LOADER_VFSize_ / 8) + vColC * 3 + triC * 6 + LOADER_AlignedSize_(tnLen) + boneC * 12
+	sz = sz - (64 + (28 * (vertC <> 0)))
+	If sz < kC * 44 + LOADER_AlignSz_(nLen) + vertC * 8 * (LOADER_VFSize_ / 8) + vColC * 3 + triC * 6 + LOADER_AlignSz_(tnLen) + boneC * 12
 		FreeEntity entH : Return 0
 	EndIf
 	;After this point, the entity def will definitely be loaded: everything fits in the required range
@@ -398,34 +399,34 @@ Function LOADER_LoadEntityDef_(bk, p[0], tgt, ID)
 	st = st + 64 + (28 * (vertC <> 0))	;Inc past the header
 	
 	;Skip keyframes (this is not the animation module)
-	st = st + LOADER_AlignedSize_(kC * 44)
+	st = st + LOADER_AlignSz_(kC * 44)
 	
 	ent\name = LOADER_PeekChars_(bk, st, nLen)
-	st = st + LOADER_AlignedSize_(nLen)
+	st = st + LOADER_AlignSz_(nLen)
 	
 	SetEntityUserData entH, LOADER_private_UDSlot_, 0
 	If vertC	;Remaining properties are all mesh properties
 		ResizeBank ent\m\vp, vertC * BOGL_VERT_STRIDE
 		CopyBank bk, st, ent\m\vp, 0, vertC * 8 * (LOADER_VFSize_ / 8)	;This line will become dangerous if VFSize is ever more than 32
 		If LOADER_VFSize_ = 16 Then LOADER_ExpandVertexData_ ent\m\vp
-		st = st + LOADER_AlignedSize_(vertC * 8 * (LOADER_VFSize_ / 8))
+		st = st + LOADER_AlignSz_(vertC * 8 * (LOADER_VFSize_ / 8))
 		
 		If vColC = vertC
 			ent\m\vc = CreateBank(vColC * BOGL_COL_STRIDE)
 			CopyBank bk, st, ent\m\vc, 0, vColC * BOGL_COL_STRIDE
 		EndIf
-		st = st + LOADER_AlignedSize_(vColC * 3)
+		st = st + LOADER_AlignSz_(vColC * 3)
 		
 		ResizeBank ent\m\poly, triC * BOGL_TRIS_STRIDE
 		CopyBank bk, st, ent\m\poly, 0, triC * 6
-		st = st + LOADER_AlignedSize_(triC * 6)
+		st = st + LOADER_AlignSz_(triC * 6)
 		
 		If tnLen
 			Local tName$ = LOADER_PeekChars_(bk, st, tnLen)
 			Local tex = LoadTexture(tName)
 			If tex Then EntityTexture entH, tex : FreeTexture tex
 		EndIf
-		st = st + LOADER_AlignedSize_(tnLen)
+		st = st + LOADER_AlignSz_(tnLen)
 		
 		If boneC	;Bones
 			Local boneData.bOGL_BoneEntData_ = New bOGL_BoneEntData_, i
@@ -568,7 +569,7 @@ Function LOADER_FloatToHalf_(f#)
 	Return (signBit Shl 15) Or (exponent Shl 10) Or fraction
 End Function
 
-Function LOADER_AlignedSize_(s)
+Function LOADER_AlignSz_(s)
 	If s Mod 4 Then Return s + (4 - s Mod 4) Else Return s
 End Function
 
@@ -582,5 +583,5 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#15#24#2C#42#84#E2#104#119#11F#125#136#152#1C9#1D0#1EC#1F4#213#221#23A#23E
+;~F#15#24#2C#42#84#E2#104#119#11F#125#136#152#1CA#1D1#1ED#1F5#214#222#23B#23F
 ;~C#BlitzPlus

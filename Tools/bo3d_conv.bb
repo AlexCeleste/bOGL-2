@@ -190,6 +190,10 @@ Function ReadChunks(p.Ent)
 						PokeFloat e\kfs, e\kc * 44 + 4, b3dReadFloat()
 						PokeFloat e\kfs, e\kc * 44 + 8, b3dReadFloat()
 						PokeFloat e\kfs, e\kc * 44 + 12, b3dReadFloat()
+					Else
+						PokeFloat e\kfs, e\kc * 44 + 4, e\px
+						PokeFloat e\kfs, e\kc * 44 + 8, e\py
+						PokeFloat e\kfs, e\kc * 44 + 12, e\pz
 					EndIf
 					If flags And 2
 						PokeFloat e\kfs, e\kc * 44 + 16, b3dReadFloat()
@@ -201,10 +205,19 @@ Function ReadChunks(p.Ent)
 						PokeFloat e\kfs, e\kc * 44 + 24, 1
 					EndIf
 					If flags And 4
-						PokeFloat e\kfs, e\kc * 44 + 28, b3dReadFloat()
-						PokeFloat e\kfs, e\kc * 44 + 32, b3dReadFloat()
-						PokeFloat e\kfs, e\kc * 44 + 36, b3dReadFloat()
-						PokeFloat e\kfs, e\kc * 44 + 40, b3dReadFloat()
+						Local q#[3], r#[3]
+						q[0] = b3dReadFloat()
+						q[1] = b3dReadFloat()
+						q[2] = b3dReadFloat()
+						q[3] = b3dReadFloat()
+						AxisAngleFromQuat r, q
+						r[1] = -r[1]
+						QuatFromAxisAngle q, r
+						NormaliseQuat q
+						PokeFloat e\kfs, e\kc * 44 + 28, q[0]
+						PokeFloat e\kfs, e\kc * 44 + 32, q[1]
+						PokeFloat e\kfs, e\kc * 44 + 36, q[2]
+						PokeFloat e\kfs, e\kc * 44 + 40, q[3]
 					Else
 						PokeFloat e\kfs, e\kc * 44 + 28, 1
 					EndIf
@@ -558,6 +571,28 @@ Function FloatToBits(f#)
 End Function
 
 
+Function QuatFromAxisAngle(q#[3], r#[3])	;Convert normalised axis-angle r[3] to normalised quaternion q[3]
+	q[0] = Cos(r[0] / 2.)		;w
+	q[1] = r[1] * Sin(r[0] / 2.) : q[2] = r[2] * Sin(r[0] / 2.) : q[3] = r[3] * Sin(r[0] / 2.)
+End Function
+
+Function AxisAngleFromQuat(r#[3], q#[3])	;Convert normalised quaternion q[3] to normalised axis-angle r[3]
+	If Abs q[0] > 1. Then NormaliseQuat q
+	r[0] = 2 * ACos(q[0])
+	Local s# = Sqr(1. - q[0] * q[0])
+	If s >= 0.001
+		r[1] = q[1] / s : r[2] = q[2] / s : r[3] = q[3] / s
+	Else
+		r[1] = 1. : r[2] = 0. : r[3] = 0.
+	EndIf
+End Function
+
+Function NormaliseQuat(q#[3])
+	Local l# = Sqr(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3])
+	q[0] = q[0] / l : q[1] = q[1] / l : q[2] = q[2] / l : q[3] = q[3] / l
+End Function
+
+
 
 ;==============================================================================
 ; The remaining functions taken from Mark's "b3dfile.bb"
@@ -617,8 +652,13 @@ Function b3dChunkSize()
 End Function
 
 
+ 
+;~C#Blitz3D
+ 
+;~C#Blitz3D
 ;~IDEal Editor Parameters:
-;~F#23#27#2E#40#68#76#A2#164#171#196#19A#1A7#1B2#1B8#1BE#1C4#1CB#1D7#1DD#1FF
-;~F#20F#229#23C#243#247#24B#24F#257#261#266
+;~F#23#27#40#68#76#171#17E#1A3#1A7#1B4#1BF#1C5#1CB#1D1#1D8#1E4#1EA#20C#21C#236
+;~F#25F#266#26A#26E#272#27A#284#289
 ;~L#-fsize=16 ninja.b3d
+ 
 ;~C#Blitz3D
