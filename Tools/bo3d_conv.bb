@@ -178,31 +178,27 @@ Function ReadChunks(p.Ent)
 				If flags And 1 Then sz = sz + 12
 				If flags And 2 Then sz = sz + 12
 				If flags And 4 Then sz = sz + 16
-				If Not e\kfs
-					e\kfs = CreateBank((b3dChunkSize() / sz) * 44)
-				Else
-					ResizeBank e\kfs, BankSize(e\kfs) + ((b3dChunkSize() / sz) * 44)
-				EndIf
+				If Not e\kfs Then e\kfs = CreateBank(0)
 				;read all keys in chunk
 				While b3dChunkSize() > 0
-					PokeInt e\kfs, e\kc * 44, b3dReadInt()
+					Local fr_no = b3dReadInt(), ptr = GetKeyPtr(fr_no, e\kfs)
 					If flags And 1
-						PokeFloat e\kfs, e\kc * 44 + 4, b3dReadFloat()
-						PokeFloat e\kfs, e\kc * 44 + 8, b3dReadFloat()
-						PokeFloat e\kfs, e\kc * 44 + 12, -b3dReadFloat()
+						PokeFloat e\kfs, ptr + 4, b3dReadFloat()
+						PokeFloat e\kfs, ptr + 8, b3dReadFloat()
+						PokeFloat e\kfs, ptr + 12, -b3dReadFloat()
 					Else
-						PokeFloat e\kfs, e\kc * 44 + 4, e\px
-						PokeFloat e\kfs, e\kc * 44 + 8, e\py
-						PokeFloat e\kfs, e\kc * 44 + 12, e\pz
+						PokeFloat e\kfs, ptr + 4, e\px
+						PokeFloat e\kfs, ptr + 8, e\py
+						PokeFloat e\kfs, ptr + 12, e\pz
 					EndIf
 					If flags And 2
-						PokeFloat e\kfs, e\kc * 44 + 16, b3dReadFloat()
-						PokeFloat e\kfs, e\kc * 44 + 20, b3dReadFloat()
-						PokeFloat e\kfs, e\kc * 44 + 24, b3dReadFloat()
+						PokeFloat e\kfs, ptr + 16, b3dReadFloat()
+						PokeFloat e\kfs, ptr + 20, b3dReadFloat()
+						PokeFloat e\kfs, ptr + 24, b3dReadFloat()
 					Else
-						PokeFloat e\kfs, e\kc * 44 + 16, 1
-						PokeFloat e\kfs, e\kc * 44 + 20, 1
-						PokeFloat e\kfs, e\kc * 44 + 24, 1
+						PokeFloat e\kfs, ptr + 16, 1
+						PokeFloat e\kfs, ptr + 20, 1
+						PokeFloat e\kfs, ptr + 24, 1
 					EndIf
 					If flags And 4
 						Local q#[3], r#[3]
@@ -211,15 +207,18 @@ Function ReadChunks(p.Ent)
 						q[2] = b3dReadFloat()
 						q[3] = -b3dReadFloat()
 						NormaliseQuat q
-						PokeFloat e\kfs, e\kc * 44 + 28, q[0]
-						PokeFloat e\kfs, e\kc * 44 + 32, q[1]
-						PokeFloat e\kfs, e\kc * 44 + 36, q[2]
-						PokeFloat e\kfs, e\kc * 44 + 40, q[3]
+						PokeFloat e\kfs, ptr + 28, q[0]
+						PokeFloat e\kfs, ptr + 32, q[1]
+						PokeFloat e\kfs, ptr + 36, q[2]
+						PokeFloat e\kfs, ptr + 40, q[3]
 					Else
-						PokeFloat e\kfs, e\kc * 44 + 28, 1
+						PokeFloat e\kfs, ptr + 28, 1
+						PokeFloat e\kfs, ptr + 32, 0
+						PokeFloat e\kfs, ptr + 36, 0
+						PokeFloat e\kfs, ptr + 40, 0
 					EndIf
-					e\kc = e\kc + 1
 				Wend
+				e\kc = BankSize(e\kfs) / 44
 				
 			Case "TEXS"
 				While b3dChunkSize() > 0
@@ -362,6 +361,27 @@ Function ReadChunks(p.Ent)
 		ReadChunks(e)	;Read any subchunks
 		b3dExitChunk()		;exit this chunk
 	Wend
+End Function
+
+; Get the index for a keyframe, adding space and poking number as necessary
+Function GetKeyPtr(f, kfs)
+	Local p = -1, i, sz = BankSize(kfs)
+	For i = sz - 44 To 0 Step -44
+		If PeekInt(kfs, i) = f Then Return i
+		If PeekInt(kfs, i) < f	;Reached the keyframe before f
+			i = i + 44
+			ResizeBank kfs, sz + 44
+			CopyBank kfs, i, kfs, i + 44, sz - i	;Insert space for the new key
+			PokeInt kfs, i, f
+			Return i
+		EndIf
+	Next
+	If p < 0	;Not found, first in list
+		ResizeBank kfs, sz + 44
+		CopyBank kfs, 0, kfs, 44, sz
+		PokeInt kfs, 0, f	;Add the new index
+		Return 0	;Start of the bank
+	EndIf
 End Function
 
 Function AddEntSizes()
@@ -638,9 +658,11 @@ End Function
 ;~C#Blitz3D
  
 ;~C#Blitz3D
+ 
+;~C#Blitz3D
 ;~IDEal Editor Parameters:
-;~F#23#27#2E#40#68#76#A2#16E#17B#1A0#1A4#1B1#1BC#1C2#1C8#1CE#1D5#1E1#1E7#209
-;~F#219#233#239#24B#252#256#25A#25E#266#270#275
+;~F#23#27#2E#40#68#76#A2#16E#182#18F#1B4#1B8#1C5#1D0#1D6#1DC#1E2#1E9#1F5#1FB
+;~F#21D#22D#247#24D#25F#266#26A#26E#272#27A#284#289
 ;~L#-fsize=16 ninja.b3d
  
 ;~C#Blitz3D
