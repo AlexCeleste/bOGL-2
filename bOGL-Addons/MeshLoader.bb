@@ -473,8 +473,10 @@ Function LOADER_UpdateBones_(m.bOGL_BoneEntData_)
 	For bi = 0 To boneC - 1
 		Local bone.bOGL_Ent = bOGL_EntList_(PeekInt(m\bones, bi * 12)), vBank = PeekInt(m\verts, (bi + 1) * 4)
 		Local fV = PeekInt(m\bones, bi * 12 + 4), lV = PeekInt(m\bones, bi * 12 + 8), v, tfv#[2]
-		If Not bone\Gv Then bOGL_UpdateGlobalPosition_ bone
-		If Not bone\g_Rv Then bOGL_UpdateAxisAngle_ bone\g_r, bone\g_q : bone\g_Rv = True
+		If Not bone\Gv
+			bOGL_UpdateGlobalPosition_ bone
+			bOGL_UpdateAxisAngle_ bone\g_r, bone\g_q : bone\g_Rv = True
+		EndIf
 		
 		If vBank
 			For v = fV To lV
@@ -583,5 +585,5 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#15#24#2C#42#84#E2#104#119#11F#125#136#152#1CA#1D1#1ED#1F5#214#222#23B#23F
+;~F#15#24#2C#42#84#E2#104#119#11F#125#136#152#1CA#1D1#1EF#1F7#216#224#23D#241
 ;~C#BlitzPlus
