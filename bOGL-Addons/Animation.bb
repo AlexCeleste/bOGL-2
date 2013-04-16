@@ -217,7 +217,7 @@ Function SetAnimTime(ent, t#)
 	a\animTime = t : a\animMode = ANIM_MODE_STOP
 End Function
 
-Function GetAnimTime(ent)
+Function GetAnimTime#(ent)
 	Local a.bOGL_Animation = Object.bOGL_Animation GetEntityUserData(ent, ANIM_private_UDSlot_)
 	Return a\animTime
 End Function
@@ -332,6 +332,9 @@ Function ANIM_UpdateNodePositions_(m.bOGL_Animation)
 			node\x = pol1 * PeekFloat(frames, fP + 4) + pol0 * PeekFloat(frames, tP + 4)
 			node\y = pol1 * PeekFloat(frames, fP + 8) + pol0 * PeekFloat(frames, tP + 8)
 			node\z = pol1 * PeekFloat(frames, fP + 12) + pol0 * PeekFloat(frames, tP + 12)
+			If node\name = "Joint1"
+				DebugLog PeekFloat(frames, fP + 4) + " " + PeekFloat(frames, fP + 8) + " " + PeekFloat(frames, fP + 12)
+			EndIf
 			
 			node\sx = pol1 * PeekFloat(frames, fP + 16) + pol0 * PeekFloat(frames, tP + 16)
 			node\sy = pol1 * PeekFloat(frames, fP + 20) + pol0 * PeekFloat(frames, tP + 20)
@@ -394,5 +397,5 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#14#28#30#45#4C#96#B2#D6#DB#E0#E5#EB#F1#109#134#160
+;~F#14#28#30#45#4C#96#B2#D6#DB#E0#E5#EB#F1#109#134#163
 ;~C#BlitzPlus

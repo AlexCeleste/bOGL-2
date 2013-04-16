@@ -55,6 +55,7 @@ Type Ent
 	Field tname$, col, alpha#, fx, bc
 	
 	Field kfs, verts, vcols, tris, bones
+	Field weights
 End Type
 
 
@@ -98,6 +99,7 @@ Function Convert(file$)
 		If e\vcols Then FreeBank e\vcols
 		If e\tris Then FreeBank e\tris
 		If e\bones Then FreeBank e\bones
+		If e\weights Then FreeBank e\weights
 		Delete e
 	Next
 End Function
@@ -113,12 +115,12 @@ Function ConvertVFloats()
 	Next
 End Function
 
-Dim VertexMap(0)	;Not used outside of ReorderVerts
+Dim VertexMap(0), VertexWeight#(0)	;Not used outside of ReorderVerts
 
 ; Rearrange the vertices of a mesh to form bone groups, also reduce bone sizes
 Function ReorderVerts(e.Ent)
-	Local vc = 0, v, bp, bone.Ent, verts, vertSize = 8 * (VFloatSize / 8)
-	Dim VertexMap(e\vertc)
+	Local vc = 0, v, bp, bone.Ent, verts, weights, vertSize = 8 * (VFloatSize / 8)
+	Dim VertexMap(e\vertc), VertexWeight#(e\vertc)
 	
 	For v = 0 To e\vertc - 1
 		VertexMap(v) = -1		;Fill the array with null data (some verts might be unboned)
@@ -127,18 +129,22 @@ Function ReorderVerts(e.Ent)
 	For bp = 0 To BankSize(e\bones) - 12 Step 12
 		bone = Object.Ent PeekInt(e\bones, bp + 8)
 		verts = PeekInt(e\bones, bp + 4)
+		weights = PeekInt(e\weights, bp / 3)
 		
 		PokeInt e\bones, bp + 4, vc		;Start vertex of bone range
 		
 		For v = 0 To BankSize(verts) / 4 - 1		;Build the list of remapped vert indices
-			If VertexMap(PeekInt(verts, v * 4)) = -1	;No shared vertices
-				VertexMap(PeekInt(verts, v * 4)) = vc
-				vc = vc + 1
+		;	If VertexMap(PeekInt(verts, v * 4)) = -1	;No shared vertices
+			If VertexWeight(PeekInt(verts, v * 4)) < PeekFloat(weights, v * 4)
+				VertexWeight(PeekInt(verts, v * 4)) = PeekFloat(weights, v * 4)
+				If VertexMap(PeekInt(verts, v * 4)) = -1 Then vc = vc + 1
+				VertexMap(PeekInt(verts, v * 4)) = vc - 1
 			EndIf
 		Next
 		
 		PokeInt e\bones, bp + 8, vc - 1		;End vertex of bone range
 		FreeBank verts
+		FreeBank weights
 	Next
 	
 	Local vertsNew = CreateBank(BankSize(e\verts))		;New vertex array
@@ -155,8 +161,10 @@ Function ReorderVerts(e.Ent)
 		PokeShort e\tris, v * 2, VertexMap(PeekShort(e\tris, v * 2))
 	Next
 	
-	Dim VertexMap(0)
+	Dim VertexMap(0), VertexWeight#(0)
 End Function
+
+Global keyAlreadyExists
 
 ; Recursively navigate the B3D tree structure, dump data in global lists
 ; Heavily modified version of Mark's DumpChunks
@@ -186,7 +194,7 @@ Function ReadChunks(p.Ent)
 						PokeFloat e\kfs, ptr + 4, b3dReadFloat()
 						PokeFloat e\kfs, ptr + 8, b3dReadFloat()
 						PokeFloat e\kfs, ptr + 12, -b3dReadFloat()
-					Else
+					ElseIf Not keyAlreadyExists		;If it needs default data
 						PokeFloat e\kfs, ptr + 4, e\px
 						PokeFloat e\kfs, ptr + 8, e\py
 						PokeFloat e\kfs, ptr + 12, e\pz
@@ -195,14 +203,14 @@ Function ReadChunks(p.Ent)
 						PokeFloat e\kfs, ptr + 16, b3dReadFloat()
 						PokeFloat e\kfs, ptr + 20, b3dReadFloat()
 						PokeFloat e\kfs, ptr + 24, b3dReadFloat()
-					Else
+					ElseIf Not keyAlreadyExists
 						PokeFloat e\kfs, ptr + 16, 1
 						PokeFloat e\kfs, ptr + 20, 1
 						PokeFloat e\kfs, ptr + 24, 1
 					EndIf
 					If flags And 4
-						Local q#[3], r#[3]
-						q[0] = -b3dReadFloat()
+						Local q#[3]
+						q[0] = b3dReadFloat()
 						q[1] = b3dReadFloat()
 						q[2] = b3dReadFloat()
 						q[3] = -b3dReadFloat()
@@ -211,7 +219,7 @@ Function ReadChunks(p.Ent)
 						PokeFloat e\kfs, ptr + 32, q[1]
 						PokeFloat e\kfs, ptr + 36, q[2]
 						PokeFloat e\kfs, ptr + 40, q[3]
-					Else
+					ElseIf Not keyAlreadyExists
 						PokeFloat e\kfs, ptr + 28, 1
 						PokeFloat e\kfs, ptr + 32, 0
 						PokeFloat e\kfs, ptr + 36, 0
@@ -258,7 +266,7 @@ Function ReadChunks(p.Ent)
 				e\sx = b3dReadFloat()
 				e\sy = b3dReadFloat()
 				e\sz = b3dReadFloat()
-				e\rw = -b3dReadFloat()
+				e\rw = b3dReadFloat()
 				e\rx = b3dReadFloat()
 				e\ry = b3dReadFloat()
 				e\rz = -b3dReadFloat()
@@ -275,7 +283,7 @@ Function ReadChunks(p.Ent)
 				While b3dChunkSize() > 0
 					PokeFloat e\verts, e\vertc * 32 + 20, b3dReadFloat()
 					PokeFloat e\verts, e\vertc * 32 + 24, b3dReadFloat()
-					PokeFloat e\verts, e\vertc * 32 + 28, b3dReadFloat()
+					PokeFloat e\verts, e\vertc * 32 + 28, -b3dReadFloat()
 					If flags And 1
 						PokeFloat e\verts, e\vertc * 32 + 8, b3dReadFloat()
 						PokeFloat e\verts, e\vertc * 32 + 12, b3dReadFloat()
@@ -312,9 +320,9 @@ Function ReadChunks(p.Ent)
 				EndIf
 				;read all tris in chunk
 				While b3dChunkSize() > 0
-					PokeShort e\tris, e\tric * 6, b3dReadInt()
-					PokeShort e\tris, e\tric * 6 + 2, b3dReadInt()
 					PokeShort e\tris, e\tric * 6 + 4, b3dReadInt()
+					PokeShort e\tris, e\tric * 6 + 2, b3dReadInt()
+					PokeShort e\tris, e\tric * 6, b3dReadInt()
 					e\tric = e\tric + 1
 				Wend
 				
@@ -341,18 +349,20 @@ Function ReadChunks(p.Ent)
 					m = m\parent
 					If m = Null Then RuntimeError "Cannot apply bone weights without parent mesh ('" + fileName + "')"
 				Until m\vertc
-				Local nw = 0, verts = CreateBank((b3dChunkSize() / sz) * 4)
+				Local nw = 0, verts = CreateBank((b3dChunkSize() / sz) * 4), weights = CreateBank(BankSize(verts))
 				;read all weights
 				While b3dChunkSize() > 0
 					PokeInt verts, nw * 4, b3dReadInt()
-					b3dReadFloat	;Weighting not supported
+					PokeFloat weights, nw * 4, b3dReadFloat()	;Keeping these to determine ordering
 					nw = nw + 1
 				Wend
 				m\bc = m\bc + 1
 				If m\bones Then ResizeBank m\bones, m\bc * 12 Else m\bones = CreateBank(m\bc * 12)
+				If m\weights Then ResizeBank m\weights, m\bc * 4 Else m\weights = CreateBank(m\bc * 4)
 				PokeInt m\bones, (m\bc - 1) * 12, e\index
 				PokeInt m\bones, (m\bc - 1) * 12 + 4, verts
 				PokeInt m\bones, (m\bc - 1) * 12 + 8, Handle e
+				PokeInt m\weights, (m\bc - 1) * 4, weights
 				
 			Default
 				SkipChunk
@@ -365,6 +375,7 @@ End Function
 
 ; Get the index for a keyframe, adding space and poking number as necessary
 Function GetKeyPtr(f, kfs)
+	keyAlreadyExists = True
 	Local p = -1, i, sz = BankSize(kfs)
 	For i = sz - 44 To 0 Step -44
 		If PeekInt(kfs, i) = f Then Return i
@@ -373,6 +384,7 @@ Function GetKeyPtr(f, kfs)
 			ResizeBank kfs, sz + 44
 			CopyBank kfs, i, kfs, i + 44, sz - i	;Insert space for the new key
 			PokeInt kfs, i, f
+			keyAlreadyExists = False
 			Return i
 		EndIf
 	Next
@@ -380,6 +392,7 @@ Function GetKeyPtr(f, kfs)
 		ResizeBank kfs, sz + 44
 		CopyBank kfs, 0, kfs, 44, sz
 		PokeInt kfs, 0, f	;Add the new index
+		keyAlreadyExists = False
 		Return 0	;Start of the bank
 	EndIf
 End Function
@@ -654,15 +667,9 @@ End Function
 
  
 ;~C#Blitz3D
- 
-;~C#Blitz3D
- 
-;~C#Blitz3D
- 
-;~C#Blitz3D
 ;~IDEal Editor Parameters:
-;~F#23#27#2E#40#68#76#A2#16E#182#18F#1B4#1B8#1C5#1D0#1D6#1DC#1E2#1E9#1F5#1FB
-;~F#21D#22D#247#24D#25F#266#26A#26E#272#27A#284#289
+;~F#23#27#2E#41#6A#78#AA#178#18F#19C#1C1#1C5#1D2#1DD#1E3#1E9#1EF#1F6#202#208
+;~F#22A#23A#254#25A#26C#273#277#27B#27F#287#291#296
 ;~L#-fsize=16 ninja.b3d
  
 ;~C#Blitz3D
