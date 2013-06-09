@@ -3,62 +3,8 @@
 ;========
 
 
-; Command reference:
-
-; Graphics3D(title$, width, height, depth, mode), EndGraphics3D()
-; CreateCanvas3D(x, y, width,height, group), FreeCanvas3D(canvas)
-; AmbientLight(red, green, blue)
-; CreateCamera([parent])
-; CameraRange(handler, near#, far#)
-; CameraFieldOfView(handler, angle#)
-; CameraDrawMode(handler, mode), CameraClsMode(handler, mode)
-; CameraClsColor(handler, red, green, blue)
-; CameraFogMode(handler, mode[, near#[, far#]])
-; CameraFogColor(handler, red, green, blue[, alpha#])
-; CameraViewport(handler, x, y, width, height)
-; CreateLight(red, green, blue, flag[, parent])
-; LightRange(handler, range#)
-; CreatePivot([parent])
-; CreateMesh([parent])
-; AddVertex(mesh, x#, y#, z#[, u#, v#]), AddTriangle(mesh, v0, v1, v2)
-; CountTriangles(mesh), CountVertices(mesh), TriangleVertex(mesh, tri, vert)
-; VertexCoords(mesh, v, x#, y#, z#), VertexTexCoords(mesh, v, u#, v#)
-; VertexNormal(mesh, v, nx#, ny#, nz#), VertexColor(mesh, v, r#, g#, b#)
-; VertexX#(mesh, v), VertexY#(mesh, v), VertexZ#(mesh, v), VertexU#(mesh, v), VertexV#(mesh, v)
-; CreateCube([parent])
-; CreateSprite([parent])
-; LoadTerrain(terrain$[, parent])
-; PositionEntity(handler, x#, y#, z#[, absolute])
-; MoveEntity(handler, x#, y#, z#)
-; RotateEntity(handler, x#, y#, z#[, absolute])
-; TurnEntity(handler, x#, y#, z#)
-; PointEntity(handler, x#, y#, z#[, roll#])
-; ScaleEntity(handler, x#, y#, z#[, absolute])
-; PaintEntity(handler, red, green, blue)
-; EntityAlpha(handler, alpha#), EntityFX(handler, flags)
-; EntityTexture(handler, texture)
-; ShowEntity(handler, state)
-; SetEntityParent(handler, parentH), GetEntityParent(handler)
-; CountChildren(handler), GetChildEntity(handler, index), GetChildByName(handler, name$)
-; SetEntityName(handler, name$), GetEntityName$(handler)
-; RegisterEntityUserDataSlot(), SetEntityUserData(handler, slot, val), GetEntityUserData(handler, slot)
-; CopyEntity(handler)
-; FreeEntity(handler)
-; FlipPolygons(handler)
-; RotateSubMesh(handler, vf, vt, rx#, ry#, rz#, cx#, cy#, cz#), QuatRotateSubMesh(handler, vf, vt, q#[3], cx#, cy#, cz#)
-; TranslateSubMesh(handler, vf, vt, tx#, ty#, tz#)
-; ScaleSubMesh(handler, vf, vt, sx#, sy#, sz#, cx#, cy#, cz#)
-; EntityX#(handler[, absolute]), EntityY#(handler[, absolute]), EntityZ#(handler[, absolute])
-; EntityXAngle#(handler[, absolute]), EntityYAngle#(handler[, absolute]), EntityZAngle#(handler[, absolute])
-; CreateTexture(width, height[, filter])
-; LoadTexture(file$[, quality, filter])
-; FreeTexture(handler)
-; TextureWidth(handler), TextureHeight(handler)
-; GetTextureData(handler[, doConvert]), UpdateTexture(handler, x, y, width, height, pixels[, doConvert])
-; GrabBackBuffer(x, y, width, height, pix[, doConvert])
-; RenderWorld([stencilMode]), RenderStencil()
-; Distance(x1#, y1#, z1#, x2#, y2#, z2#)
-; TFormPoint(x#, y#, z#, src, dst, out#[2])
+; For a quick command reference, please see the Readme
+; For in-depth command documentation, please see the core bOGL documentation in Docs/bOGL.md
 
 
 Include "bOGL\ogld_utils.bb"
@@ -148,7 +94,6 @@ Function FreeCanvas3D(canvas)
 End Function
 
 Function AmbientLight(red, green, blue)
-	If Not bOGL_AmbientLight_ Then bOGL_AmbientLight_ = CreateBank(16) : PokeFloat bOGL_AmbientLight_, 8, 1.0
 	PokeFloat bOGL_AmbientLight_, 0, red / 255.0
 	PokeFloat bOGL_AmbientLight_, 4, green / 255.0
 	PokeFloat bOGL_AmbientLight_, 8, blue / 255.0
@@ -881,7 +826,7 @@ Function RenderWorld(stencilMode = BOGL_STENCIL_OFF)
 			
 			; Lights
 			glEnable GL_LIGHTING
-			If bOGL_AmbientLight_ Then glLightModelfv GL_LIGHT_MODEL_AMBIENT, bOGL_AmbientLight_
+			glLightModelfv GL_LIGHT_MODEL_AMBIENT, bOGL_AmbientLight_
 			Local light = 0
 			Local lig.bOGL_Light : For lig = Each bOGL_Light
 				If Not lig\ent\hidden
@@ -1047,6 +992,8 @@ Function bOGL_Init_(width, height)
 	Local i : For i = 1 To BOGL_VISCHUNK
 		Local v_.bOGL_Visible = New bOGL_Visible
 	Next
+	If Not bOGL_AmbientLight_ Then bOGL_AmbientLight_ = CreateBank(16) : PokeFloat bOGL_AmbientLight_, 12, 1.0
+	PokeFloat bOGL_AmbientLight_, 0, 0.5 : PokeFloat bOGL_AmbientLight_, 4, 0.5 : PokeFloat bOGL_AmbientLight_, 8, 0.5
 	
 	Local pf.ogld_PixelFormat = ogld_MakeDefaultPixelFormat()
 	bOGL_hMainDC = ogld_SetUp_OpenGL(bOGL_bbHwnd, pf)
@@ -1316,10 +1263,10 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#57#60#67#6C#72#77#7F#86#8A#91#95#9C#AA#C3#C8#CD#D8#E4#EE#F2
-;~F#F6#FA#FF#104#109#117#11C#121#126#12B#130#15A#166#180#185#18A#18F#193#198#1A0
-;~F#1A9#1AF#1B5#1BD#1CC#1D4#1DB#1E1#1E6#1EA#1EE#1F5#1FB#20D#211#216#21A#225#229#22D
-;~F#231#23B#23F#266#284#291#296#2A4#2AE#2B9#2C1#2C9#2D1#2DA#2E3#2EC#311#329#330#337
-;~F#33E#34A#35D#367#3BC#3F1#3F5#40E#42B#439#44F#468#478#47D#482#48D#496#49D#4A2#4AA
-;~F#4BB#4C6#4D1#4EC#4F4#504#51C
+;~F#21#2A#31#36#3C#41#49#50#54#5B#5F#65#73#8C#91#96#A1#AD#B7#BB
+;~F#BF#C3#C8#CD#D2#E0#E5#EA#EF#F4#F9#123#12F#149#14E#153#158#15C#161#169
+;~F#172#178#17E#186#195#19D#1A4#1AA#1AF#1B3#1B7#1BE#1C4#1D6#1DA#1DF#1E3#1EE#1F2#1F6
+;~F#1FA#204#208#22F#24D#25A#25F#26D#277#282#28A#292#29A#2A3#2AC#2B5#2DA#2F2#2F9#300
+;~F#307#313#326#330#385#3BA#3BE#3D7#3F6#404#41A#433#443#448#44D#458#461#468#46D#475
+;~F#486#491#49C#4B7#4BF#4CF#4E7
 ;~C#BlitzPlus
