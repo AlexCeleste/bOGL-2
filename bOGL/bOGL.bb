@@ -749,7 +749,7 @@ Function LoadTexture(file$, quality = 8, filter = 1)
 	
 	Local tex = CreateTexture(ImageWidth(image), ImageHeight(image), filter)
 	UpdateTexture tex, 0, 0, ImageWidth(image), ImageHeight(image), pixels
-	FreeBank pixels : Return tex
+	FreeImage image : FreeBank pixels : Return tex
 End Function
 
 Function FreeTexture(handler)
