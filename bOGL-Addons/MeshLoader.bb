@@ -12,7 +12,7 @@
 ; for procedures to also load animation key data, or "MD2.bb" for a different
 ; animation system altogether
 
-; (BO3D is a custom format optimised for bOGL, described in bo3d_spec.txt)
+; (BO3D is a custom format optimised for bOGL, described in Docs/bo3d_spec.txt)
 
 
 Include "bOGL\bOGL.bb"
