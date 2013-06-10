@@ -430,11 +430,23 @@ Function PaintEntity(handler, red, green, blue)
 End Function
 
 Function EntityAlpha(handler, alpha#)
-	Local this.bOGL_Ent = bOGL_EntList_(handler) : this\m\alpha = alpha
+	Local this.bOGL_Ent = bOGL_EntList_(handler)
+	If this\m\alpha = 1 And alpha < 1
+		bOGL_VisChanged_ = True : Insert this\m After Last bOGL_Mesh
+	ElseIf this\m\alpha < 1 And alpha = 1
+		bOGL_VisChanged_ = True : Insert this\m Before First bOGL_Mesh
+	EndIf
+	this\m\alpha = alpha
 End Function
 
 Function EntityFX(handler, flags)
-	Local this.bOGL_Ent = bOGL_EntList_(handler) : this\m\FX = flags
+	Local this.bOGL_Ent = bOGL_EntList_(handler)
+	If (Not (this\m\FX And (BOGL_FX_ADDBLEND Or BOGL_FX_MULBLEND))) And (flags And (BOGL_FX_ADDBLEND Or BOGL_FX_MULBLEND))
+		bOGL_VisChanged_ = True : Insert this\m After Last bOGL_Mesh
+	ElseIf (this\m\FX And (BOGL_FX_ADDBLEND Or BOGL_FX_MULBLEND)) And (Not (flags And (BOGL_FX_ADDBLEND Or BOGL_FX_MULBLEND)))
+		bOGL_VisChanged_ = True : Insert this\m Before First bOGL_Mesh
+	EndIf
+	this\m\FX = flags
 End Function
 
 Function EntityTexture(handler, texture)
@@ -1265,8 +1277,8 @@ End Function
 ;~IDEal Editor Parameters:
 ;~F#21#2A#31#36#3C#41#49#50#54#5B#5F#65#73#8C#91#96#A1#AD#B7#BB
 ;~F#BF#C3#C8#CD#D2#E0#E5#EA#EF#F4#F9#123#12F#149#14E#153#158#15C#161#169
-;~F#172#178#17E#186#195#19D#1A4#1AA#1AF#1B3#1B7#1BE#1C4#1D6#1DA#1DF#1E3#1EE#1F2#1F6
-;~F#1FA#204#208#22F#24D#25A#25F#26D#277#282#28A#292#29A#2A3#2AC#2B5#2DA#2F2#2F9#300
-;~F#307#313#326#330#385#3BA#3BE#3D7#3F6#404#41A#433#443#448#44D#458#461#468#46D#475
-;~F#486#491#49C#4B7#4BF#4CF#4E7
+;~F#172#178#17E#186#195#19D#1A4#1AA#1AF#1B9#1C3#1CA#1D0#1E2#1E6#1EB#1EF#1FA#1FE#202
+;~F#206#210#214#23B#259#266#26B#279#283#28E#296#29E#2A6#2AF#2B8#2C1#2E6#2FE#305#30C
+;~F#313#31F#332#33C#391#3C6#3CA#3E3#402#410#426#43F#44F#454#459#464#46D#474#479#481
+;~F#492#49D#4A8#4C3#4CB#4DB#4F3
 ;~C#BlitzPlus
