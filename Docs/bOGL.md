@@ -69,14 +69,14 @@
      * [QuatRotateSubMesh](#quatrotatesubmesh)
      * [TranslateSubMesh](#translatesubmesh)
      * [ScaleSubMesh](#scalesubmesh)
- * [Entity movement](#entity movement)
+ * [Entity movement](#entitymovement)
      * [PositionEntity](#positionentity)
      * [MoveEntity](#moveentity)
      * [RotateEntity](#rotateentity)
      * [TurnEntity](#turnentity)
      * [PointEntity](#pointentity)
      * [ScaleEntity](#scaleentity)
- * [Entity position](#entity position)
+ * [Entity position](#entityposition)
      * [EntityX](#entityx)
      * [EntityY](#entityy)
      * [EntityZ](#entityz)
@@ -193,6 +193,7 @@ There are of course also a large number of features inherited from Blitz3D which
 * `HideEntity` and `ShowEntity` are condensed into just `ShowEntity`, which takes an explicit state parameter.
 * `CameraZoom` has been replaced by `CameraFieldOfView`, which takes an actual FOV angle instead of an obscure "zoom" value.
 * There is no `CopyRect`, but you can copy data from the back buffer to a Blitz bank, and both ways between a Blitz bank and bOGL textures, using `GrabBackBuffer`, `GetTextureData` and `UpdateTexture` respectively.
+* `EntityFX` flags are different, bearing no relation to their Blitz3D equivalents and offering a different selection of features.
 
 Remember, this list is *not* exhaustive. There are many other subtle differences, especially in the way the non-core modules handle their tasks.
 
@@ -297,101 +298,132 @@ The resulting 3D coordinate is placed in the array passed in the `out` parameter
 
 ### <span id="texture" />Texture ###
 #### <span id="createtexture" />CreateTexture ####
-`CreateTexture()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`CreateTexture(width, height[, filter])`  
+**Parameters:** Size of the texture to create; the filtering method to use.  
+**Return value:** The newly-created texture.  
+**Description:** This function creates a texture of the given dimensions and returns it, ready for use. For best (most portable) results, the width and height should both be powers of two. They don't have to be the same, but if they are not powers of two the texture may not draw correctly on all systems, or may even fail to create at all (this is machine-specific).  
+The optional `filter` parameter has three valid argument values: 0 (no filtering - blocky and retro), 1 (bilinear filtering - smooth) or 2 (bilinear filtering with mipmaps).  
+A texture that has been created in this way should at some future stage be released with `FreeTexture`.  
 
 #### <span id="loadtexture" />LoadTexture ####
-`LoadTexture()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`LoadTexture(file$[, quality, filter])`  
+**Parameters:** The file to load the texture data from; a flag controlling resolution re-scaling; the filtering method to use.  
+**Return value:** The newly-loaded texture.  
+**Description:** This function loads a texture from a file. If the file cannot be found or cannot be loaded as an image, the function will return 0 (any type accepted by Blitz's builtin `LoadImage` procedure - BMP, PNG, JPG, TGA - can be read by this function, as it uses `LoadImage` to read the pixel data).  
+The optional `quality` parameter determines whether the texture will be rescaled after loading. If `quality` is non-zero, the texture's height and width will both be rescaled to `2^quality`. If `quality` is zero, the texture will be left unscaled. The default value of `quality` is 8, so by default all textures are loaded with a resolution of 256x256.  
+The optional `filter` parameter has three valid argument values: 0 (no filtering - blocky and retro), 1 (bilinear filtering - smooth) or 2 (bilinear filtering with mipmaps).  
+A texture that has been loaded in this way should at some future stage be released with `FreeTexture`.  
 
 #### <span id="freetexture" />FreeTexture ####
-`FreeTexture()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`FreeTexture(handler)`  
+**Parameters:** The texture to free.  
+**Return value:** None.  
+**Description:** "Frees" the reference to a texture from your code. You should call this when you are done manipulating the texture in code (e.g. applying it to things). The texture itself will not be deleted as long as there are any meshes that it has been applied to, so it is safe (and sensible) to free a texture as soon as you have finished applying it to entities unless you need to do something with it later (such as updating its pixels, or applying it to another entity).  
+If a texture has been freed, it will be destroyed at the same time as the last mesh that was using it is destroyed. If no meshes are using it at the time it is freed, it will be destroyed immediately.  
 
 #### <span id="texturewidth" />TextureWidth ####
-`TextureWidth()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`TextureWidth(handler)`  
+**Parameters:** The texture.  
+**Return value:** Its width in pixels.  
+**Description:** This function returns the width of a texture in pixels.  
 
 #### <span id="textureheight" />TextureHeight ####
-`TextureHeight()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`TextureHeight(handler)`  
+**Parameters:** The texture.  
+**Return value:** Its height in pixels.  
+**Description:** This function returns the height of a texture in pixels.  
 
 #### <span id="gettexturedata" />GetTextureData ####
-`GetTextureData()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`GetTextureData(handler[, doConvert])`  
+**Parameters:** The texture to get data from; a flag for whether to convert the pixel format.  
+**Return value:** A Blitz bank containing the pixel data of the texture.  
+**Description:** This function returns the raw, packed pixel data for a texture in a newly-created Blitz bank.  
+The optional `doConvert` parameter tells the function whether it should convert the pixels from the internal OpenGL format - RBGA - to the BGRA format used by Blitz images (and Blitz3D's textures). This parameter is True by default, so make sure to set it to False if you don't need to process the pixel data as though it were Blitz image data, as the conversion is obviously quite slow (or if you specifically want it in OpenGL format). If you are just copying data from one texture to another, you don't need to process the data.
 
 #### <span id="updatetexture" />UpdateTexture ####
-`UpdateTexture()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`UpdateTexture(handler, x, y, width, height, pixels[, doConvert])`  
+**Parameters:** The texture; the position and dimensions of the rectangle to update; a Blitz bank containing the new pixel data; a flag for whether to convert the pixel format.  
+**Return value:** None.  
+**Description:** This function takes raw, packed pixel data in a Blitz bank and applies it to the specified rectangle of an existing texture, updating the texture with the new pixels. The change takes effect immediately.  
+The optional `doConvert` parameter tells the function whether it should convert the pixels from the BGRA format used by Blitz images (and Blitz3D's textures) to the RGBA internal OpenGL format. This parameter is True by default, so make sure to set it to False if you don't need to process the pixel data as though it were Blitz image data, as the conversion is obviously quite slow. If you are just copying data from the back buffer or another texture, you shouldn't need to process the pixels, so make sure both the source and destination conversion flags are set to false.  
 
 ### <span id="camera" />Camera ###
 #### <span id="createcamera" />CreateCamera ####
-`CreateCamera()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`CreateCamera([parent])`  
+**Parameters:** A parent entity for the camera.  
+**Return value:** The newly-created camera.  
+**Description:** This function creates a new camera entity. It can optionally be assigned a parent on creation using the `parent` parameter. The default value for this parameter is 0, which puts the camera on its own in world space. If a parent is supplied, the camera will be created at its position; otherwise, it will be placed at world position 0, 0, 0.  
+By default, the camera draws to a viewport corresponding to the whole graphics window; clears its view area to black; renders to the graphics buffer and not to the stencil buffer, does not use fog, has a FOV of 90 degrees, and a range of 1-1000.  
 
 #### <span id="camerarange" />CameraRange ####
-`CameraRange()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`CameraRange(handler, near#, far#)`  
+**Parameters:** The camera; its desired near range; its desired far range.  
+**Return value:** None.  
+**Description:** This function sets the near and far clip planes for a camera. Only entities that fall between these two planes will be drawn.  
+To help the Z-buffer provide the best possible range of depth values for your scene, this range should ideally be the smallest range possible that can completely cover the entire scene. The Z-buffer is also biased towards objects nearer to the camera, so the near clip plane should be as far from the camera as you can get away with pushing it, in order to make that nearby high-detail area available to as many objects as possible.  
+Cameras are created with the default range values of 1.0, 1000.0, which is "good enough" for most generic game scenes.
 
 #### <span id="camerafieldofview" />CameraFieldOfView ####
-`CameraFieldOfView()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`CameraFieldOfView(handler, angle#)`  
+**Parameters:** The camera; its desired field of view.  
+**Return value:** None.  
+**Description:** This function sets the field of view for a camera, measured in degrees. The field of view is the angle between the implicit "sides" of the frustum that describes a camera's field of view. Cameras are created with a default FOV of 90 degrees, which is "good enough" for most generic uses. Many triple-A FPS games have a FOV lower than that, sometimes as low as 75 degrees, to give a sense of being closer in to the action; however tight FOVs are often unpopular and sometimes blamed for motion sickness, as well as wasteful on a wide screen.  
+Third-person games will often have a much wider FOV, in order to get more stuff on screen, and to reduce the amount of "fish-eye" distortion.  
 
 #### <span id="cameradrawmode" />CameraDrawMode ####
-`CameraDrawMode()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`CameraDrawMode(handler, mode)`  
+**Parameters:** The camera; its desired drawing mode.  
+**Return value:** None.  
+**Description:** This function sets the drawing mode for a camera. There are four valid argument values for this function:  
+`BOGL_CAM_OFF`: the camera will not render anything. This is useful when some views need to be disabled for some reason.  
+`BOGL_CAM_PERSPECTIVE`: the camera will render to the graphics buffer in "perspective" mode (objects get smaller as they get further away). This is the default drawing mode.  
+`BOGL_CAM_ORTHO`: the camera will render to the graphics buffer in orthographic mode. This is useful for things like isometric or strategy games.  
+`BOGL_CAM_STENCIL`: the camera will render to the stencil buffer instead of the graphics buffer. Stencil mode always uses the perspective projection.  
+It is also possible to disable a camera by hiding it (`ShowEntity cam, False`). Which to use is mostly a matter of preference, although hiding an entity may also have other effects.  
 
 #### <span id="cameraclsmode" />CameraClsMode ####
-`CameraClsMode()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`CameraClsMode(handler, mode)`  
+**Parameters:** The camera; a bit array of its desired clear mode flags.  
+**Return value:** None.  
+**Description:** This function sets the clear mode for a camera. When a camera renders a scene, it first clears its viewport to an empty colour, but only if it has been flagged to do so. Since a camera (effectively) renders to multiple buffers, some or all of the buffers can be disabled or enabled for clearing.  
+The `mode` argument accepts an `Or`-ed bit array of the flags to combine for the clear mode, which are:
+`BOGL_CAM_CLRCOL`: setting this flag clears the colour buffer. Anything previously rendered in the view area will not be visible. This is the visible graphics buffer.  
+`BOGL_CAM_CLRZ`: setting this flag clears the Z-buffer. Objects previously rendered may appear "in front of" new objects and stop them rendering. Best not to play with this, as it gives weird results.  
+`BOGL_CAM_CLRSTEN`: setting this flag clears the stencil buffer.  
+By default, cameras set to draw normally clear the colour buffer and Z-buffer so that they can render a 3D scene as expected, and cameras set to draw to the stencil buffer clear that instead.  
+Normally the only time you would change this flag is if you want to render a 3D object over a 2D background, in which case you would use just `BOGL_CAM_CLRCOL` on its own.  
 
 #### <span id="cameraclscolor" />CameraClsColor ####
-`CameraClsColor()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`CameraClsColor(handler, red, green, blue)`  
+**Parameters:** The camera; the desired clear colour in RGB integer (0-255) format.  
+**Return value:** None.  
+**Description:** This function sets the clear colour for a camera. This is only relevant if the camera is set to clear the colour buffer before drawing. If so, the camera's viewport will be filled with a flat rect in this colour before any 3D content is drawn.  
 
 #### <span id="camerafogmode" />CameraFogMode ####
-`CameraFogMode()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`CameraFogMode(handler, mode[, near#, far#])`  
+**Parameters:** The camera; its desired fog mode; its desired near and far fog ranges.  
+**Return value:** None.  
+**Description:** This function sets a camera's fog mode and ranges. Entities nearer than the `near` fog range will be drawn normally by the camera; entities further away than the camera's `far` fog range will not be drawn at all; and entities somewhere between the two will be partially faded out into the fog (the fog effect actually applies to the individual pixels of a rendered entity, not the entity as a whole; a large object may render with some pixels solid and some completely invisible). By default, fog is disabled, in which case the ranges have no effect.  
+The fog parameter has four values, which affect the formula used to determine how quickly objects fade into the fog:  
+0: the camera does not fade objects. The fog `near` and `far` values are ignored. This is the default setting.  
+1: objects fade according to a simple linear interpolation between the two ranges.  
+2: objects fade according to the formula `e^-(distance)`.  
+3: objects fade according to the formula `e^-(distance)^2`.  
+As a guideline, the lower parameters (such as not using fog at all, obviously) should provide better performance, while the higher parameters should provide a better looking result. Experiment to see what works best.  
+If the fog's `far` range is greater than the camera's absolute range, objects will get clipped in the middle of the fog. Since the main use of fog is to prevent objects from being noticeably clipped, this is a situation you should try to avoid.  
 
 #### <span id="camerafogcolor" />CameraFogColor ####
-`CameraFogColor()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`CameraFogColor(handler, red, green, blue[, alpha#])`  
+**Parameters:** The camera; the colour of the fog in integer (0-255) RGB format.  
+**Return value:** None.  
+**Description:** This function sets the colour of the fog that objects will disappear into at long ranges. The default colour is **black** (`0, 0, 0`); to get something that actually does look like fog, try setting it to `128, 128, 128`.  
 
 #### <span id="cameraviewport" />CameraViewport ####
-`CameraViewport()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`CameraViewport(handler, x, y, width, height)`  
+**Parameters:** The camera; the position and size of its desired viewport.  
+**Return value:** None.  
+**Description:** This function sets the position and dimensions of a camera viewport, within the graphics window. A camera will only draw to the area within its viewport; the scene it draws will be scaled and moved to fit within the viewport (using the width to set the scale, and clipping or extending the top and bottom).  
+One fairly common example use for this is to take two cameras, and set their viewports to the top and bottom halves of the screen respectively, to create a split-screen racing game. Another use might be to limit the viewport of a camera to the size of a texture, so that the scene it renders can then be efficiently copied directly to the texture as the output of some kind of ingame display.  
 
 ### <span id="light" />Light ###
 #### <span id="createlight" />CreateLight ####
@@ -555,108 +587,126 @@ The resulting 3D coordinate is placed in the array passed in the `out` parameter
 
 ### <span id="entity movement" />Entity movement ###
 #### <span id="positionentity" />PositionEntity ####
-`PositionEntity()`  
+`PositionEntity(handler, x#, y#, z#[, absolute])`  
 **Parameters:**  
 **Return value:**  
 **Description:**  
 
 #### <span id="moveentity" />MoveEntity ####
-`MoveEntity()`  
+`MoveEntity(handler, x#, y#, z#)`  
 **Parameters:**  
 **Return value:**  
 **Description:**  
 
 #### <span id="rotateentity" />RotateEntity ####
-`RotateEntity()`  
+`RotateEntity(handler, x#, y#, z#[, absolute])`  
 **Parameters:**  
 **Return value:**  
 **Description:**  
 
 #### <span id="turnentity" />TurnEntity ####
-`TurnEntity()`  
+`TurnEntity(handler, x#, y#, z#)`  
 **Parameters:**  
 **Return value:**  
 **Description:**  
 
 #### <span id="pointentity" />PointEntity ####
-`PointEntity()`  
+`PointEntity(handler, x#, y#, z#[, roll#])`  
 **Parameters:**  
 **Return value:**  
 **Description:**  
 
 #### <span id="scaleentity" />ScaleEntity ####
-`ScaleEntity()`  
+`ScaleEntity(handler, x#, y#, z#[, absolute])`  
 **Parameters:**  
 **Return value:**  
 **Description:**  
 
 ### <span id="entity position" />Entity position ###
 #### <span id="entityx" />EntityX ####
-`EntityX()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`EntityX#(handler[, absolute])`  
+**Parameters:** The entity; whether to use absolute or local coordinates.  
+**Return value:** The entity's X (left and right) position.  
+**Description:** This function retrieves the entity's position along the X axis, which points from left to right.  
+If the optional `absolute` parameter is true, then the returned value refers to the global X axis; otherwise, it refers to the entity's position relative to its parent. The default value is false.  
 
 #### <span id="entityy" />EntityY ####
-`EntityY()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`EntityY#(handler[, absolute])`  
+**Parameters:** The entity; whether to use absolute or local coordinates.  
+**Return value:** The entity's Y (up and down) position.  
+**Description:** This function retrieves the entity's position along the Y axis, which points from down to up.  
+If the optional `absolute` parameter is true, then the returned value refers to the global Y axis; otherwise, it refers to the entity's position relative to its parent. The default value is false.  
 
 #### <span id="entityz" />EntityZ ####
-`EntityZ()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`EntityZ#(handler[, absolute])`  
+**Parameters:** The entity; whether to use absolute or local coordinates.  
+**Return value:** The entity's Z (forward and backward) position.  
+**Description:** This function retrieves the entity's position along the Z axis, which points **from front to back** (this is different from Blitz3D and miniB3D).  
+If the optional `absolute` parameter is true, then the returned value refers to the global Z axis; otherwise, it refers to the entity's position relative to its parent. The default value is false.  
 
 #### <span id="entityxangle" />EntityXAngle ####
-`EntityXAngle()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`EntityXAngle#(handler[, absolute])`  
+**Parameters:** The entity; whether to use absolute or local orientation.  
+**Return value:** The entity's X rotation (pitch).  
+**Description:** This function retrieves the entity's anticlockwise rotation around the X axis (which points to the right), measured in degrees.  
+If the optional `absolute` parameter is true, the returned value is the rotation relative to the global X axis; otherwise it refers to the entity's local rotation in its parent's space. The default value is false.
 
 #### <span id="entityyangle" />EntityYAngle ####
-`EntityYAngle()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`EntityYAngle#(handler[, absolute])`  
+**Parameters:** The entity; whether to use absolute or local orientation.  
+**Return value:** The entity's Y rotation (yaw).  
+**Description:** This function retrieves the entity's anticlockwise rotation around the Y axis (which points upwards), measured in degrees.  
+If the optional `absolute` parameter is true, the returned value is the rotation relative to the global Y axis; otherwise it refers to the entity's local rotation in its parent's space. The default value is false.  
 
 #### <span id="entityzangle" />EntityZAngle ####
-`EntityZAngle()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`EntityZAngle#(handler[, absolute])`  
+**Parameters:** The entity; whether to use absolute or local orientation.  
+**Return value:** The entity's Z rotation (roll).  
+**Description:** This function retrieves the entity's anticlockwise rotation around the Z axis (which points backwards/out of the screen), measured in degrees.  
+If the optional `absolute` parameter is true, the returned value is the rotation relative to the global Z axis; otherwise it refers to the entity's local rotation in its parent's space. The default value is false.  
 
 ### <span id="entity appearance" />Entity appearance ###
 #### <span id="paintentity" />PaintEntity ####
-`PaintEntity()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`PaintEntity(handler, red, green, blue)`  
+**Parameters:** The entity; its desired colour in integer RGB (0-255) format.  
+**Return value:** None.  
+**Description:** This function sets the base colour of a mesh. If the mesh is untextured, it will just appear in that colour; if the mesh is textured, the texture will blend (using the multiply algorithm) with the underlying colour applied by this function. The default colour of all meshes is `255, 255, 255`. This function is only valid for meshes.
 
 #### <span id="entityalpha" />EntityAlpha ####
-`EntityAlpha()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`EntityAlpha(handler, alpha#)`  
+**Parameters:** The entity; its desired alpha.  
+**Return value:** None.  
+**Description:** This function sets the transparency of an entity. An alpha value of 1.0 makes an entity completely solid; an alpha value of 0.0 makes an entity completely invisible; and an alpha somewhere in between makes an entity semitransparent and blended with the background. Alpha can cause some rendering errors for complicated, "solid" objects, and is best used only on quads or very simple shapes like cubes. Alpha values of 1 or 0 are very efficient as they do not incur an alpha test.  
 
 #### <span id="entityfx" />EntityFX ####
-`EntityFX()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`EntityFX(handler, flags)`  
+**Parameters:** The entity; a bit array containing the FX flags to apply.  
+**Return value:** None.  
+**Description:** This function applies various effect settings ("FX") to an entity. These are only meaningful for meshes as they determine how an object is drawn to the screen. The `flags` argument accepts an `Or`-ed bit array of the different FX to apply to a mesh, which are:
+`BOGL_FX_FULLBRIGHT`: ignore lights and ambience; always draw an object as fully illuminated from all angles.  
+`BOGL_FX_FLATSHADED`: shade each polygon according to its surface normal instead of smoothing the shadow from edge to edge. Creates a very sharp-edged look with flat faces.  
+`BOGL_FX_NOFOG`: ignore the camera's fog settings and never allow the object to fade into the background fog.  
+`BOGL_FX_ADDBLEND`: use additive blending with the background when drawing an entity. Additive blending means the pixels values will be added (and clamped at 255), so e.g. a red entity in front of a blue entity will produce a pink effect.  
+`BOGL_FX_MULBLEND`: use multiplicative blending with the background when drawing an entity. Multiplicative blending means the pixels will be multiplied, treating them as fractions (i.e. p / 255.0); anything multiplied with white will stay the same, anything multiplied with black will become black. In general this will darken a scene.  
+`BOGL_FX_NOCULL`: disable backface culling for an entity. Normally one doesn't draw the "inside" of a mesh, because it's closed and would be a waste of effort, but meshes that aren't closed might need this to avoid being seen through from some angles.  
+`BOGL_FX_STENCIL_KEEP`: this mesh should have no effect on stencil operations.  
+`BOGL_FX_STENCIL_INCR`: this mesh should increment the stencil buffer value when drawn on a stencil camera.  
+`BOGL_FX_STENCIL_DECR`: this mesh should decrement the stencil buffer value when drawn on a stencil camera.  
+`BOGL_FX_STENCIL_BOTH`: this mesh should increment the stencil buffer when its front faces are drawn on a stencil camera, and decrement the stencil buffer when its back faces are drawn (this is useful for things like volumetric shadows).  
+It may be that using additive or multiplicative blending causes unexpected results; if so, try rendering objects using these effects in a separate, second pass.  
 
 #### <span id="entitytexture" />EntityTexture ####
-`EntityTexture()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`EntityTexture(handler, texture)`  
+**Parameters:** The entity; the texture to apply.  
+**Return value:** None.  
+**Description:** This function applies a texture to an entity. Any texture previously on the entity will be removed and replaced by the passed texture. You can also pass a value of 0 to simply remove the current texture from an entity.  
 
 #### <span id="showentity" />ShowEntity ####
-`ShowEntity()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`ShowEntity(handler, state)`  
+**Parameters:** The entity; its desired visibility state.  
+**Return value:** None.  
+**Description:** This entity shows or hides an entity *and all of its children*. A hidden entity, or the child of a hidden entity, does not participate in "the world" in any observable way: a hidden mesh will not be rendered as part of a scene; a hidden light will not illuminate objects; and a hidden camera will not draw to the screen (note that while this works equally well to disable a camera, because it also hides any children, it is not quite the same as using `CameraDrawMode` to do so). Since pivot entities do not do anything, showing or hiding them makes no difference except by the effect on their children.  
+A hidden entity may still be moved around, rotated, etc. and therefore can have a few uses as a "geometric template" or other kind of armature, as well as simply being quickly removed from a scene.  
 
 ### <span id="entity status" />Entity status ###
 #### <span id="setentityparent" />SetEntityParent ####
