@@ -102,7 +102,6 @@
      * [GetEntityUserData](#getentityuserdata)
      * [CopyEntity](#copyentity)
      * [FreeEntity](#freeentity)
-* [Internal commands (Private API)](#privateapi)
 
 
 ## <span id="intro"/>Introduction ##
@@ -350,9 +349,9 @@ The optional `doConvert` parameter tells the function whether it should convert 
 ### <span id="camera" />Camera ###
 #### <span id="createcamera" />CreateCamera ####
 `CreateCamera([parent])`  
-**Parameters:** A parent entity for the camera.  
+**Parameters:** An optional parent entity.  
 **Return value:** The newly-created camera.  
-**Description:** This function creates a new camera entity. It can optionally be assigned a parent on creation using the `parent` parameter. The default value for this parameter is 0, which puts the camera on its own in world space. If a parent is supplied, the camera will be created at its position; otherwise, it will be placed at world position 0, 0, 0.  
+**Description:** This function creates a new camera entity. It can optionally be assigned a parent on creation using the `parent` parameter. The default value for this parameter is 0, which puts the camera on its own in world space. If a parent is supplied, the camera will be created at its position; otherwise, it will be placed at world position 0, 0, 0. You must have at least one camera in a 3D scene in order to render anything.  
 By default, the camera draws to a viewport corresponding to the whole graphics window; clears its view area to black; renders to the graphics buffer and not to the stencil buffer, does not use fog, has a FOV of 90 degrees, and a range of 1-1000.  
 
 #### <span id="camerarange" />CameraRange ####
@@ -427,200 +426,232 @@ One fairly common example use for this is to take two cameras, and set their vie
 
 ### <span id="light" />Light ###
 #### <span id="createlight" />CreateLight ####
-`CreateLight()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`CreateLight(red, green, blue, flag[, parent])`  
+**Parameters:** The colour for the light in integer RGB (0-255) format; the kind of light; the parent entity.  
+**Return value:** The newly-created light.  
+**Description:** This function creates a new light entity. The colour of the light will be the colour described by the integer RGB values passed in the first three parameters (e.g. passing `0, 255, 0` will create a bright green light).  
+The `flag` parameter determines the kind of light to create. Valid argument values for this parameter are:  
+`BOGL_LIGHT_PT`: a point light. This will illuminate a sphere of space around the light entity in the direction pointing away from the source.  
+`BOGL_LIGHT_DIR`: a directional light. This will illuminate all space in the scene with light moving in one parallel direction; where the actual light entity is doesn't matter a whole lot with this type of light because it always has infinite range.  
+`BOGL_LIGHT_AMB`: an ambient light. Everything within range will be illuminated with a constant, non-directional colour.  
+Note that while lights will not illuminate polygons facing away from them, they will not actually cast shadows; for that you need a shadow system (building one should be easy with `RenderStencil`).  
+The light can optionally be assigned a parent on creation using the `parent` parameter. The default value for this parameter is 0, which puts the light on its own in world space. If a parent is supplied, the light will be created at its position; otherwise, it will be placed at world position 0, 0, 0.  
+By default the newly-created light will have an infinite range (directional lights always have infinite range).  
+There is a maximum number of hardware lights that can be supported on any given system using the fixed-function pipeline: this number is usually 8, although it may be less. For scenes with a large number of lights, a special management system may be necessary to swap out which lights are actually in use. Creating more than the maximum number of hardware lights will simply result in some of them not working.  
 
 #### <span id="lightrange" />LightRange ####
-`LightRange()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`LightRange(handler, range#)`  
+**Parameters:** The light; its desired range.  
+**Return value:** None.  
+**Description:** This function sets the range of a light. The effect of a light falls of in a linear fashion from its position; the range is the distance from the light at which the light stops having any effect at all (so if you want a "visible pool of light" of a given size, the range should probably be bigger than that size).  
+Note that directional lights are not affected by their range value.  
 
 ### <span id="pivot" />Pivot ###
 #### <span id="createpivot" />CreatePivot ####
-`CreatePivot()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`CreatePivot([parent])`  
+**Parameters:** An optional parent entity.  
+**Return value:** The newly-created pivot.  
+**Description:** This function creates a pivot entity. A pivot is a special type of entity that doesn't do anything by itself, but serves only to be moved around and usually to be the parent entity of meshes or cameras. It can be moved around, hidden, rotated, scaled etc. like any other entity, but will never appear on screen as it has nothing to render. A pivot is a good choice for the "root" of a scene or group, to move the whole thing around, or to show and hide several entities at once.  
+The pivot can optionally be assigned a parent on creation using the `parent` parameter. The default value for this parameter is 0, which puts the pivot on its own in world space. If a parent is supplied, the pivot will be created at its position; otherwise, it will be placed at world position 0, 0, 0.  
 
 ### <span id="mesh" />Mesh ###
 #### <span id="createmesh" />CreateMesh ####
-`CreateMesh()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`CreateMesh([parent])`  
+**Parameters:** An optional parent entity.  
+**Return value:** The newly-created mesh.  
+**Description:** This function creates a new empty mesh. The mesh will not be rendered until you add some polygons and vertices to it. This is a base primitive form that you can use to dynamically create complex meshes in code, if you aren't just loading them from a file (or to write a function that loads meshes from a file).  
+The mesh can optionally be assigned a parent on creation using the `parent` parameter. The default value for this parameter is 0, which puts the mesh on its own in world space. If a parent is supplied, the mesh will be created at its position; otherwise, it will be placed at world position 0, 0, 0.  
 
 #### <span id="addvertex" />AddVertex ####
-`AddVertex()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`AddVertex(mesh, x#, y#, z#[, u#, v#])`  
+**Parameters:** The mesh; the position of the new vertex; the texture position of the new vertex.  
+**Return value:** The index of the new vertex.  
+**Description:** This function adds a vertex to a mesh at the given coordinates. The spatial coordinates place the vertex relative to the mesh's origin. The optional `u` and `v` parameters set the vertex's texture coordinate, which are values between 0 and 1 determining how far "across" the texture in the given direction the vertex should fall. If these are omitted, the default values are 0. The returned value is the index of the vertex, which can be used to add it to triangles or adjust its settings.  
+A new vertex does not have a valid normal. Set it with `VertexNormal` or the vertex will not be illuminated properly (unless the scene is fullbright).  
+Meshes can support a machine-specific maximum number of vertices. On most machines, this value is either 65536, or half of that. Meshes that use more than the maximum number of vertices will usually render with holes in them as vertices are randomly dropped.  
 
 #### <span id="addtriangle" />AddTriangle ####
-`AddTriangle()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`AddTriangle(mesh, v0, v1, v2)`  
+**Parameters:** The mesh; the vertices to use to build the triangle.  
+**Return value:** The index of the new triangle.  
+**Description:** This function adds a triangle to a mesh. The triangle will be made from the passed vertices, in the order they are specified. The order is important because it determines which way a triangle "faces": a triangle "faces" towards the direction where the vertices appear to be arranged in an anti-clockwise order. Keeping this in mind is important when building a mesh or it may end up with "holes" or inverted surfaces, because a triangle is not rendered when viewed from the back (unless the no-backface-culling FX is applied to the mesh).  
 
 #### <span id="counttriangles" />CountTriangles ####
-`CountTriangles()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`CountTriangles(mesh)`  
+**Parameters:** The mesh.  
+**Return value:** The number of triangles in the mesh.  
+**Description:** This function just returns the total number of triangles in a mesh.  
 
 #### <span id="countvertices" />CountVertices ####
-`CountVertices()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`CountVertices(mesh)`  
+**Parameters:** The mesh.  
+**Return value:** The number of vertices in the mesh.  
+**Description:** This function just returns the total number of vertices in a mesh. Vertices that are not used by any triangles (and therefore invisible when the mesh renders) are still counted.  
 
 #### <span id="trianglevertex" />TriangleVertex ####
-`TriangleVertex()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`TriangleVertex(mesh, tri, vert)`  
+**Parameters:** The mesh; the triangle; the vertex of the triangle.  
+**Return value:** The vertex's real index.  
+**Description:** This function takes a triangle and an index representing one of its points, and returns the actual index that refers to that vertex within the mesh as a whole. This is a way to find a specific vertex after searching by triangle. Only the values 0, 1 and 2 are valid argument values for `vert`.  
 
 #### <span id="vertexcoords" />VertexCoords ####
-`VertexCoords()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`VertexCoords(mesh, v, x#, y#, z#)`  
+**Parameters:** The mesh; the vertex index; its new position.  
+**Return value:** None.  
+**Description:** This function lets you set a new position for a given vertex. This might be useful for implementing some kind of deformation-based animation system, or perhaps for deforming a terrain or the surface of some water. It's not tremendously efficient and if used on a large scale, the functionality should really be rolled together into a low-level addon instead, but it should be good for non-performance-critical work and prototyping on a small scale.  
 
 #### <span id="vertextexcoords" />VertexTexCoords ####
-`VertexTexCoords()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`VertexTexCoords(mesh, v, u#, v#)`  
+**Parameters:** The mesh; the vertex index; its new texture position.  
+**Return value:** None.  
+**Description:** This function lets you set a new texture position for a given vertex. You might use this to glide triangles over a texture to create a flowing animated surface effect. Remember that texture coordinates are *proportional* to the texture size, not absolute: they range from 0 to 1.  
 
 #### <span id="vertexnormal" />VertexNormal ####
-`VertexNormal()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`VertexNormal(mesh, v, nx#, ny#, nz#)`  
+**Parameters:** The mesh; the vertex index; its new normal.  
+**Return value:** None.  
+**Description:** The normal of a vertex determines how triangles formed from it will be illuminated; in smooth-shading mode it is this, not the actual orientation of the triangle, which controls what angle the lights think the surface is actually at relative to the light source. (Vertex normals are not used for flat-shaded lighting.)  
+When a new vertex is first created it does not have a valid normal. You must set a normal with this command if you want to use smooth-shaded hardware lighting. Invalid normals produce unpredictable, usually ugly, results.  
 
 #### <span id="vertexcolor" />VertexColor ####
-`VertexColor()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`VertexColor(mesh, v, r, g, b)`  
+**Parameters:** The mesh; the vertex index; its new colour represented in integer RGB (0-255) format.  
+**Return value:** None.  
+**Description:** This function sets a vertex's colour. Note that meshes which use vertex colours are less efficient than meshes that just rely on texturing or flat entity colours. Applying a colour to any vertex enables vertex colouring for the entire mesh; note that there is no way to turn it off again short of destroying and rebuilding the whole structure.  
 
 #### <span id="vertexx" />VertexX ####
-`VertexX()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`VertexX#(mesh, v)`  
+**Parameters:** The mesh; the vertex index.  
+**Return value:** The vertex X position.  
+**Description:** This function just returns the vertex's X position relative to the host mesh's origin.  
 
 #### <span id="vertexy" />VertexY ####
-`VertexY()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`VertexY#(mesh, v)`  
+**Parameters:** The mesh; the vertex index.  
+**Return value:** The vertex Y position.  
+**Description:** This function just returns the vertex's Y position relative to the host mesh's origin.  
 
 #### <span id="vertexz" />VertexZ ####
-`VertexZ()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`VertexZ#(mesh, v)`  
+**Parameters:** The mesh; the vertex index.  
+**Return value:** The vertex Z position.  
+**Description:** This function just returns the vertex's Z position relative to the host mesh's origin.  
 
 #### <span id="vertexu" />VertexU ####
-`VertexU()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`VertexU#(mesh, v)`  
+**Parameters:** The mesh; the vertex index.  
+**Return value:** The vertex U coordinate.  
+**Description:** This function just returns the vertex's texture U coordinate, which should be a value between 0 and 1.  
 
 #### <span id="vertexv" />VertexV ####
-`VertexV()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`VertexV#(mesh, v)`  
+**Parameters:** The mesh; the vertex index.  
+**Return value:** The vertex V coordinate.  
+**Description:** This function just returns the vertex's texture V coordinate, which should be a value between 0 and 1.  
 
 #### <span id="createcube" />CreateCube ####
-`CreateCube()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`CreateCube([parent])`  
+**Parameters:** An optional parent entity.  
+**Return value:** The newly-created cube.  
+**Description:** This function creates a perfect cube. Cubes are mainly useful as placeholder objects (although by all means use them in a game if it simply doesn't need complicated art). The cube's size is 2x2x2, it is white, and it has unwelded sides for sharp lighting and separate texturing. If a texture is applied to a cube it will appear on all six faces in full.  
+The cube can optionally be assigned a parent on creation using the `parent` parameter. The default value for this parameter is 0, which puts the cube on its own in world space. If a parent is supplied, the cube will be created at its position; otherwise, it will be placed at world position 0, 0, 0.  
 
 #### <span id="createsprite" />CreateSprite ####
-`CreateSprite()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`CreateSprite([parent])`  
+**Parameters:** An optional parent entity.  
+**Return value:** The newly-created sprite.  
+**Description:** This function creates a one-sided quad. It is not actually a sprite as other engines describe them, as it doesn't automatically face the camera: it's just a dumb quad mesh. If you want to use a lot of quads or sprites in your project, you would likely be better off investigating a dedicated single-surface particle engine.  
+The sprite can optionally be assigned a parent on creation using the `parent` parameter. The default value for this parameter is 0, which puts the sprite on its own in world space. If a parent is supplied, the sprite will be created at its position; otherwise, it will be placed at world position 0, 0, 0.  
 
 #### <span id="loadterrain" />LoadTerrain ####
-`LoadTerrain()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`LoadTerrain(terrain$[, parent])`  
+**Parameters:** An optional parent entity.  
+**Return value:** The newly-loaded terrain.  
+**Description:** This function loads a terrain mesh from a heightmap image file. Unlike Blitz3D's advanced LOD terrains, this is just a naive heightfield with one static vertex per pixel in the input image. Because of the relatively low maximum vertex count, this is unlikely to work well with images larger than 256x256. As with the other built-in mesh features, this is unlikely to be enough to power an advanced game on its own and is mainly a prototyping feature.  
+The terrain can optionally be assigned a parent on creation using the `parent` parameter. The default value for this parameter is 0, which puts the terrain on its own in world space. If a parent is supplied, the terrain will be created at its position; otherwise, it will be placed at world position 0, 0, 0.  
 
 #### <span id="flippolygons" />FlipPolygons ####
-`FlipPolygons()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`FlipPolygons(handler)`  
+**Parameters:** The mesh.  
+**Return value:** None.  
+**Description:** This function "flips" the polygons in a mesh; after calling this function, the mesh will appear to be inverted (e.g. if you use this on a cube, it will appear as the inside of a hollow cube instead). This function works by going through and reversing the "spin" of every triangle (so note that `TriangleVertex` may not produce expected results after calling this). It does not touch vertex normals, and the entity will still be lit *exactly* as it was before if using smooth-shading (which may look strange, and wrong); lighting will be flipped as well if using flat-shading because flat-shading relies on triangle normals. There will be no observable effect if this is used on a smooth-shaded mesh that has disabled backface culling.  
 
 ### <span id="submesh" />Submesh ###
 #### <span id="rotatesubmesh" />RotateSubMesh ####
-`RotateSubMesh()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`RotateSubMesh(handler, vf, vt, rx#, ry#, rz#, cx#, cy#, cz#)`  
+**Parameters:** The host mesh; the vertex range to rotate; the Euler rotation in degrees; the centre of rotation relative to the mesh.  
+**Return value:** None.  
+**Description:** This function allows you to rotate a contiguous range of vertices around a specified point in a single operation. Doing this is much, much faster than looping over the vertices and adjusting them with `VertexCoords`, and saves you having to work out a rotated vector for each vertex. This function might be useful for e.g. an animation system, where bones control a group of vertices. The specified centre point is relative to the mesh origin.  
 
 #### <span id="quatrotatesubmesh" />QuatRotateSubMesh ####
-`QuatRotateSubMesh()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`QuatRotateSubMesh(handler, vf, vt, q#[3], cx#, cy#, cz#)`  
+**Parameters:** The host mesh; the vertex range to rotate; the quaternion rotation; the centre of rotation relative to the mesh.  
+**Return value:** None.  
+**Description:** This function allows you to rotate a contiguous range of vertices around a specified point in a single operation. Doing this is much, much faster than looping over the vertices and adjusting them with `VertexCoords`, and saves you having to work out a rotated vector for each vertex. This function might be useful for e.g. an animation system, where bones control a group of vertices. The specified centre point is relative to the mesh origin.  
+The difference from `RotateSubMesh` is that this function allows you to pass the rotation defined as a quaternion.  
 
 #### <span id="translatesubmesh" />TranslateSubMesh ####
-`TranslateSubMesh()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`TranslateSubMesh(handler, vf, vt, tx#, ty#, tz#)`  
+**Parameters:** The host mesh; the vertex range to translate; the translation to apply.  
+**Return value:** None.  
+**Description:** This function allows you to translate a contiguous range of vertices in a single operation. Doing this is much, much faster than looping over the vertices and adjusting them with `VertexCoords`. This function might be useful for e.g. an animation system, where bones control a group of vertices.  
 
 #### <span id="scalesubmesh" />ScaleSubMesh ####
-`ScaleSubMesh()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`ScaleSubMesh(handler, vf, vt, sx#, sy#, sz#, cx#, cy#, cz#)`  
+**Parameters:** The host mesh; the vertex range to scale; the scale factor; the centre to scale from relative to the mesh.  
+**Return value:** None.  
+**Description:** This function allows you to scale a contiguous range of vertices away from a specified point in a single operation. Doing this is much, much faster than looping over the vertices and adjusting them with `VertexCoords`, and saves you having to work out a scaled vector for each vertex. This function might be useful for e.g. an animation system, where bones control a group of vertices. The specified centre point is relative to the mesh origin.  
 
 ### <span id="entity movement" />Entity movement ###
 #### <span id="positionentity" />PositionEntity ####
 `PositionEntity(handler, x#, y#, z#[, absolute])`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+**Parameters:** The entity; where to put it; whether to use absolute or local coordinates.  
+**Return value:** None.  
+**Description:** This function puts an entity at a location within its containing coordinate system.  
+If the optional `absolute` parameter is true, the entity will be positioned at the given coordinates in global space; otherwise, it will be positioned at the given coordinates relative to its parent (which is the same as global space if it has no parent). Its own rotation and current position are not taken into account either way.  
+The difference between using local and global coordinates is a bit like the difference between telling someone to go and stand in their kitchen, vs. telling them to go and stand in the centre of London. Neither of those instructions cares about where the person is standing or what way they are facing *right now*, but the first one (local space) still puts them somewhere in terms of their personal context, rather than an absolute position in the whole world.  
 
 #### <span id="moveentity" />MoveEntity ####
 `MoveEntity(handler, x#, y#, z#)`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+**Parameters:** The entity; the vector along which to move it.  
+**Return value:** None.  
+**Description:** This function moves an entity along a given vector.  
+Movement using this command is always relative to the entity's current position and rotation. This is equivalent to telling someone to e.g. take two steps to their left: where they end up depends on where they were standing and what direction they were facing before you gave the instruction.  
+So the command `MoveEntity ent, 0, 0, -1` will always move the entity `ent` one step forward from its perspective.
 
 #### <span id="rotateentity" />RotateEntity ####
 `RotateEntity(handler, x#, y#, z#[, absolute])`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+**Parameters:** The entity; the rotation around the X, Y and Z axes to set; whether to use absolute or local coordinates.  
+**Return value:** None.  
+**Description:** This function sets an entity's rotation about the X, Y and Z axes, measured as an Euler angle vector in degrees.  
+If the optional `absolute` parameter is true, the entity's rotation will be set relative to the global X, Y and Z axes; otherwise, its rotation will be set relative to the current orientation of its parent entity (which is the same as using the global axes if it has no parent). Its own current orientation is not considered either way.  
+The difference between using local and global coordinates for this is a bit like the difference between telling someone to turn to face a given wall of their house, and telling them to face north. Neither of those instructions cares about where they're facing *right now*, but the first one (local space) still puts them somewhere in terms of their personal context, rather than an absolute position in the whole world.  
+If you want to add a rotation to an entity's existing orientation, you should *not* use this function (don't attempt to maintain a "current rotation" variable, it won't work properly) - use `TurnEntity` instead, so that the rotation will be computed with quaternions and not be subject to gimbal lock. (If you try to add to a stored Euler rotation to compute values to pass to `RotateEntity`, you will end up causing gimbal lock yourself, by bypassing the quaternion engine. Don't do that.)  
 
 #### <span id="turnentity" />TurnEntity ####
 `TurnEntity(handler, x#, y#, z#)`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+**Parameters:** The entity; the rotation to add to the X, Y and Z axes.  
+**Return value:** None.  
+**Description:** This function adds a rotation to an entity's current orientation, measured as an Euler angle in degrees of rotation around the X, Y and Z axes.  
+Rotation using this command is always relative to the entity's current rotation, and will be added to it. You can make an object continuously rotate in a circle, for instance, by simply commanding `TurnEntity ent, 0, 1, 0` in your main loop; a degree will be added to the object's Y rotation every frame.  
+Although the rotations passed to this function are described using Euler degree vectors, internally, the rotation is computed using quaternions and is thus not vulnerable to gimbal lock. You should therefore always use this function instead of `RotateEntity` to turn an entity relative top its current orientation.  
 
 #### <span id="pointentity" />PointEntity ####
 `PointEntity(handler, x#, y#, z#[, roll#])`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+**Parameters:** The entity; the coordinates to point it at; the roll to apply after pointing the entity.  
+**Return value:** None.  
+**Description:** This function points an entity at a coordinate somewhere in its local space. The optional `roll` parameter determines what roll the entity should have after being oriented to point at the coordinate ("pointing" doesn't take the entity's current orientation into account, instead acting as though the entity was starting from no rotation, so all entities will be "upright" after being pointed unless otherwise specified by the `roll` parameter).  
+To point an entity at coordinates originating from global space or some other coordinate system, you should first transform the coordinates into the entity's local space using `TFormPoint`.  
 
 #### <span id="scaleentity" />ScaleEntity ####
 `ScaleEntity(handler, x#, y#, z#[, absolute])`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+**Parameters:** The entity; the amount to scale in each dimension; whether to use absolute or local coordinates.  
+**Return value:** None.  
+**Description:** This function sets an entity's scale factor in each dimension. It *sets*, rather than multiplies, the scale of an entity, so you can always return an entity to its original scale by using `ScaleEntity ent, 1, 1, 1`. A scale of 2 will double an entity's size in a given dimension; a scale of -1 will invert it. Try to avoid using a scale of 0 as it is likely to cause singularities.  
+An entity is also scaled in terms of its parent's coordinate system, so if an entity is parented to an entity of scale 2, 2, 2 and itself is set to scale 1, 1, 1, it will manifest as having a scale of 2, 2, 2 (its scale, multiplied by its parent's overall scale).  
+Scaling a mesh will affect how it is rendered; scaling lights and cameras may have odd effects on the way they cause the world to be presented, especially using non-uniform scale values (inverting a camera's scale can have really odd effects). Scale is most useful with meshes as it's an effectively-free way to change the size of a visible object (actually moving the vertices is very slow).  
+An entity *moves* in terms of its parent's scale system, which is handy because you can dynamically blow up and shrink entities without needing to think about how it will affect movement commands: it won't. This also means that hierarchical structures like character bones always maintain the correct proportions for their movements.  
+If the optional `absolute` parameter is true, then the entity will be *set to* a scale that will give it the appearance of having the requested scale in global space, e.g. you could set an entity's absolute scale to 1, 1, 1 to counteract the effect of its parent's scale multiplier. (In general doing this is likely to be quite complicated and rarely necessary.)  
 
 ### <span id="entity position" />Entity position ###
 #### <span id="entityx" />EntityX ####
@@ -710,79 +741,85 @@ A hidden entity may still be moved around, rotated, etc. and therefore can have 
 
 ### <span id="entity status" />Entity status ###
 #### <span id="setentityparent" />SetEntityParent ####
-`SetEntityParent()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`SetEntityParent(handler, parentH)`  
+**Parameters:** The entity; the entity to set as its parent.  
+**Return value:** None.  
+**Description:** This function sets an entity's parent. If it already had a parent, it is unhooked from the old one; if you pass 0 as the parent handle, it will be set to have no parent and exist on its own in world space.  
+The "parent" system allows entities to be grouped into a tree hierarchy. Actions applied to a parent entity are applied recursively to all of its children: if you hide a parent, all of its child nodes will disappear as well; if you move a parent two spaces to the left, all of its children will move two spaces to the left; if you rotate a parent around the Y axis, all of its children will orbit around it like planets around a star. Child entities are, by and large, unaware of the movements of their parents, so you can continue to move children within a "local space" system, defined by their parent entity's position and orientation, without needing to know where they actually are in the world as a whole. The entity hierarchy is absolutely indispensable for things like character animation or complex level design (e.g. hands need to be able to move regardless of where the arms that control them are).  
+Attempting to create a circular parent structure doesn't make sense, and will cause the program to crash. Don't do that.  
 
 #### <span id="getentityparent" />GetEntityParent ####
-`GetEntityParent()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`GetEntityParent(handler)`  
+**Parameters:** The entity.  
+**Return value:** The entity's parent.  
+**Description:** This function simply returns which entity is the queried entity's parent. If it has no parent, the function will return 0.  
 
 #### <span id="countchildren" />CountChildren ####
-`CountChildren()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`CountChildren(handler)`  
+**Parameters:** The entity.  
+**Return value:** The number of immediate children of the entity.  
+**Description:** This function returns the number of immediate children attached to an entity. It only counts those children that have this entity as their *direct* parent; any "grandchildren" (children of the child entities) are not included in the returned count. If you need to enumerate an entire entity tree, you can easily use this to write a recursive version.  
 
 #### <span id="getchildentity" />GetChildEntity ####
-`GetChildEntity()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`GetChildEntity(handler, index)`  
+**Parameters:** The parent entity; the index of the desired child.  
+**Return value:** The handle of the child.  
+**Description:** This function retrieves a child entity from a parent using its child index. Child entities have indices in the range 0 to (`CountChildren` - 1). There is no guarantee of their ordering, so you would mainly use this in a loop (controlled by `CountChildren`) that iterates over all children in sequence.  
 
 #### <span id="getchildbyname" />GetChildByName ####
-`GetChildByName()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`GetChildByName(handler, name$)`  
+**Parameters:** The parent entity; the name of the desired child.  
+**Return value:** The handle of the child.  
+**Description:** This function searches an entity's child tree to retrieve the child with the given name. If a child with that name is not present, the function returns 0. Note that this function differs from `GetChildEntity` in that it is recursive and will search the children of its children etc., until either an entity with a matching name is found, or the tree is completely searched.  
+This function works best if every component of a hierarchy has a unique name. If entities have duplicate names, it is not specified which entity will be returned first (i.e. do not rely on this behaviour being consistent between bOGL versions).  
 
 #### <span id="setentityname" />SetEntityName ####
-`SetEntityName()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`SetEntityName(handler, name$)`  
+**Parameters:** The entity; the name to set.  
+**Return value:** None.  
+**Description:** This function sets an entity's name to the passed value. Entity names are mainly useful for searching entity trees, and most importantly for providing an identifier that persists between runs of the same program (an entity's handle will change from run to run because it's totally random, but a name can be set in an editor and later be used to find that entity within the game engine). Newly-created entities have a default name of the empty string.  
+Some game engines (especially those made with the original Blitz3D) also use the name string to store custom data on an entity. Thanks to user data slots, this is not necessary in bOGL (do it anyway if you like, it's not very efficient though).  
 
 #### <span id="getentityname" />GetEntityName ####
-`GetEntityName()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`GetEntityName$(handler)`  
+**Parameters:** The entity.  
+**Return value:** The name of the entity.  
+**Description:** This function just returns an entity's name.  
 
 #### <span id="registerentityuserdataslot" />RegisterEntityUserDataSlot ####
 `RegisterEntityUserDataSlot()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+**Parameters:** None.  
+**Return value:** The slot dedicated to your custom entity data.  
+**Description:** This function assigns a slot in all entities' custom data vectors for any data of your choice (that can be converted to an int, anyway). This provides a modular way to extend entities with extra information (e.g. animation sequences). As long as you request the slot with this function instead of assuming it will be any specific value, your extra data will not conflict with any other data added by addon modules or other programmers.  
+Ideally this function should be called once per addon or module that wants to define its own custom extensions, before the program begins creating entities (otherwise some entities will already have data vectors and not have all of the right slots...). Addons should call it in their `Init` function.  
+Since the entity and the core bOGL functions have no idea what the entity user data represents, addons should define their own copy and free functions if necessary that can copy extra data and delete it when done. Take a look at the `MD2` and `Animation` addons for examples of how to share complicated data structures, and automatically cleanup redundant data.  
+**Future direction:** A port of bOGL to a language supporting callbacks (BlitzMax, C, Monkey) should extend this function to accept `copy` and `free` functions for the extended data. This will make code using extended objects much more generic as the user no longer has to remember "this entity is an MD2, copy it using the special MD2 copy function" or anything like that.  
 
 #### <span id="setentityuserdata" />SetEntityUserData ####
-`SetEntityUserData()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`SetEntityUserData(handler, slot, val)`  
+**Parameters:** The entity; the slot to set; the value to store.  
+**Return value:** None.  
+**Description:** This function sets a slot in an entity's custom data vector to the given value. Use this to update extension data associated with an entity.  
 
 #### <span id="getentityuserdata" />GetEntityUserData ####
-`GetEntityUserData()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`GetEntityUserData(handler, slot)`  
+**Parameters:** The entity; the slot to retrieve a value from.  
+**Return value:** The value in the given slot.  
+**Description:** This function retrieves a value from the given slot in an entity's custom data vector. Use this to retrieve extension data associated with an entity.  
 
 #### <span id="copyentity" />CopyEntity ####
-`CopyEntity()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
+`CopyEntity(handler)`  
+**Parameters:** The entity.  
+**Return value:** A newly-created copy of the entity.  
+**Description:** This function creates a complete copy of an entity. The function performs a "deep copy" of all built-in bOGL data associated with the entity, so for example all of the entity's children are recursively copied, and the copies attached to the new entity.  
+The custom data vector itself is copied, but since bOGL has no idea what the data in the vector represents, the copy is not guaranteed to be "deep" and addons may need to define wrapper copy routines that properly update or copy this extension data as necessary.  
+**Future direction:** If bOGL is ported to a language supporting callbacks, this function can be extended to handle deep copies of user data properly by storing the correct `copy` callbacks in the vector alongside the data.  
 
 #### <span id="freeentity" />FreeEntity ####
-`FreeEntity()`  
-**Parameters:**  
-**Return value:**  
-**Description:**  
-
-
-## <span id="privateapi" />Internal commands (Private API) ##
-
-This section describes functions and structures from the bOGL internal, private API. This is for information, interest, and addon-writers only; the private API may change at any time. You should **not** use anything described in this section in your project's main code, as it is considered private and internal to bOGL.
+`FreeEntity(handler)`  
+**Parameters:** The entity.  
+**Return value:** None.  
+**Description:** This function destroys an entity. All built-in bOGL data associated with the entity will be released: any children of the entity will be recursively freed, textures will have their internal reference counts decremented, and the custom data vector will be deleted.  
+Since bOGL has no idea what the data in the custom data vector represents, any referenced extension objects are not guaranteed to be freed. Addons should either define a "free wrapper" function that cleans up the custom data before destroying the entity, of give extension data the ability to tell when its host entity has been destroyed (e.g. the `ANIM_ClearUnused` function in `Animation` can run after many entities are freed and clear up any hanging animation data).  
+**Future direction:** If bOGL is ported to a language supporting callbacks, this function can be extended to properly free user data by storing the correct `free` callbacks in the vector alongside the data.  
 

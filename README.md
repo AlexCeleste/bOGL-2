@@ -44,7 +44,7 @@ OGL Direct by Peter Scheutz
 [AddVertex](Docs/bOGL.md#addvertex)(mesh, x#, y#, z#[, u#, v#]), [AddTriangle](Docs/bOGL.md#addtriangle)(mesh, v0, v1, v2)  
 [CountTriangles](Docs/bOGL.md#counttriangles)(mesh), [CountVertices](Docs/bOGL.md#countvertices)(mesh), [TriangleVertex](Docs/bOGL.md#trianglevertex)(mesh, tri, vert)  
 [VertexCoords](Docs/bOGL.md#vertexcoords)(mesh, v, x#, y#, z#), [VertexTexCoords](Docs/bOGL.md#vertextexcoords)(mesh, v, u#, v#)  
-[VertexNormal](Docs/bOGL.md#vertexnormal)(mesh, v, nx#, ny#, nz#), [VertexColor](Docs/bOGL.md#vertexcolor)(mesh, v, r#, g#, b#)  
+[VertexNormal](Docs/bOGL.md#vertexnormal)(mesh, v, nx#, ny#, nz#), [VertexColor](Docs/bOGL.md#vertexcolor)(mesh, v, r, g, b)  
 [VertexX](Docs/bOGL.md#vertexx)#(mesh, v), [VertexY](Docs/bOGL.md#vertexy)#(mesh, v), [VertexZ](Docs/bOGL.md#vertexz)#(mesh, v), [VertexU](Docs/bOGL.md#vertexu)#(mesh, v), [VertexV](Docs/bOGL.md#vertexv)#(mesh, v)  
 [CreateCube](Docs/bOGL.md#createcube)([parent])  
 [CreateSprite](Docs/bOGL.md#createsprite)([parent])  
