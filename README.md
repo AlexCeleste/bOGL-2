@@ -12,7 +12,7 @@ For more information on [the core engine](Docs/bOGL.md) and addon modules, see [
 
 **Installation:** Move the folder named "userlibs" to BlitzBasic folder. Overwrite if neccessary, or add the content of the files to the existing ones. Now you should be able to run the demo and create your own projects.
 
-Please overwrite any userlib files remaining from bOGL version 1.01.
+Please overwrite any userlib files remaining from bOGL version 1.01. You **must** overwrite any existing OpenGL Direct userlibs, as the original distribution contained errors that are corrected by the bOGL version.
 
 **Licence:** MIT, see [LICENSE file](LICENSE)
 
