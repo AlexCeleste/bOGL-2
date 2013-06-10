@@ -356,7 +356,7 @@ Function CameraFogMode(handler, mode, near# = 10.0, far# = 100.0)
 	this\c\fogmode = mode
 	this\c\fognear = near
 	this\c\fogfar = far
-	this\c\fogcolor = CreateBank(16)
+	If Not this\c\fogcolor Then this\c\fogcolor = CreateBank(16)
 End Function
 
 Function CameraFogColor(handler, red, green, blue, alpha# = 1.0)
