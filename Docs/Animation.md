@@ -41,37 +41,37 @@ If you use IDEal, consider adding `Animation.bb` to your IDEal project file in o
 
 ## <span id="publicapi"/>Command reference / API ##
 
-#### <span id="initf" />InitMeshLoaderAddon ####
+#### <span id="initf" />InitAnimationAddon ####
 `InitAnimationAddon()`  
 **Parameters:** None.  
 **Return value:** None.  
 **Description:** This is the initialization function for the `Animation` addon module. Call this *once* in your program initialization block, before doing anything with the 3D engine. This sets up necessary user data slots and other shared values for the library as a whole. Do not skip this step.  
 
-#### <span id="initf" />UpdateAnimations ####
+#### <span id="updateanimations" />UpdateAnimations ####
 `UpdateAnimations()`  
 **Parameters:** None.  
 **Return value:** None.  
 **Description:** This function steps all running animations forward by the necessary number of frames, and moves the entities animated as part of that animation frame to the correct key or tweened positions. Call it in your main loop, after all of your movement update code and before calling `RenderWorld` or `RenderStencil`. Right before `UpdateBonedMeshes` is best.  
 
-#### <span id="initf" />LoadAnimation ####
+#### <span id="loadanimation" />LoadAnimation ####
 `LoadAnimation(root, file$)`  
 **Parameters:** The entity to load an animation onto; the file to load an animation from.  
 **Return value:** None.  
 **Description:** This function loads an animation from a file and applies it to the hierarchy that is parented by the entity passed as `root`. The function will search the child hierarchy of `root` for entities with the same names as those described in the animation file, and apply the animations there to them. This is best used with a model loaded from the same file, since .bo3d files contain both model and animation data together. Using it on another model may produce odd results, if the node structure is different or not all of the names can be matched.  
 
-#### <span id="initf" />LoadAnimBank ####
+#### <span id="loadanimbank" />LoadAnimBank ####
 `LoadAnimBank(root, bk, start, size)`  
 **Parameters:** The entity to load an animation onto; a Blitz bank to load the animation from; the offset and size of the animation within the bank.  
 **Return value:** None.  
 **Description:** This function loads an animation from a Blitz bank and applies it to the hierarchy that is parented by the entity passed as `root`. This function is mainly useful if you have a large number of animations in a single archive and don't want them to clutter your project as separate files on disk. If your animations are in separate files on disk, just use `LoadAnimation`.  
 
-#### <span id="initf" />CopyAnimation ####
+#### <span id="copyanimation" />CopyAnimation ####
 `CopyAnimation(root, src)`  
 **Parameters:** The entity to copy an animation onto; the source animated entity to copy from.  
 **Return value:** None.  
 **Description:** This function attempts to copy the animation hierarchy, from `src` and its children, onto the equivalently-named entities in the tree described by `root` and its own children. This will work best with model structures of the same type, perhaps loaded from the same base. If not everything in `src` can be matched to a child node in `root`, odd results may ensue.  
 
-#### <span id="initf" />Animate ####
+#### <span id="animate" />Animate ####
 `Animate(ent[, mode, speed#, fF, lF, trans])`  
 **Parameters:** The entity to animate; the animation mode; the animation speed multiplier; the first and last frames; the transition speed.  
 **Return value:** None.  
@@ -86,37 +86,37 @@ The `speed` parameter controls how quickly the animation will play. At a speed o
 The `fF` and `lF` parameters select the start and end frames of the animation to play from within all of the frames making up the available animation data for the entity. Most character models will have twenty or so different animations packed into one long sequence, and expect you to have a table of offsets to choose the right start and end points to show a given action (see the `Animation` demo for an example). By default, if these are omitted the animation will just start at frame 0 and play through the entire available sequence.  
 The `trans` parameter determines the number of frames to use as a transition, either between the end and start of a looping animation, or between the entity's current position and the start of the next sequence to play. The default value for this parameter is 0. A good transition is short and only exists to smooth the movement from position to position, e.g. 8 frames is plenty if your game runs at 60FPS.  
 
-#### <span id="initf" />SetAnimTime ####
+#### <span id="setanimtime" />SetAnimTime ####
 `SetAnimTime(ent, time#)`  
 **Parameters:** The entity; the time to place the animation at.  
 **Return value:** None.  
 **Description:** This function places an entity's animation at a specific place in the sequence manually. This is useful if you can't rely on `Animate` for some reason, or just want to set the entity to a static position.  
 
-#### <span id="initf" />GetAnimTime ####
+#### <span id="getanimtime" />GetAnimTime ####
 `GetAnimTime#(ent)`  
 **Parameters:** The entity.  
 **Return value:** The entity's place in the animation sequence.  
 **Description:** This function returns where exactly the queried entity is in its animation sequence. Since it may be animating at a fractional number of frames per application frame, the value returned is a float.  
 
-#### <span id="initf" />GetNumFrames ####
+#### <span id="getnumframes" />GetNumFrames ####
 `GetNumFrames(ent)`  
 **Parameters:** The entity.  
 **Return value:** The number of frames in its animation sequence.  
 **Description:** This function just returns the number of frames in an animated entity's animation sequence.  
 
-#### <span id="initf" />GetAnimMode ####
+#### <span id="getanimmode" />GetAnimMode ####
 `GetAnimMode(ent)`  
 **Parameters:** The entity.  
 **Return value:** Its animation mode.  
 **Description:** This function returns the current animation mode of an animated entity. If it is not animating, the value `ANIM_MODE_STOP` is returned.  
 
-#### <span id="initf" />IsAnimated ####
+#### <span id="isanimated" />IsAnimated ####
 `IsAnimated(ent)`  
 **Parameters:** The entity.  
 **Return value:** Whether the entity is animated.  
 **Description:** This function returns true if an entity has animation data associated with it. Testing entities with this function before exposing them to the animation system is important, since non-animated entities being passed to other `Animation` functions may cause the program to crash when it looks for nonexistent data.  
 
-#### <span id="initf" />ANIM_ClearUnused ####
+#### <span id="anim_clearunused" />ANIM_ClearUnused ####
 `ANIM_ClearUnused()`  
 **Parameters:** None.  
 **Return value:** None.  
