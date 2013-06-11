@@ -7,7 +7,7 @@
 ; them to hierarchical mesh systems.
 
 ; This module depends on "MeshLoader.bb" to load the surfaces to combine into
-; complete animated meshes ad for some BO3D file functions.
+; complete animated meshes and for some BO3D file functions.
 
 ; See also "MD2.bb" for a limited but potentially faster animation system
 ; (much of the code here is copy/pasted from it).
