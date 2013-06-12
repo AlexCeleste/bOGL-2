@@ -418,12 +418,12 @@ Function ApplyMaskColor(img, mask)
 	FreeBank pix
 End Function
 
-Function GetBuffer2D(tex, asRGBA = True)
-	Local buffer = GetTextureData(tex, asRGBA), this.bOGL_Tex = Object.bOGL_Tex tex
+Function GetBuffer2D(tex, asBGRA = True)
+	Local buffer = GetTextureData(tex, asBGRA), this.bOGL_Tex = Object.bOGL_Tex tex
 	ResizeBank buffer, BankSize(buffer) + B2D_BUF_HEADER
 	CopyBank buffer, 0, buffer, B2D_BUF_HEADER, BankSize(buffer) - B2D_BUF_HEADER
 	PokeInt buffer, 0, tex : PokeInt buffer, 4, TextureWidth(tex)
-	PokeInt buffer, 8, TextureHeight(tex) : PokeInt buffer, 12, asRGBA
+	PokeInt buffer, 8, TextureHeight(tex) : PokeInt buffer, 12, asBGRA
 	Return buffer
 End Function
 
