@@ -1,10 +1,10 @@
 
 # MD2: an addon for bOGL-2 #
 
-* [Introduction](#intro)
-* [Quick start](#quickstart)
-* [Command reference / API](#publicapi)
- * [InitMD2Addon](#initf)
+* [Introduction](#introduction)
+* [Quick start](#quick-start)
+* [Command reference / API](#command-reference--api)
+ * [InitMD2Addon](#initmd2addon)
  * [UpdateMD2Anims](#updatemd2anims)
  * [LoadMD2Model](#loadmd2model)
  * [LoadMD2SubMesh](#loadmd2submesh)

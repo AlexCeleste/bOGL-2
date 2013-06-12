@@ -1,9 +1,9 @@
 
 # MeshLoader: an addon for bOGL-2 #
 
-* [Introduction](#intro)
-* [Quick start](#quickstart)
-* [Command reference / API](#publicapi)
+* [Introduction](#introduction)
+* [Quick start](#quick-start)
+* [Command reference / API](#command-reference--api)
  * [InitDraw2D](#initdraw2d)
  * [SetViewport2D](#setviewport2d)
  * [SetVirtualResolution2D](#setvirtualresolution2d)

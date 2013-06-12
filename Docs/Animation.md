@@ -1,10 +1,10 @@
 
 # Animation: an addon for bOGL-2 #
 
-* [Introduction](#intro)
-* [Quick start](#quickstart)
-* [Command reference / API](#publicapi)
- * [InitAnimationAddon](#initf)
+* [Introduction](#introduction)
+* [Quick start](#quick-start)
+* [Command reference / API](#command-reference--api)
+ * [InitAnimationAddon](#initanimationaddon)
  * [UpdateAnimations](#updateanimations)
  * [LoadAnimation](#loadanimation)
  * [LoadAnimBank](#loadanimbank)

@@ -1,10 +1,10 @@
 
 # MeshLoader: an addon for bOGL-2 #
 
-* [Introduction](#intro)
-* [Quick start](#quickstart)
-* [Command reference / API](#publicapi)
- * [InitMeshLoaderAddon](#initf)
+* [Introduction](#introduction)
+* [Quick start](#quick-start)
+* [Command reference / API](#command-reference--api)
+ * [InitMeshLoaderAddon](#initmeshloaderaddon)
  * [LoadMesh](#loadmesh)
  * [LoadBO3D](#loadbo3d)
  * [LoadOBJMesh](#loadobjmesh)
