@@ -827,7 +827,7 @@ Function GrabBackBuffer(x, y, width, height, pix, doConvert = True)
 End Function
 
 Function RenderWorld(stencilMode = BOGL_STENCIL_OFF)
-	glStencilMask 0 : glColorMask_Unsafe GL_TRUE,GL_TRUE, GL_TRUE, GL_TRUE	;Disable stencil writes, enable rendering
+	glStencilMask 0 : glColorMask_Unsafe GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE	;Disable stencil writes, enable rendering
 	glStencilFunc stencilMode, 0, $FF
 	
 	If bOGL_VisChanged_ Then bOGL_UpdateVisibles_

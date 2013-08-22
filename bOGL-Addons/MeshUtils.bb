@@ -51,5 +51,4 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#D#15#20#2B
 ;~C#BlitzPlus
