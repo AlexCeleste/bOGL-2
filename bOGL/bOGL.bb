@@ -376,7 +376,11 @@ End Function
 
 Function PositionEntity(handler, x#, y#, z#, absolute = False)
 	Local this.bOGL_Ent = bOGL_EntList_(handler)
-	If absolute Then x = x - this\g_x : y = y - this\g_y : z = z - this\g_z
+	If absolute <> 0 And this\parentH <> 0
+		Local p.bOGL_Ent = bOGL_EntList_(this\parentH)
+		If Not p\Gv Then bOGL_UpdateGlobalPosition_ p
+		x = x - p\g_x : y = y - p\g_y : z = z - p\g_z
+	EndIf
 	this\x = x : this\y = y : this\z = z : bOGL_InvalidateGlobalPosition_ this
 End Function
 
@@ -1277,8 +1281,8 @@ End Function
 ;~IDEal Editor Parameters:
 ;~F#21#2A#31#36#3C#41#49#50#54#5B#5F#65#73#8C#91#96#A1#AD#B7#BB
 ;~F#BF#C3#C8#CD#D2#E0#E5#EA#EF#F4#F9#123#12F#149#14E#153#158#15C#161#169
-;~F#172#178#17E#186#195#19D#1A4#1AA#1AF#1B9#1C3#1CA#1D0#1E2#1E6#1EB#1EF#1FA#1FE#202
-;~F#206#210#214#23B#259#266#26B#279#283#28E#296#29E#2A6#2AF#2B8#2C1#2E6#2FE#305#30C
-;~F#313#31F#332#33C#391#3C6#3CA#3E3#402#410#426#43F#44F#454#459#464#46D#474#479#481
-;~F#492#49D#4A8#4C3#4CB#4DB#4F3
+;~F#172#178#182#18A#199#1A1#1A8#1AE#1B3#1BD#1C7#1CE#1D4#1E6#1EA#1EF#1F3#1FE#202#206
+;~F#20A#214#218#23F#25D#26A#26F#27D#287#292#29A#2A2#2AA#2B3#2BC#2C5#2EA#302#309#310
+;~F#317#323#336#340#395#3CA#3CE#3E7#406#414#42A#443#453#458#45D#468#471#478#47D#485
+;~F#496#4A1#4AC#4C7#4CF#4DF#4F7
 ;~C#BlitzPlus
