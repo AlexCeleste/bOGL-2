@@ -46,7 +46,7 @@ Function InitAnimationAddon()		;Only call this once per program
 End Function
 
 ; Call this once per loop to update entity positions
-Function UpdateAnimations()
+Function UpdateAnimations(rate# = 1.0)
 	Insert ANIM_header_ After Last bOGL_Animation
 	Local m.bOGL_Animation, doClear = False : For m = Each bOGL_Animation
 		If m = ANIM_buffer_ Then Exit
@@ -57,7 +57,7 @@ Function UpdateAnimations()
 			Insert n After Last bOGL_Animation
 			If n\root = Null Then doClear = True
 		Else
-			ANIM_UpdateAnimation_ m
+			ANIM_UpdateAnimation_ m, rate
 			ANIM_UpdateNodePositions_ m
 		EndIf
 		
@@ -350,11 +350,12 @@ End Function
 
 ; This is literally identical to MD2_UpdateAnimation_
 ; A sensible coder would factor out the shared structures to an anim module...
-Function ANIM_UpdateAnimation_(m.bOGL_Animation)
+Function ANIM_UpdateAnimation_(m.bOGL_Animation, rate#)
+	Local speed# = rate * m\animSpd
 	If m\animMode <> ANIM_MODE_TRANS
-		m\animTime = m\animTime + m\animSpd
+		m\animTime = m\animTime + speed
 		
-		If (m\animSpd > 0 And m\animTime > m\seqE) Or (m\animSpd < 0 And m\animTime < m\seqS)
+		If (speed > 0 And m\animTime > m\seqE) Or (speed < 0 And m\animTime < m\seqS)
 			Select m\animMode
 				Case ANIM_MODE_ONCE
 					m\animMode = ANIM_MODE_STOP
@@ -370,19 +371,19 @@ Function ANIM_UpdateAnimation_(m.bOGL_Animation)
 					EndIf
 					
 				Case ANIM_MODE_PING
-					If m\animSpd > 0 Then m\animTime = m\seqE : Else m\animTime = m\seqS
+					If speed > 0 Then m\animTime = m\seqE : Else m\animTime = m\seqS
 					m\fromF = Int m\animTime : m\toF = Int m\animTime
 					m\animSpd = -m\animSpd
 			End Select
 		Else
-			If m\animSpd >= 0
+			If speed >= 0
 				m\fromF = Floor(m\animTime) : m\toF = Ceil(m\animTime)
 			Else
 				m\toF = Floor(m\animTime) : m\fromF = Ceil(m\animTime)
 			EndIf
 		EndIf
 	Else
-		m\animTime = m\animTime + m\trans
+		m\animTime = m\animTime + (m\trans * rate)
 		If m\animTime >= m\fromF + 1
 			m\animMode = m\nextMode
 			m\nextMode = ANIM_MODE_TRANS

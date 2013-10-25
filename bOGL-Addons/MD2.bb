@@ -44,7 +44,7 @@ Function InitMD2Addon()		;Only call this once per program
 	MESH_InitMeshUtils_
 End Function
 
-Function UpdateMD2Anims()
+Function UpdateMD2Anims(rate# = 1.0)
 	Insert MD2_header_ After Last bOGL_MD2Model
 	Local m.bOGL_MD2Model, doClear = False : For m = Each bOGL_MD2Model
 		If m = MD2_buffer_ Then Exit
@@ -56,7 +56,7 @@ Function UpdateMD2Anims()
 			If n\mesh = Null Or n\bone = Null Then doClear = True Else MD2_UpdateFramePosition_ n, n\fromF, n\toF
 		Else
 			MD2_UpdateFramePosition_ m, m\fromF, m\toF
-			MD2_UpdateAnimation_ m
+			MD2_UpdateAnimation_ m, rate
 		EndIf
 		
 		If m = Null Then m = MD2_header_ : Insert m Before First bOGL_MD2Model
@@ -417,11 +417,12 @@ Function MD2_UpdateFramePosition_(m.bOGL_MD2Model, pTime, nTime)
 	EndIf
 End Function
 
-Function MD2_UpdateAnimation_(m.bOGL_MD2Model)
+Function MD2_UpdateAnimation_(m.bOGL_MD2Model, rate#)
+	Local speed# = rate * m\animSpd
 	If m\animMode <> MD2_MODE_TRANS
-		m\animTime = m\animTime + m\animSpd
+		m\animTime = m\animTime + speed
 		
-		If (m\animSpd > 0 And m\animTime > m\seqE) Or (m\animSpd < 0 And m\animTime < m\seqS)
+		If (speed > 0 And m\animTime > m\seqE) Or (speed < 0 And m\animTime < m\seqS)
 			Select m\animMode
 				Case MD2_MODE_ONCE
 					m\animMode = MD2_MODE_STOP
@@ -437,19 +438,19 @@ Function MD2_UpdateAnimation_(m.bOGL_MD2Model)
 					EndIf
 					
 				Case MD2_MODE_PING
-					If m\animSpd > 0 Then m\animTime = m\seqE : Else m\animTime = m\seqS
+					If speed > 0 Then m\animTime = m\seqE : Else m\animTime = m\seqS
 					m\fromF = Int m\animTime : m\toF = Int m\animTime
 					m\animSpd = -m\animSpd
 			End Select
 		Else
-			If m\animSpd >= 0
+			If speed >= 0
 				m\fromF = Floor(m\animTime) : m\toF = Ceil(m\animTime)
 			Else
 				m\toF = Floor(m\animTime) : m\fromF = Ceil(m\animTime)
 			EndIf
 		EndIf
 	Else
-		m\animTime = m\animTime + m\trans
+		m\animTime = m\animTime + (m\trans * rate)
 		If m\animTime >= m\fromF + 1
 			m\animMode = m\nextMode
 			m\nextMode = MD2_MODE_TRANS
