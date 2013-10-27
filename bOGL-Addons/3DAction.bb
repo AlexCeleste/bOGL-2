@@ -192,7 +192,7 @@ Function ACT3_ExtractAction_(a.ACT3_Action)
 		Next
 		a\aLen = PeekInt(b, 4) : a\aRate = PeekInt(b, 8) : a\aPos = PeekFloat(b, 12)
 		a\e = PeekInt(b, 16) : a\s = PeekFloat(b, 20) : a\t = PeekFloat(b, 24) : a\u = PeekFloat(b, 28) : a\v = PeekFloat(b, 32)
-		ACT3_Convert2ToB_ a	;Convert "to" actions to "by" actions where appropriate
+		ACT3_Relativize_ a	;Convert "to" actions to "by" actions where appropriate
 		
 	ElseIf a\aType = ACT3_TYPE_LOOP
 		ACT3_RunAction_ a\ent, Mid(a\act, 9), a, True	;Enqueue, will be extracted in its turn
@@ -224,15 +224,24 @@ Function ACT3_ExtractAction_(a.ACT3_Action)
 End Function
 
 Function ACT3_ExecuteAction_(a.ACT3_Action, s#)
-	a\aPos = a\aPos + s
+	If (a\aPos + s) > a\aLen
+		s = a\aLen - a\aPos : a\aPos = a\aLen	;Prevent overshoot
+	Else
+		a\aPos = a\aPos + s		;Normal case
+	EndIf
 	Select a\aType
 		Case ACT3_TYPE_MB
-			MoveEntity a\ent, ACT3_Mov_(a,s, a\s), ACT3_Mov_(a,s, a\t), ACT3_Mov_(a,s, a\u)
+			MoveEntity a\ent, ACT3_Pol_(a,s, a\s), ACT3_Pol_(a,s, a\t), ACT3_Pol_(a,s, a\u)
 			
 		Case ACT3_TYPE_TB
 		Case ACT3_TYPE_SB
 		Case ACT3_TYPE_CB
 		Case ACT3_TYPE_FB
+		Case ACT3_TYPE_M2
+			a\ent\x = a\ent\x + ACT3_Pol_(a,s, a\s)
+			a\ent\y = a\ent\y + ACT3_Pol_(a,s, a\t)
+			a\ent\z = a\ent\z + ACT3_Pol_(a,s, a\u)
+			
 		Case ACT3_TYPE_TRP
 		Case ACT3_TYPE_TRD
 		Case ACT3_TYPE_WAIT
@@ -244,7 +253,7 @@ Function ACT3_ExecuteAction_(a.ACT3_Action, s#)
 	End Select
 End Function
 
-Function ACT3_Mov_#(a.ACT3_Action, s#, d#)
+Function ACT3_Pol_#(a.ACT3_Action, s#, d#)
 	Select a\aRate
 		Case ACT3_RATE_LINEAR : Return (s / a\aLen) * d
 		Case ACT3_RATE_EASEIN
@@ -286,11 +295,10 @@ Function ACT3_RunAction_(ent, act$, p.ACT3_Action, thisFrame)
 	If thisFrame Then Insert a Before ACT3_buffer_ Else Insert a Before First ACT3_Action
 End Function
 
-Function ACT3_Convert2ToB_(a.ACT3_Action)
+Function ACT3_Relativize_(a.ACT3_Action)	;Convert targets to re;ative magnitudes and, where possible, condense movement types
 	Local e.bOGL_Ent = bOGL_EntList_(a\ent)
 	Select a\aType
 		Case ACT3_TYPE_M2
-			a\aType = ACT3_TYPE_MB
 			a\s = a\s - e\x : a\t = a\t - e\y : a\u = a\u - e\z
 			
 		Case ACT3_TYPE_T2
