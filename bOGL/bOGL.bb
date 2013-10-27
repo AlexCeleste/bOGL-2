@@ -401,9 +401,9 @@ Function RotateEntity(handler, x#, y#, z#, absolute = False)
 		bOGL_QuatFromEuler_ q, x, y, z
 		p\g_q[0] = -p\g_q[0] : bOGL_QuatMul_ this\q, q, p\g_q : p\g_q[0] = -p\g_q[0]
 	Else
-		bOGL_QuatFromEuler_ this\q, x, y, z : this\Qv = True : this\Rv = False
+		bOGL_QuatFromEuler_ this\q, x, y, z
 	EndIf
-	bOGL_NormaliseQuat_ this\q
+	bOGL_NormaliseQuat_ this\q : this\Qv = True : this\Rv = False
 	bOGL_InvalidateGlobalPosition_ this
 End Function
 
@@ -1281,8 +1281,7 @@ End Function
 ;~IDEal Editor Parameters:
 ;~F#21#2A#31#36#3C#41#49#50#54#5B#5F#65#73#8C#91#96#A1#AD#B7#BB
 ;~F#BF#C3#C8#CD#D2#E0#E5#EA#EF#F4#F9#123#12F#149#14E#153#158#15C#161#169
-;~F#172#178#182#18A#199#1A1#1A8#1AE#1B3#1BD#1C7#1CE#1D4#1E6#1EA#1EF#1F3#1FE#202#206
-;~F#20A#214#218#23F#25D#26A#26F#27D#287#292#29A#2A2#2AA#2B3#2BC#2C5#2EA#302#309#310
-;~F#317#323#336#340#395#3CA#3CE#3E7#406#414#42A#443#453#458#45D#468#471#478#47D#485
-;~F#496#4A1#4AC#4C7#4CF#4DF#4F7
+;~F#172#178#1A1#1B3#1BD#1C7#1CE#1D4#1E6#1EA#1EF#1F3#1FE#202#206#20A#214#218#23F#25D
+;~F#26A#26F#27D#287#29A#2A2#2AA#2B3#2BC#2C5#2EA#302#309#310#317#323#336#340#395#3CA
+;~F#3CE#3E7#406#414#42A#443#453#458#45D#468#471#478#47D#496#4A1#4AC#4C7#4CF#4DF#4F7
 ;~C#BlitzPlus
