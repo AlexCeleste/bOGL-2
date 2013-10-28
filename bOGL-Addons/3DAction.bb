@@ -23,7 +23,7 @@ Include "bOGL\bOGL.bb"
 
 
 Type ActionListener
-	Field msg
+	Field msg, src
 End Type
 
 Type ACT3_Action
@@ -37,7 +37,7 @@ Const ACT3_RATE_LINEAR = 0, ACT3_RATE_EASEIN = 1, ACT3_RATE_EASEOUT = 2, ACT3_RA
 
 Const ACT3_TYPE_MB = 0, ACT3_TYPE_TB = 1, ACT3_TYPE_SB = 2, ACT3_TYPE_CB = 3, ACT3_TYPE_FB = 4
 Const ACT3_TYPE_M2 = 5, ACT3_TYPE_T2 = 6, ACT3_TYPE_S2 = 7, ACT3_TYPE_C2 = 8, ACT3_TYPE_F2 = 9
-Const ACT3_TYPE_TRP = 9, ACT3_TYPE_TRD = 10, ACT3_TYPE_WAIT = 11, ACT3_TYPE_SEND = 12
+Const ACT3_TYPE_TRP = 10, ACT3_TYPE_TRD = 11, ACT3_TYPE_WAIT = 12, ACT3_TYPE_SEND = 13
 Const ACT3_TYPE_LOOP = 32, ACT3_TYPE_SEQ = 33, ACT3_TYPE_COMP = 34
 Const ACT3_TYPE_UNDF = -1
 Const ACT3_SIZE_CELL = 4, ACT3_SIZE_SIMP = 9, ACT3_EPSILON# = 0.001
@@ -171,12 +171,12 @@ Function SendAction$(target.ActionListener, msg)
 	Return ACT3_SimpleAction_(ACT3_TYPE_SEND, 0, msg, Handle target, 0, 0, 0, 0)
 End Function
 
-Function TrackByPoint$(target, time, x#, y#, z#, rate = ACT3_RATE_LINEAR)
-	Return ACT3_SimpleAction_(ACT3_TYPE_TRP, time, rate, target, x, y, z, 0)
+Function TrackByPoint$(target, x#, y#, z#, strength# = 0.5)
+	Return ACT3_SimpleAction_(ACT3_TYPE_TRP, -1, 0, target, x, y, z, strength)
 End Function
 
-Function TrackByDistance$(target, time, dist#, rate = ACT3_RATE_LINEAR)
-	Return ACT3_SimpleAction_(ACT3_TYPE_TRD, time, rate, target, dist, 0, 0, 0)
+Function TrackByDistance$(target, dist#, strength# = 0.5)
+	Return ACT3_SimpleAction_(ACT3_TYPE_TRD, -1, 0, target, dist, 0, 0, strength)
 End Function
 
 
@@ -230,7 +230,7 @@ Function ACT3_ExecuteAction_(a.ACT3_Action, s#)
 	Else
 		a\aPos = a\aPos + s		;Normal case
 	EndIf
-	Local ent.bOGL_Ent = bOGL_EntList_(a\ent)
+	Local ent.bOGL_Ent = bOGL_EntList_(a\ent), vec#[2], tgt.bOGL_Ent
 	Select a\aType
 		Case ACT3_TYPE_M2
 			ent\x = ACT3_Pol_(a, a\s0, a\s1) : ent\y = ACT3_Pol_(a, a\t0, a\t1) : ent\z = ACT3_Pol_(a, a\u0, a\u1)
@@ -264,14 +264,27 @@ Function ACT3_ExecuteAction_(a.ACT3_Action, s#)
 			EndIf
 			
 		Case ACT3_TYPE_TRP
+			TFormPoint a\s0, a\t0, a\u0, a\e, a\ent, vec
+			MoveEntity a\ent, vec[0] * a\v0, vec[1] * a\v0, vec[2] * a\v0
+			tgt = bOGL_EntList_(a\e) : If Not tgt\Gv Then bOGL_UpdateGlobalPosition_ tgt
+			TFormPoint tgt\g_x, tgt\g_y, tgt\g_z, 0, ent\parentH, vec
+			PointEntity a\ent, vec[0], vec[1], vec[2]
+			a\aPos = a\aLen - 1		;Note that this means it will never expire
+			
 		Case ACT3_TYPE_TRD
+			tgt = bOGL_EntList_(a\e) : If Not tgt\Gv Then bOGL_UpdateGlobalPosition_ tgt
+			TFormPoint tgt\g_x, tgt\g_y, tgt\g_z, 0, ent\parentH, vec
+			PointEntity a\ent, vec[0], vec[1], vec[2]
+			Local x# = ent\x - vec[0], y# = ent\y - vec[1], z# = ent\z - vec[2]
+			MoveEntity a\ent, 0, 0, (a\s0 - Sqr(x * x + y * y + z * z)) * a\v0
+			a\aPos = a\aLen - 1
 			
 		Case ACT3_TYPE_WAIT
 			; Do nothing!
 			
 		Case ACT3_TYPE_SEND
 			Local l.ActionListener = Object.ActionListener a\e
-			If l <> Null Then l\msg = a\aRate
+			If l <> Null Then l\msg = a\aRate : l\src = a\ent
 	End Select
 End Function
 
@@ -424,6 +437,6 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#18#35#40#57#5D#61#6B#73#77#7B#7F#84#88#8C#90#94#99#9D#A1#A5
-;~F#A9#AD#B1#B9#115#124#13F#145
+;~F#18#1C#35#40#57#5D#61#6B#73#77#7B#7F#84#88#8C#90#94#99#9D#A1
+;~F#A5#A9#AD#B1#B9#E2#122#131#14C#152#193#1A0
 ;~C#BlitzPlus
