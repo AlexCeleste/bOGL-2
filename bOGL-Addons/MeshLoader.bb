@@ -469,6 +469,7 @@ Function LOADER_UpdateBones_(m.bOGL_BoneEntData_)
 	If Not ent\g_Rv Then bOGL_UpdateAxisAngle_ ent\g_r, ent\g_q
 	
 	Local boneC = BankSize(m\bones) / 12, bi
+	Local tmp_ro# = ent\g_r[0] : ent\g_r[0] = 360 - tmp_ro	;Pre-invert for faster tforms
 	
 	For bi = 0 To boneC - 1
 		Local bone.bOGL_Ent = bOGL_EntList_(PeekInt(m\bones, bi * 12)), vBank = PeekInt(m\verts, (bi + 1) * 4)
@@ -490,6 +491,8 @@ Function LOADER_UpdateBones_(m.bOGL_BoneEntData_)
 			Next
 		EndIf
 	Next
+	
+	ent\g_r[0] = tmp_ro	;Restore from inverted form!
 End Function
 
 ;Get the file extension off a name
@@ -585,5 +588,5 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#15#24#2C#42#84#E2#104#119#11F#125#136#152#1CA#1D1#1EF#1F7#216#224#23D#241
+;~F#15#24#2C#42#84#E2#104#119#11F#125#136#152#1CA#1D1#1F2#1FA#219#227#240#244
 ;~C#BlitzPlus

@@ -18,7 +18,7 @@ Function MESH_InitMeshUtils_()
 	Next
 End Function
 
-;Minor optimisation to TFormPoint (src and dst never null, always valid, fast rotation)
+;Minor optimisation to TFormPoint (src and dst never null, always valid, fast rotation, d\g_r is PRE-INVERTED)
 Function MESH_TFormFast_(x#, y#, z#, s.bOGL_Ent, d.bOGL_Ent, out#[2])
 	MESH_RotateVectorFast_ out, x, y, z, s\g_r
 	x = (s\g_x + out[0] * s\sx * s\g_sx - d\g_x) / d\g_sx
@@ -26,6 +26,7 @@ Function MESH_TFormFast_(x#, y#, z#, s.bOGL_Ent, d.bOGL_Ent, out#[2])
 	z = (s\g_z + out[2] * s\sz * s\g_sz - d\g_z) / d\g_sz
 	MESH_RotateVectorFast_ out, x, y, z, d\g_r
 End Function
+
 
 ; Rotate a vector x,y,z by normalised axis-angle r (Rodrigues' rotation)
 ; This uses a lookup table instead of "real" sin/cos, so is not accurate
