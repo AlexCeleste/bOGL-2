@@ -203,7 +203,7 @@ There are also a small number of features new to the engine that have no backwar
 * 3D can be rendered to a BlitzPlus canvas instead of the main window, which is handy for writing 3D editor apps with native GUI controls (unless you're using bOGL with Blitz3D for some reason).
 * There is native support for rendering to, and culling with, the stencil buffer. This should make it fairly easy to implement things like portal rendering or a stencil shadow system.
  * bOGL doesn't expose the feature directly, but unlike DirectX 7, OpenGL makes it easy to grab the Z-buffer. A couple of lines of OpenGL Direct code and you could also write a shadow-map engine.
-* Entities carry a "user data array", which lets addons associate additional data with entities easily. An addon can request data slots using `RegisterEntityUserDataSlot` (it should do this once in its `init` procedure), which will register a slot in the array for that addon and return its index, and then access the data in its private slot with the `SetEntityUserData` and `GetEntityUserData` functions. With this mechanism, different addons can extend the base entity structure however they like without conflicting.
+* Entities carry a "user data array", which lets addons associate additional data with entities easily. An addon can request data slots using `RegisterEntityUserDataSlot` (it should do this once in its `init` procedure), which will register a slot in the array for that addon and return its index, and then access the data in its private slot with the `SetEntityUserData` and `GetEntityUserData` functions. With this mechanism, different addons can extend the base entity structure however they like without conflicting. Addons that extend entities can also register `onCopy` and `onFree` listener banks, which will be notified when an entity has been copied or deleted, so that the addon can clean up or reallocate resources when it next updates.
 * Submeshes may be rotated, translated, and scaled independently of the rest of a mesh using the `{whatever}SubMesh` functions. This might be handy for some kinds of animation, or model transformations. These functions are faster than writing your own equivalents that use `VertexCoords` and a loop.
 * It is possible to turn off texture filtering, for that blocky retro look.
 * bOGL uses proper quaternion rotations instead of Euler angles, which is a feature of the original Blitz3D, but not miniB3D.
@@ -796,16 +796,18 @@ Since the entity and the core bOGL functions have no idea what the entity user d
 **Future direction:** A port of bOGL to a language supporting callbacks (BlitzMax, C, Monkey) should extend this function to accept `copy` and `free` functions for the extended data. This will make code using extended objects much more generic as the user no longer has to remember "this entity is an MD2, copy it using the special MD2 copy function" or anything like that.  
 
 #### <span id="setentityuserdata" />SetEntityUserData ####
-`SetEntityUserData(handler, slot, val)`  
-**Parameters:** The entity; the slot to set; the value to store.  
+`SetEntityUserData(handler, slot, val[, cell])`  
+**Parameters:** The entity; the slot to set; the value to store. Optionally, the cell to set.  
 **Return value:** None.  
 **Description:** This function sets a slot in an entity's custom data vector to the given value. Use this to update extension data associated with an entity.  
+Optionally, the `cell` parameter can be used to set the userdata's onCopy (`cell = 1`) or onFree (`cell = 2`) listener banks. If these are set, the banks will be updated when the entity is copied or freed, respectively, so that extension functionality knows when to delete or reallocate additional data.  
 
 #### <span id="getentityuserdata" />GetEntityUserData ####
-`GetEntityUserData(handler, slot)`  
-**Parameters:** The entity; the slot to retrieve a value from.  
+`GetEntityUserData(handler, slot[, cell])`  
+**Parameters:** The entity; the slot to retrieve a value from. Optionally, the cell to read.  
 **Return value:** The value in the given slot.  
 **Description:** This function retrieves a value from the given slot in an entity's custom data vector. Use this to retrieve extension data associated with an entity.  
+Optionally, the `cell` parameter can be used to check the userdata's onCopy (`cell = 1`) or onFree (`cell = 2`) listener banks (see `SetEntityUserData`).  
 
 #### <span id="copyentity" />CopyEntity ####
 `CopyEntity(handler)`  
@@ -813,13 +815,16 @@ Since the entity and the core bOGL functions have no idea what the entity user d
 **Return value:** A newly-created copy of the entity.  
 **Description:** This function creates a complete copy of an entity. The function performs a "deep copy" of all built-in bOGL data associated with the entity, so for example all of the entity's children are recursively copied, and the copies attached to the new entity.  
 The custom data vector itself is copied, but since bOGL has no idea what the data in the vector represents, the copy is not guaranteed to be "deep" and addons may need to define wrapper copy routines that properly update or copy this extension data as necessary.  
-**Future direction:** If bOGL is ported to a language supporting callbacks, this function can be extended to handle deep copies of user data properly by storing the correct `copy` callbacks in the vector alongside the data.  
+If the entity's userdata contains any `onCopy` listeners, they will be updated with the copied entity's handle in order to properly complete the operation on their next update.  
+**Future direction:** If bOGL is ported to a language supporting callbacks, this function can be extended to handle deep copies of user data properly by storing the correct `copy` callbacks in the vector alongside the data. In the meantime this service is provided by the `onCopy` listener slots.  
 
 #### <span id="freeentity" />FreeEntity ####
 `FreeEntity(handler)`  
 **Parameters:** The entity.  
 **Return value:** None.  
 **Description:** This function destroys an entity. All built-in bOGL data associated with the entity will be released: any children of the entity will be recursively freed, textures will have their internal reference counts decremented, and the custom data vector will be deleted.  
-Since bOGL has no idea what the data in the custom data vector represents, any referenced extension objects are not guaranteed to be freed. Addons should either define a "free wrapper" function that cleans up the custom data before destroying the entity, of give extension data the ability to tell when its host entity has been destroyed (e.g. the `ANIM_ClearUnused` function in `Animation` can run after many entities are freed and clear up any hanging animation data).  
-**Future direction:** If bOGL is ported to a language supporting callbacks, this function can be extended to properly free user data by storing the correct `free` callbacks in the vector alongside the data.  
+Since bOGL has no idea what the data in the custom data vector represents, any referenced extension objects are not guaranteed to be freed.  
+If the entity's userdata contains any `onFree` listeners, they will be updated with the freed entity's handle in order to properly deal with the operation on their next update (since the handle may be reused, this information is only partially useful, e.g. as a free count).  
+Addons may choose to define a "free wrapper" function that cleans up the custom data before destroying the entity, or give extension data the ability to tell when its host entity has been destroyed by storing internal nullable pointers (e.g. the `ANIM_ClearUnused` function in `Animation` can run after many entities are freed and clear up any hanging animation data; the free count provided by the `onFree` listener tells it when it needs to do this).  
+**Future direction:** If bOGL is ported to a language supporting callbacks, this function can be extended to properly free user data by storing the correct `free` callbacks in the vector alongside the data. In the meantime this service is provided by the `onFree` listener slots.  
 

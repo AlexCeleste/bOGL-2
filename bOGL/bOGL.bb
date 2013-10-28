@@ -520,22 +520,23 @@ Function RegisterEntityUserDataSlot()
 	Local s = bOGL_UDScounter_ : bOGL_UDScounter_ = bOGL_UDScounter_ + 1 : Return s
 End Function
 
-Function SetEntityUserData(handler, slot, val)
+Function SetEntityUserData(handler, slot, val, cell = 0)
 	Local this.bOGL_Ent = bOGL_EntList_(handler)
 	If Not this\userData
-		this\userData = CreateBank((slot + 1) * 4)
-	ElseIf BankSize(this\userData) < ((slot + 1) * 4)
-		ResizeBank this\userData, ((slot + 1) * 4)
+		this\userData = CreateBank((slot + 1) * 12)
+	ElseIf BankSize(this\userData) < ((slot + 1) * 12)
+		ResizeBank this\userData, ((slot + 1) * 12)
+		PokeInt this\userData, slot * 12 + 4, 0 : PokeInt this\userData, slot * 12 + 8, 0	;ResizeBank doesn't clear
 	EndIf
-	PokeInt this\userData, slot * 4, val
+	PokeInt this\userData, slot * 12 + cell * 4, val
 End Function
 
-Function GetEntityUserData(handler, slot)
-	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return PeekInt(this\userData, slot * 4)
+Function GetEntityUserData(handler, slot, cell = 0)
+	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return PeekInt(this\userData, slot * 12 + cell * 4)
 End Function
 
 Function CopyEntity(handler, parentH = 0)
-	Local old.bOGL_Ent = bOGL_EntList_(handler), cp.bOGL_Ent
+	Local old.bOGL_Ent = bOGL_EntList_(handler), cp.bOGL_Ent, i
 	
 	Select old\eClass
 		Case BOGL_CLASS_CAM
@@ -560,21 +561,24 @@ Function CopyEntity(handler, parentH = 0)
 	End Select
 	
 	If old\children
-		Local c : For c = 0 To BankSize(old\children) - 4 Step 4
-			CopyEntity PeekInt(old\children, c), cp\handler
+		For i = 0 To BankSize(old\children) - 4 Step 4
+			CopyEntity PeekInt(old\children, i), cp\handler
 		Next
 	EndIf
 	
 	cp\name = old\name
 	If old\userData
 		cp\userData = CreateBank(BankSize(old\userData)) : CopyBank old\userData, 0, cp\userData, 0, BankSize(old\userData)
+		For i = 0 To BankSize(cp\userData) - 12 Step 12
+			bOGL_PushUpdate_ PeekInt(cp\userData, i + 4), cp\handler	;Post to any onCopy listeners
+		Next
 	EndIf
 	
 	Return cp\handler	;Note that we haven't copied the transform properties: scale, position, rotation are all default
 End Function
 
 Function FreeEntity(handler)
-	Local e.bOGL_Ent = bOGL_EntList_(handler)
+	Local e.bOGL_Ent = bOGL_EntList_(handler), i
 	Select e\eClass
 		Case BOGL_CLASS_CAM
 			If e\c\fogcolor Then FreeBank e\c\fogcolor
@@ -593,13 +597,18 @@ Function FreeEntity(handler)
 			bOGL_VisChanged_ = bOGL_VisChanged_ Or (e\hidden = False)
 	End Select
 	If e\children
-		Local c : For c = BankSize(e\children) - 4 To 0 Step -4	;Backwards as bank will shrink
-			FreeEntity PeekInt(e\children, c)
+		For i = BankSize(e\children) - 4 To 0 Step -4	;Backwards as bank will shrink
+			FreeEntity PeekInt(e\children, i)
 		Next
 		FreeBank e\children
 	EndIf
 	If e\parentH Then SetEntityParent handler, 0
-	If e\userData Then FreeBank e\userData	;Note that this may leave data unreferenced!
+	If e\userData
+		For i = 0 To BankSize(e\userData) - 12 Step 12
+			bOGL_PushUpdate_ PeekInt(e\userData, i + 8), e\handler	;Post to any onFree listeners
+		Next
+		FreeBank e\userData	;Note that this may leave data unreferenced!
+	EndIf
 	Delete e : bOGL_FreeHandler_ handler
 End Function
 
@@ -1107,6 +1116,10 @@ Function bOGL_NewEnt_.bOGL_Ent(eClass, hdl, parentH)	;New base entity
 	Return ent
 End Function
 
+Function bOGL_PushUpdate_(lb, ent)	;Post updates about free or copy ops to any listening addons
+	If lb Then Local s = BankSize(lb) : ResizeBank lb, s + 4 : PokeInt lb, s, ent
+End Function
+
 Function bOGL_ReleaseTexture_(this.bOGL_Tex)	;When there are no more references to a texture, delete it
 	this\rc = this\rc - 1
 	If this\rc < 1 Then glDeleteTextures 1, this : Delete this
@@ -1284,7 +1297,7 @@ End Function
 ;~F#21#2A#31#36#3C#41#49#50#54#5B#5F#65#73#8C#91#96#A1#AD#B7#BB
 ;~F#BF#C3#C8#CD#D2#E0#E5#EA#EF#F4#F9#123#12F#149#14E#153#158#15C#161#169
 ;~F#172#178#182#18A#199#1A1#1A8#1AE#1B3#1BD#1C7#1CE#1D4#1E6#1EA#1EF#1F3#1FE#202#206
-;~F#20A#214#218#23F#25D#26A#26F#27D#287#292#29A#2A2#2AA#2B3#2BC#2C5#2EA#302#309#310
-;~F#317#323#336#340#395#3CA#3CE#3E9#408#416#42C#445#455#45A#45F#46A#473#47A#47F#487
-;~F#498#4A3#4AE#4C9#4D1#4E1#4F9
+;~F#20A#215#219#243#266#273#278#286#290#29B#2A3#2AB#2B3#2BC#2C5#2CE#2F3#30B#312#319
+;~F#320#32C#33F#349#39E#3D3#3D7#3F2#411#41F#435#44E#45E#462#467#46C#477#480#487#48C
+;~F#494#4A5#4B0#4BB#4D6#4DE#4EE#506
 ;~C#BlitzPlus
