@@ -28,7 +28,8 @@ End Type
 
 Type ACT3_Action
 	Field ent, state, act$, parent.ACT3_Action
-	Field aType, aLen, aRate, aPos#, e, s#, t#, u#, v#
+	Field aType, aLen, aRate, aPos#, e
+	Field s0#, t0#, u0#, v0#, s1#, t1#, u1#, v1#
 End Type
 
 
@@ -191,8 +192,8 @@ Function ACT3_ExtractAction_(a.ACT3_Action)
 			PokeByte b, i, Asc(Mid(a\act, i + 1, 1))
 		Next
 		a\aLen = PeekInt(b, 4) : a\aRate = PeekInt(b, 8) : a\aPos = PeekFloat(b, 12)
-		a\e = PeekInt(b, 16) : a\s = PeekFloat(b, 20) : a\t = PeekFloat(b, 24) : a\u = PeekFloat(b, 28) : a\v = PeekFloat(b, 32)
-		ACT3_Relativize_ a	;Convert "to" actions to "by" actions where appropriate
+		a\e = PeekInt(b, 16) : a\s0 = PeekFloat(b, 20) : a\t0 = PeekFloat(b, 24) : a\u0 = PeekFloat(b, 28) : a\v0 = PeekFloat(b, 32)
+		ACT3_Unpack_ a	;Convert "to" actions to "by" actions where appropriate
 		
 	ElseIf a\aType = ACT3_TYPE_LOOP
 		ACT3_RunAction_ a\ent, Mid(a\act, 9), a, True	;Enqueue, will be extracted in its turn
@@ -229,21 +230,37 @@ Function ACT3_ExecuteAction_(a.ACT3_Action, s#)
 	Else
 		a\aPos = a\aPos + s		;Normal case
 	EndIf
+	Local ent.bOGL_Ent = bOGL_EntList_(a\ent)
 	Select a\aType
-		Case ACT3_TYPE_MB
-			MoveEntity a\ent, ACT3_Pol_(a,s, a\s), ACT3_Pol_(a,s, a\t), ACT3_Pol_(a,s, a\u)
-			
-		Case ACT3_TYPE_TB
-		Case ACT3_TYPE_SB
-		Case ACT3_TYPE_CB
-		Case ACT3_TYPE_FB
 		Case ACT3_TYPE_M2
-			a\ent\x = a\ent\x + ACT3_Pol_(a,s, a\s)
-			a\ent\y = a\ent\y + ACT3_Pol_(a,s, a\t)
-			a\ent\z = a\ent\z + ACT3_Pol_(a,s, a\u)
+			ent\x = ACT3_Pol_(a, a\s0, a\s1) : ent\y = ACT3_Pol_(a, a\t0, a\t1) : ent\z = ACT3_Pol_(a, a\u0, a\u1)
+			bOGL_InvalidateGlobalPosition_ ent
+			
+		Case ACT3_TYPE_T2
+			
+		Case ACT3_TYPE_S2
+			ent\sx = ACT3_Pol_(a, a\s0, a\s1)
+			ent\sy = ACT3_Pol_(a, a\t0, a\t1)
+			ent\sz = ACT3_Pol_(a, a\u0, a\u1)
+			bOGL_InvalidateGlobalPosition_ ent, True
+			
+		Case ACT3_TYPE_C2
+			If ent\m <> Null
+				Local r = ACT3_Pol_(a, a\s0, a\s1) : If r < 0 Then r = 0 ElseIf r > 255 Then r = 255
+				Local g = ACT3_Pol_(a, a\t0, a\t1) : If g < 0 Then g = 0 ElseIf g > 255 Then g = 255
+				Local b = ACT3_Pol_(a, a\u0, a\u1) : If b < 0 Then b = 0 ElseIf b > 255 Then b = 255
+				ent\m\argb = $FF000000 Or (r Shl 16) Or (g Shl 8) Or b
+			EndIf
+			
+		Case ACT3_TYPE_F2
+			If ent\m <> Null
+				ent\m\alpha = ACT3_Pol_(a, a\v0, a\v1)
+				If ent\m\alpha < 0.0 Then ent\m\alpha = 0.0 : ElseIf ent\m\alpha > 1.0 Then ent\m\alpha = 1.0
+			EndIf
 			
 		Case ACT3_TYPE_TRP
 		Case ACT3_TYPE_TRD
+			
 		Case ACT3_TYPE_WAIT
 			; Do nothing!
 			
@@ -253,13 +270,19 @@ Function ACT3_ExecuteAction_(a.ACT3_Action, s#)
 	End Select
 End Function
 
-Function ACT3_Pol_#(a.ACT3_Action, s#, d#)
+Function ACT3_Pol_#(a.ACT3_Action, f#, t#)
+	Local p# = a\aPos / a\aLen
 	Select a\aRate
-		Case ACT3_RATE_LINEAR : Return (s / a\aLen) * d
-		Case ACT3_RATE_EASEIN
-		Case ACT3_RATE_EASEOUT
+		Case ACT3_RATE_EASEIN : p = p * p * p
+		Case ACT3_RATE_EASEOUT : p = 1.0 - p : p = 1.0 - (p * p * p)
 		Case ACT3_RATE_EASEBOTH
+			If p < 0.5
+				p = p * 2.0 : p = (p * p * p) / 2.0
+			Else
+				p = (0.5 - (p - 0.5)) * 2.0 : p = (1.0 - p * p * p) / 2.0 + 0.5
+			EndIf
 	End Select
+	Return p * t + (1.0 - p) * f
 End Function
 
 Function ACT3_FinalizeAction_(f.ACT3_Action)
@@ -295,33 +318,60 @@ Function ACT3_RunAction_(ent, act$, p.ACT3_Action, thisFrame)
 	If thisFrame Then Insert a Before ACT3_buffer_ Else Insert a Before First ACT3_Action
 End Function
 
-Function ACT3_Relativize_(a.ACT3_Action)	;Convert targets to re;ative magnitudes and, where possible, condense movement types
+Function ACT3_Unpack_(a.ACT3_Action)	;Fill out start and target data from offsets and entities
 	Local e.bOGL_Ent = bOGL_EntList_(a\ent)
 	Select a\aType
+		Case ACT3_TYPE_MB
+			Local vec#[2] : TFormPoint a\s0, a\t0, a\u0, a\ent, e\parentH, vec
+			a\s1 = vec[0] : a\t1 = vec[1] : a\u1 = vec[2]
+			a\s0 = e\x : a\t0 = e\y : a\u0 = e\z
+			a\aType = ACT3_TYPE_M2
+			
+		Case ACT3_TYPE_TB
+			
+		Case ACT3_TYPE_SB
+			a\s1 = a\s0 * e\sx : a\t1 = a\t0 * e\sy : a\u1 = a\u0 * e\sz
+			a\s0 = e\sx : a\t0 = e\sy : a\u0 = e\sz
+			a\aType = ACT3_TYPE_S2
+			
+		Case ACT3_TYPE_CB
+			If e\m <> Null
+				Local r = (e\m\argb And $FF0000) Shr 16
+				Local g = (e\m\argb And $FF00) Shr 8
+				Local b = (e\m\argb And $FF)
+				a\s1 = a\s0 + r : a\t1 = a\t0 + g : a\u1 = a\u0 + b
+				a\s0 = r : a\t0 = g : a\u0 = b
+				a\aType = ACT3_TYPE_C2
+			EndIf
+			
+		Case ACT3_TYPE_FB
+			If e\m <> Null Then a\v1 = e\m\alpha + a\v0 : a\v0 = e\m\alpha
+			a\aType = ACT3_TYPE_F2
+			
 		Case ACT3_TYPE_M2
-			a\s = a\s - e\x : a\t = a\t - e\y : a\u = a\u - e\z
+			a\s1 = a\s0 : a\t1 = a\t0 : a\u1 = a\u0
+			a\s0 = e\x : a\t0 = e\y : a\u0 = e\z
 			
 		Case ACT3_TYPE_T2
-			If Not e\Qv Then bOGL_UpdateQuat_ e\q, e\r
-			Local qo#[3], qi#[3] : qi[0] = a\s : qi[1] = a\t : qi[2] = a\u : qi[3] = a\v
-			e\q[0] = -e\q[0] : bOGL_QuatMul_ qo, qi, e\q : e\q[0] = -e\q[0]
-			a\aType = ACT3_TYPE_TB
-			a\s = qo[0] : a\t = qo[1] : a\u = qo[2] : a\v = qo[3]
+		;	If Not e\Qv Then bOGL_UpdateQuat_ e\q, e\r
+		;	Local qo#[3], qi#[3] : qi[0] = a\s : qi[1] = a\t : qi[2] = a\u : qi[3] = a\v
+		;	e\q[0] = -e\q[0] : bOGL_QuatMul_ qo, qi, e\q : e\q[0] = -e\q[0]
+		;	a\aType = ACT3_TYPE_TB
+		;	a\s = qo[0] : a\t = qo[1] : a\u = qo[2] : a\v = qo[3]
 			
 		Case ACT3_TYPE_S2
-			a\aType = ACT3_TYPE_SB
-			a\s = a\s - e\sx : a\t = a\t - e\sy : a\u = a\u - e\sz
+			a\s1 = a\s0 : a\t1 = a\t0 : a\u1 = a\u0
+			a\s0 = e\sx : a\t0 = e\sy : a\u0 = e\sz
 			
 		Case ACT3_TYPE_C2
-			a\aType = ACT3_TYPE_CB
 			If e\m <> Null
-				a\s = a\s - ((e\m\argb And $FF0000) Shr 16)
-				a\t = a\t - ((e\m\argb And $FF00) Shr 8) : a\u = a\u - (e\m\argb And $FF)
+				a\s1 = a\s0 : a\t1 = a\t0 : a\u1 = a\u0
+				a\s0 = (e\m\argb And $FF0000) Shr 16
+				a\t0 = (e\m\argb And $FF00) Shr 8 : a\u0 = (e\m\argb And $FF)
 			EndIf
 			
 		Case ACT3_TYPE_F2
-			a\aType = ACT3_TYPE_FB
-			If e\m <> Null Then a\v = a\v - e\m\alpha
+			If e\m <> Null Then a\v1 = a\v0 : a\v0 = e\m\alpha
 	End Select
 End Function
 
@@ -361,6 +411,6 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#18#1C#34#56#5C#60#6A#72#76#7A#7E#83#87#8B#8F#93#98#9C#A0#A4
-;~F#A8#AC#B0
+;~F#18#35#40#57#5D#61#6B#73#77#7B#7F#84#88#8C#90#94#99#9D#A1#A5
+;~F#A9#AD#B1#B9#110#11F#13A
 ;~C#BlitzPlus

@@ -16,10 +16,10 @@ PointEntity light, 0, 0, -6
 
 
 Local cube1 = CreateCube()
-PaintEntity cube1, 255, 255, 255
+PaintEntity cube1, 0, 200, 0
 PositionEntity cube1, -2, 0, -10
 Local cube2 = CreateCube()
-;PaintEntity cube1, 255, 255, 255
+PaintEntity cube2, 200, 0, 0
 PositionEntity cube2, 2, 0, -10
 
 
@@ -29,10 +29,11 @@ Local f = LoadFont2D("Media\Blitz.png") : SetFont2D f
 
 
 Local a$, b$, l.ActionListener = New ActionListener
-a = SequenceActions(MoveBy(25, 0, 1, 0), MoveBy(25, 0, -1, 0), SendAction(l, True))
+a = SequenceActions(MoveBy(25, 0, 1, 0, ACT3_RATE_EASEOUT), MoveBy(25, 0, -1, 0, ACT3_RATE_EASEIN), SendAction(l, True), WaitFor(25))
 b = ComposeActions(MoveBy(100, 0, 1, 0), MoveBy(50, 1, 0, 0))
-RunAction cube1, LoopAction(a)
-RunAction cube2, b
+
+RunAction cube1, MoveBy(50, 0, 3, 0, ACT3_RATE_EASEBOTH);LoopAction(a)
+RunAction cube2, ComposeActions(ScaleBy(100, 2, 2, 1), FadeTo(100, 0), TintBy(100, -200, 255, 0))
 
 
 Function countactionobjects()
