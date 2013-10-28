@@ -32,8 +32,8 @@ Local a$, b$, l.ActionListener = New ActionListener
 a = SequenceActions(MoveBy(25, 0, 1, 0, ACT3_RATE_EASEOUT), MoveBy(25, 0, -1, 0, ACT3_RATE_EASEIN), SendAction(l, True), WaitFor(25))
 b = ComposeActions(MoveBy(100, 0, 1, 0), MoveBy(50, 1, 0, 0))
 
-RunAction cube1, MoveBy(50, 0, 3, 0, ACT3_RATE_EASEBOTH);LoopAction(a)
-RunAction cube2, ComposeActions(ScaleBy(100, 2, 2, 1), FadeTo(100, 0), TintBy(100, -200, 255, 0))
+RunAction cube1, LoopAction(a)
+RunAction cube2, LoopAction(TurnBy(50, 0, 0, 90), 3);ComposeActions(ScaleBy(100, 2, 2, 1), FadeTo(100, 0), TintBy(100, -200, 255, 0))
 
 
 Function countactionobjects()
@@ -68,4 +68,5 @@ End
 
 
 ;~IDEal Editor Parameters:
+;~F#26
 ;~C#BlitzPlus

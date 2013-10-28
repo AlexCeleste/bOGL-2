@@ -237,6 +237,11 @@ Function ACT3_ExecuteAction_(a.ACT3_Action, s#)
 			bOGL_InvalidateGlobalPosition_ ent
 			
 		Case ACT3_TYPE_T2
+			ent\q[0] = ACT3_Pol_(a, a\s0, a\s1)
+			ent\q[1] = ACT3_Pol_(a, a\t0, a\t1)
+			ent\q[2] = ACT3_Pol_(a, a\u0, a\u1)
+			ent\q[3] = ACT3_Pol_(a, a\v0, a\v1)
+			bOGL_NormaliseQuat_ ent\q : ent\Qv = 1 : ent\Rv = 0 : bOGL_InvalidateGlobalPosition_ ent
 			
 		Case ACT3_TYPE_S2
 			ent\sx = ACT3_Pol_(a, a\s0, a\s1)
@@ -328,6 +333,12 @@ Function ACT3_Unpack_(a.ACT3_Action)	;Fill out start and target data from offset
 			a\aType = ACT3_TYPE_M2
 			
 		Case ACT3_TYPE_TB
+			If Not e\Qv Then bOGL_UpdateQuat_ e\q, e\r : e\Qv = True
+			Local qi#[3], qo#[3] : qi[0] = a\s0 : qi[1] = a\t0 : qi[2] = a\u0 : qi[3] = a\v0
+			bOGL_QuatMul_ qo, e\q, qi
+			a\s0 = e\q[0] : a\t0 = e\q[1] : a\u0 = e\q[2] : a\v0 = e\q[3]
+			a\s1 = qo[0] : a\t1 = qo[1] : a\u1 = qo[2] : a\v1 = qo[3]
+			a\aType = ACT3_TYPE_T2
 			
 		Case ACT3_TYPE_SB
 			a\s1 = a\s0 * e\sx : a\t1 = a\t0 * e\sy : a\u1 = a\u0 * e\sz
@@ -353,11 +364,9 @@ Function ACT3_Unpack_(a.ACT3_Action)	;Fill out start and target data from offset
 			a\s0 = e\x : a\t0 = e\y : a\u0 = e\z
 			
 		Case ACT3_TYPE_T2
-		;	If Not e\Qv Then bOGL_UpdateQuat_ e\q, e\r
-		;	Local qo#[3], qi#[3] : qi[0] = a\s : qi[1] = a\t : qi[2] = a\u : qi[3] = a\v
-		;	e\q[0] = -e\q[0] : bOGL_QuatMul_ qo, qi, e\q : e\q[0] = -e\q[0]
-		;	a\aType = ACT3_TYPE_TB
-		;	a\s = qo[0] : a\t = qo[1] : a\u = qo[2] : a\v = qo[3]
+			a\s1 = a\s0 : a\t1 = a\t0 : a\u1 = a\u0 : a\v1 = a\v0
+			If Not e\Qv Then bOGL_UpdateQuat_ e\q, e\r : e\Qv = True
+			a\s0 = e\q[0] : a\t0 = e\q[1] : a\u0 = e\q[2] : a\v0 = e\q[3]
 			
 		Case ACT3_TYPE_S2
 			a\s1 = a\s0 : a\t1 = a\t0 : a\u1 = a\u0
@@ -373,6 +382,10 @@ Function ACT3_Unpack_(a.ACT3_Action)	;Fill out start and target data from offset
 		Case ACT3_TYPE_F2
 			If e\m <> Null Then a\v1 = a\v0 : a\v0 = e\m\alpha
 	End Select
+	If a\aLen = 0	;Avoid divisions by zero or imprecise snaps
+		a\aLen = -1	;The action will technically have a duration, but never tween and end immediately
+		a\s0 = a\s1 : a\t0 = a\t1 : a\u0 = a\u1 : a\v0 = a\v1
+	EndIf
 End Function
 
 Function ACT3_SimpleAction_$(aType, aLen, aRate, e, s#, t#, u#, v#)
@@ -412,5 +425,5 @@ End Function
 
 ;~IDEal Editor Parameters:
 ;~F#18#35#40#57#5D#61#6B#73#77#7B#7F#84#88#8C#90#94#99#9D#A1#A5
-;~F#A9#AD#B1#B9#110#11F#13A
+;~F#A9#AD#B1#B9#115#124#13F#145
 ;~C#BlitzPlus
