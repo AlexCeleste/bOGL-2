@@ -137,7 +137,7 @@ Using an addon (that conforms to the addon design guideline) should be a simple 
 2. Call the addon's initialization function **once**, before you use any other commands (e.g. `InitAnimationAddon()`). It's best to do these in one big block below your `Include` directives, to keep the project tidy.
 3. Call the addon's update function in your **main loop**, if it has one (e.g. `UpdateAnimations() : UpdateBonedMeshes()`).
 
-You may also want to copy its `.decls` file (if any) to your main `userlibs` folder, to take advantage of any syntax highlighting options.
+You may also want to copy its `.decls` file (if any) to your main `userlibs` folder, to take advantage of any syntax highlighting options. The official addons do not require `.decls` files to work, however.
 
 bOGL provides official addon modules for those features that we can safely assume you expect as basics from a 3D engine, but that aren't required for the basic 3D engine to work, both as useful examples for the extension process and to keep the core small:
 
@@ -147,6 +147,7 @@ bOGL provides official addon modules for those features that we can safely assum
  * This depends on the BO3D model format to load animation data (and to animate BO3D meshes), so it is a second-tier module and depends on `MeshLoader`.
 * **[MD2](MD2.md)** provides commands for loading MD2 meshes and their animation sequences from Quake II-compatible MD2 files. This module provides both loading and animation commands. You can load MD2 models both from files and from Blitz banks, and multiple MD2s can be loaded into a single compound mesh if this will help with performance (it probably won't in most cases, but the option is there for large numbers of simple meshes).
 * **[Draw2D](Draw2D.md)** provides commands for 2D graphics drawing, including text, images, and graphics primitives like lines and boxes. `Draw2D` uses OpenGL to provide hardware-accelerated drawing in the same context as bOGL's 3D graphics, giving access to very fast rotation and transparency with 2D graphics. `Draw2D` is loosely based on the `Draw3D` library for Blitz3D, and is also similar (in terms of what it does) to `Max2D` for BlitzMax.
+* **[3DAction](3DAction.md)** provides commands for declaratively creating "actions" and firing them on entities in an event-based way. This centralizes your movement code, and allows you to not bother writing tedious boilerplate like simple `MoveEntity` commands. You can set entities to follow other entities, command them to move by a vector or to a position over the next *N* frames, receive updates when actions are completed, and so on, so that your game can be structured as an elegant event/trigger system.
 
 Other official addons may follow. A 2D physics addon is currently in development and will hopefully join the other official addons as part of the official distribution soon.
 

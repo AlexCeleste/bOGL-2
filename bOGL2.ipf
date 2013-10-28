@@ -18,6 +18,5 @@
  AbsPath="\bOGL-Addons\Draw2D.bb" PrjFolder="" Line="0" Column="0" Tip="0" Visible="False"
  AbsPath="\bOGL\glu_const.bb" PrjFolder="" Line="0" Column="0" Tip="0" Visible="False"
  AbsPath="\bOGL\gl_const.bb" PrjFolder="" Line="0" Column="0" Tip="0" Visible="False"
- AbsPath="\bOGL-Addons\MeshUtils.bb" PrjFolder="" Line="0" Column="0" Tip="0" Visible="False"
  AbsPath="\bOGL\wgl_const.bb" PrjFolder="" Line="0" Column="0" Tip="0" Visible="False"
 </Files>

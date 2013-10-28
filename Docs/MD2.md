@@ -48,10 +48,11 @@ If you use IDEal, consider adding `MD2.bb` to your IDEal project file in order t
 **Description:** This is the initialization function for the `MD2` addon module. Call this *once* in your program initialization block, before doing anything with the 3D engine. This sets up necessary user data slots and other shared values for the library as a whole. Do not skip this step.  
 
 #### <span id="updatemd2anims" />UpdateMD2Anims ####
-`UpdateMD2Anims()`  
-**Parameters:** None.  
+`UpdateMD2Anims([rate#])`  
+**Parameters:** Speed to run animations.  
 **Return value:** None.  
 **Description:** This function steps all running MD2 animations forward by the necessary number of frames, and updates the MD2 mesh's vertices  to the correct key or tweened positions for that animation frame. Call it in your main loop, after all of your movement update code and before calling `RenderWorld` or `RenderStencil`.  
+If the optional `rate` parameter is passed (as some value other than 1.0), animations will be updated at a faster or slower rate; this is useful for delta-timing, slow-motion effects, etc. Set this value to zero to just run update checks without actually moving any animations at all. The rate should not be negative, and may produce overshoot or unexpected results if significantly greater than 1.0.  
 
 #### <span id="loadmd2model" />LoadMD2Model ####
 `LoadMD2Model(file$[, parent, numInstances])`  

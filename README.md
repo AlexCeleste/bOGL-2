@@ -6,7 +6,7 @@
 
 While the command set is loosely based on that of Blitz3D, they are not compatible, nor are they intended to be. Several commands work differently by design.
 
-bOGL is intended to allow for a modular addon structure. Modules are provided for [2D drawing](bOGL-Addons/Draw2D.bb), [MD2 animation](bOGL-Addons/MD2.bb), [loading and saving static meshes](bOGL-Addons/MeshLoader.bb), and [loading and animating skinned meshes](bOGL-Addons/Animation.bb). Others may follow. Understanding a module is not required to understand the operation of the bOGL engine core.
+bOGL is intended to allow for a modular addon structure. Modules are provided for [2D drawing](bOGL-Addons/Draw2D.bb), [MD2 animation](bOGL-Addons/MD2.bb), [loading and saving static meshes](bOGL-Addons/MeshLoader.bb), [loading and animating skinned meshes](bOGL-Addons/Animation.bb), and [event-based entity control](bOGL-Addons/3DAction.bb). Others may follow. Understanding a module is not required to understand the operation of the bOGL engine core.
 
 For more information on [the core engine](Docs/bOGL.md) and addon modules, see [the Docs folder](Docs).
 

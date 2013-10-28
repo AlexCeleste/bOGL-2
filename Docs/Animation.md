@@ -48,10 +48,11 @@ If you use IDEal, consider adding `Animation.bb` to your IDEal project file in o
 **Description:** This is the initialization function for the `Animation` addon module. Call this *once* in your program initialization block, before doing anything with the 3D engine. This sets up necessary user data slots and other shared values for the library as a whole. Do not skip this step.  
 
 #### <span id="updateanimations" />UpdateAnimations ####
-`UpdateAnimations()`  
-**Parameters:** None.  
+`UpdateAnimations([rate#])`  
+**Parameters:** Speed to run animations.  
 **Return value:** None.  
 **Description:** This function steps all running animations forward by the necessary number of frames, and moves the entities animated as part of that animation frame to the correct key or tweened positions. Call it in your main loop, after all of your movement update code and before calling `RenderWorld` or `RenderStencil`. Right before `UpdateBonedMeshes` is best.  
+If the optional `rate` parameter is passed (as some value other than 1.0), animations will be updated at a faster or slower rate; this is useful for delta-timing, slow-motion effects, etc. Set this value to zero to just run update checks without actually moving any animations at all. The rate should not be negative, and may produce overshoot or unexpected results if significantly greater than 1.0.  
 
 #### <span id="loadanimation" />LoadAnimation ####
 `LoadAnimation(root, file$)`  
