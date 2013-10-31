@@ -8,7 +8,6 @@
  * [UpdateMD2Anims](#updatemd2anims)
  * [LoadMD2Model](#loadmd2model)
  * [LoadMD2SubMesh](#loadmd2submesh)
- * [CopyMD2Mesh](#copymd2mesh)
  * [AnimateMD2](#animatemd2)
  * [SetMD2AutoMove](#setmd2automove)
  * [SetMD2AnimTime](#setmd2animtime)
@@ -16,7 +15,6 @@
  * [GetMD2NumFrames](#getmd2numframes)
  * [GetMD2AnimMode](#getmd2animmode)
  * [GetMD2SeqByName](#getmd2seqbyname)
- * [MD2_ClearUnused](#md2_clearunused)
 
 ## <span id="intro"/>Introduction ##
 
@@ -33,7 +31,6 @@ To quickly get set up animating characters with `MD2`:
 1. `Include "bOGL-Addons/MD2.bb"` at the top of your main project file.
 2. Call the initialization function (`InitMD2Addon`) in your initialization block. This should happen before you do anything else with the 3D engine.
 3. Add a call to `UpdateMD2Anims` in your main loop, before the main call to `RenderWorld`.
-4. After any major entity deletion events, add a call to `MD2_ClearUnused` to tidy up any hanging `MD2` data (you don't need to do this for each entity, just once after several of them).
 
 That's all you need to do to support using animated MD2 characters in your 3D project! Now add some `LoadMD2Model` and `AnimateMD2` calls and get some badass Quake II characters into your game!
 
@@ -70,14 +67,6 @@ You can also optionally specify a parent entity for the whole assemblage by pass
 All MD2 entities actually exist as "bones" attached to a host mesh, but when an MD2 entity is loaded on its own (with `LoadMD2Model`), a fresh host is created and the handle to that returned instead of the handle to the "bone" entity. When multiple instances of the same MD2 are attached to one host, then they are individually controlled through the "bone" handles instead.  
 The AutoMove flag, when set, updates the position of an MD2 instance's vertices according to the movement of its "bone". This is computationally expensive, so for single MD2 instances that do not need to refer back to the "bone", the flag is disabled and the whole entity just controlled using the mesh handle instead. (For single instances loaded with `LoadMD2Model`, one need not be aware of the concept of "bone" entities at all.)
 This function provides the actual loading mechanism used by `LoadMD2Model`. It is mainly useful if you want to load MD2 entities out of an archive that has been loaded as a bank; if you have the MD2 files separately on disk, just use `LoadMD2Model` as it is far less complicated.
-
-#### <span id="copymd2mesh" />CopyMD2Mesh ####
-`CopyMD2Mesh(rootMesh[, parent])`  
-**Parameters:** The MD2 entity to copy; a parent entity.  
-**Return value:** The newly-created MD2 entity.  
-**Description:** This function copies an MD2 entity. Calling this instead of simply using `CopyEntity` is essential to ensure that frame data is properly copied as necessary and the new mesh will animate properly.  
-The copy can optionally be assigned a parent on creation using the `parent` parameter. The default value for this parameter is 0, which puts the copy on its own in world space. If a parent is supplied, the copy will be created at its position; otherwise, it will be placed at world position 0, 0, 0.  
-**Future direction:** If bOGL is ported to a language with support for callbacks (BlitzMax, C, Monkey), `CopyEntity` will be able to take care of custom user data properly and this function will become redundant.  
 
 #### <span id="animatemd2" />AnimateMD2 ####
 `AnimateMD2(ent[, mode, speed#, fF, lF, trans])`  
@@ -131,11 +120,4 @@ This flag is assigned for MD2 loaded into a mesh alongside each other, and not s
 **Return value:** None (the values are returned in the `out` parameter).  
 **Description:** MD2 files are able to store the names of animation subsequences alongside the actual frame data. This makes it easier to look for specific actions in the main frame list, since you don't necessarily have to maintain a separate key table to externally determine when actions begin and end: you can just ask the model.  
 This function searches `ent`'s MD2 sequence index for the subsequence named by `name`. If it finds it, the start and end frames are placed in `out` (in elements 0 and 1 respectively). If not, `out` will contain -1 for both indices.
-
-#### <span id="md2_clearunused" />MD2_ClearUnused ####
-`MD2_ClearUnused()`  
-**Parameters:** None.  
-**Return value:** None.  
-**Description:** This function cleans up any extension data left hanging after any `MD2` entities have been freed with `FreeEntity`. It is not necessary to call it after every free call, only after several entities have been freed and you are ready to move onto doing something else.  
-**Future direction:** If bOGL is ported to a language with support for callbacks (BlitzMax, C, Monkey), `FreeEntity` will be able to take care of custom user data properly and this function will become redundant.  
 

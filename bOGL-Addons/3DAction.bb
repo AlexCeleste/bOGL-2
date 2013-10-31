@@ -42,7 +42,7 @@ Const ACT3_TYPE_LOOP = 32, ACT3_TYPE_SEQ = 33, ACT3_TYPE_COMP = 34
 Const ACT3_TYPE_UNDF = -1
 Const ACT3_SIZE_CELL = 4, ACT3_SIZE_SIMP = 9, ACT3_EPSILON# = 0.001
 
-Global ACT3_private_UDSlot_ = -1, ACT3_private_FreeStk_, ACT3_private_Temp_, ACT3_private_Idx_
+Global ACT3_private_Temp_, ACT3_private_Idx_
 Global ACT3_buffer_.ACT3_Action, ACT3_header_.ACT3_Action
 
 
@@ -52,8 +52,6 @@ Global ACT3_buffer_.ACT3_Action, ACT3_header_.ACT3_Action
 ; Initialization
 
 Function Init3DAction()		;Only call this once per program
-	If ACT3_private_UDSlot_ < 0 Then ACT3_private_UDSlot_ = RegisterEntityUserDataSlot()
-	If ACT3_private_FreeStk_ < 0 Then ACT3_private_FreeStk_ = CreateBank(0)
 	If ACT3_private_Temp_ = 0 Then ACT3_private_Temp_ = CreateBank(ACT3_SIZE_CELL * ACT3_SIZE_SIMP)
 	If ACT3_private_Idx_ = 0 Then ACT3_private_Idx_ = CreateBank(11 * 8)
 	If ACT3_buffer_ = Null Then ACT3_buffer_ = New ACT3_Action
@@ -444,6 +442,6 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#18#1C#35#41#5E#64#68#72#7A#7E#82#86#8B#8F#93#97#9B#A0#A4#A8
-;~F#AC#B0#B4#B8#C0#E9#129#138#153#159#19A#1A7
+;~F#18#1C#35#3F#5C#62#66#70#78#7C#80#84#89#8D#91#95#99#9E#A2#A6
+;~F#AA#AE#B2#B6#BE#E7#127#136#151#157#198#1A5
 ;~C#BlitzPlus

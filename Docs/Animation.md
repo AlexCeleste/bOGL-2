@@ -15,7 +15,6 @@
  * [GetNumFrames](#getnumframes)
  * [GetAnimMode](#getanimmode)
  * [IsAnimated](#isanimated)
- * [ANIM_ClearUnused](#anim_clearunused)
 
 ## <span id="intro"/>Introduction ##
 
@@ -33,7 +32,6 @@ To quickly get set up animating scenes with `Animation`:
 2. `Include "bOGL-Addons/Animation.bb"` at the top of your main project file (after `MeshLoader` is clearest).
 3. Call the initialization function (`InitAnimationAddon`) in your initialization block. This should happen before you do anything else with the 3D engine.
 4. Add a call to `UpdateAnimations` in your main loop, before the main call to `RenderWorld`. Just before `UpdateBonedMeshes` is best.
-5. After any major entity deletion events, add a call to `ANIM_ClearUnused` to tidy up any hanging `Animation` data (you don't need to do this for each entity, just once after several of them).
 
 That's all you need to do to support loading animated meshes in your 3D project! Now add some `LoadMesh` and `Animate` calls and get some living characters into your game!
 
@@ -116,11 +114,4 @@ The `trans` parameter determines the number of frames to use as a transition, ei
 **Parameters:** The entity.  
 **Return value:** Whether the entity is animated.  
 **Description:** This function returns true if an entity has animation data associated with it. Testing entities with this function before exposing them to the animation system is important, since non-animated entities being passed to other `Animation` functions may cause the program to crash when it looks for nonexistent data.  
-
-#### <span id="anim_clearunused" />ANIM_ClearUnused ####
-`ANIM_ClearUnused()`  
-**Parameters:** None.  
-**Return value:** None.  
-**Description:** This function cleans up any extension data left hanging after any animated entities have been freed with `FreeEntity`. It is not necessary to call it after every free call, only after several entities have been freed and you are ready to move onto doing something else.  
-**Future direction:** If bOGL is ported to a language with support for callbacks (BlitzMax, C, Monkey), `FreeEntity` will be able to take care of custom user data properly and this function will become redundant.  
 

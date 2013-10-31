@@ -14,6 +14,3 @@ SaveOBJMesh(mesh, file$)
 UpdateBonedMeshes()
 ActivateMeshBones(ent)
 DeactivateMeshBones(ent)
-CopyBonedMesh%(ent)
-LOADER_ClearUnused()
-

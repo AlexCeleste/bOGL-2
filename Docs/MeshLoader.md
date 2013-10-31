@@ -12,8 +12,6 @@
  * [UpdateBonedMeshes](#updatebonedmeshes)
  * [ActivateMeshBones](#activatemeshbones)
  * [DeactivateMeshBones](#deactivatemeshbones)
- * [CopyBonedMesh](#copybonedmesh)
- * [LOADER_ClearUnused](#loader_clearunused)
 
 ## <span id="intro"/>Introduction ##
 
@@ -33,8 +31,8 @@ To quickly get set up loading meshes with `MeshLoader`:
 
 1. `Include "bOGL-Addons/MeshLoader.bb"` at the top of your main project file.
 2. Call the initialization function (`InitMeshLoaderAddon`) in your initialization block. This should happen before you do anything else with the 3D engine.
-3. Add a call to `UpdateBonedMeshes` in your main loop, before the main call to `RenderWorld`. (You don't need this if you don't want to use .bo3d files.)
-4. After any major entity deletion events, add a call to `LOADER_ClearUnused` to tidy up any hanging `MeshLoader` data (you don't need to do this for each entity, just once after several of them).
+3. Add a call to `UpdateBonedMeshes` in your main loop, before the main call to `RenderWorld`. (You don't need this in the loop if you don't want to use .bo3d files.)
+4. After any major entity deletion or copy events, make sure `UpdateBonedMeshes` gets called to "complete" them (if you aren't using it in your main loop already).
 
 That's all you need to do to support loading meshes in your 3D project! Now add some `LoadMesh` calls and get some nice static art into your game!
 
@@ -94,18 +92,4 @@ You don't need to call this function if you are not using boned meshes for anyth
 **Parameters:** None.  
 **Return value:** None.  
 **Description:** This function pauses updating of a boned mesh so that it is left untouched when `UpdateBonedMeshes` is called. The meain reason for doing this is performance: since updating a mesh surface is quite expensive (and the update has no way to know if it actually needs to be done this frame), any meshes that you know aren't currently being animated or otherwise deformed can have their updates turned off to save some CPU time.  
-
-#### <span id="copybonedmesh" />CopyBonedMesh ####
-`CopyBonedMesh(ent)`  
-**Parameters:** The mesh to copy.  
-**Return value:** The newly-copied mesh.  
-**Description:** This function copies a boned mesh entity. Calling this instead of simply using `CopyEntity` is essential to ensure that bone data is properly copied as necessary and the new mesh will update properly.  
-**Future direction:** If bOGL is ported to a language with support for callbacks (BlitzMax, C, Monkey), `CopyEntity` will be able to take care of custom user data properly and this function will become redundant.  
-
-#### <span id="loader_clearunused" />LOADER_ClearUnused ####
-`LOADER_ClearUnused()`  
-**Parameters:** None.  
-**Return value:** None.  
-**Description:** This function cleans up any extension data left hanging after any boned entities have been freed with `FreeEntity`. It is not necessary to call it after every free call, only after several entities have been freed and you are ready to move onto doing something else.  
-**Future direction:** If bOGL is ported to a language with support for callbacks (BlitzMax, C, Monkey), `FreeEntity` will be able to take care of custom user data properly and this function will become redundant.  
 

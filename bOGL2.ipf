@@ -3,15 +3,13 @@
  Version="1"
  Expanded="True"
  Icon=""
- MainFile="3DAction demo.bb"
+ MainFile="MD2 demo.bb"
  Compiler="BlitzPlus"
  CommandLine=""
 </Settings>
 <Folders>
 </Folders>
 <Files>
- AbsPath="\3DAction demo.bb" PrjFolder="" Line="0" Column="0" Tip="0" Visible="False"
- AbsPath="\bOGL-Addons\3DAction.bb" PrjFolder="" Line="0" Column="0" Tip="0" Visible="False"
  AbsPath="\bOGL\blitz_gl.bb" PrjFolder="" Line="0" Column="0" Tip="0" Visible="False"
  AbsPath="\bOGL demo.bb" PrjFolder="" Line="0" Column="0" Tip="0" Visible="False"
  AbsPath="\bOGL\bOGL.bb" PrjFolder="" Line="0" Column="0" Tip="0" Visible="False"

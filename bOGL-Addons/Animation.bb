@@ -33,13 +33,16 @@ End Type
 Const ANIM_MODE_STOP = 0, ANIM_MODE_LOOP = 1, ANIM_MODE_PING = 2, ANIM_MODE_ONCE = 3, ANIM_MODE_TRANS = 4
 Const ANIM_KF_SIZE = 44, ANIM_ALLOC_TICKER = 25
 
-Global ANIM_private_UDSlot_, ANIM_private_LoadErr_, ANIM_private_ALen_, ANIM_private_NewCounter_
+Global ANIM_private_UDSlot_, ANIM_private_CopyStk_, ANIM_private_FreeStk_
+Global ANIM_private_LoadErr_, ANIM_private_ALen_, ANIM_private_NewCounter_
 Global ANIM_header_.bOGL_Animation, ANIM_buffer_.bOGL_Animation
 Dim ANIM_AnimName_$(0)
 
 
 Function InitAnimationAddon()		;Only call this once per program
 	ANIM_private_UDSlot_ = RegisterEntityUserDataSlot()
+	ANIM_private_CopyStk_ = CreateBank(0)
+	ANIM_private_FreeStk_ = CreateBank(0)
 	ANIM_header_ = New bOGL_Animation
 	ANIM_buffer_ = New bOGL_Animation
 	MESH_InitMeshUtils_
@@ -47,8 +50,19 @@ End Function
 
 ; Call this once per loop to update entity positions
 Function UpdateAnimations(rate# = 1.0)
+	Local c, doClear = False
+	
+	;Something has been deleted
+	If BankSize(ANIM_private_FreeStk_) Then ResizeBank ANIM_private_FreeStk_, 0 : doClear = True
+	If BankSize(ANIM_private_CopyStk_)	;Something has been copied
+		For c = 0 To BankSize(ANIM_private_CopyStk_) - 4 Step 4
+			ANIM_FinishCopy_ PeekInt(ANIM_private_CopyStk_, c)
+		Next
+		ResizeBank ANIM_private_CopyStk_, 0
+	EndIf
+	
 	Insert ANIM_header_ After Last bOGL_Animation
-	Local m.bOGL_Animation, doClear = False : For m = Each bOGL_Animation
+	Local m.bOGL_Animation : For m = Each bOGL_Animation
 		If m = ANIM_buffer_ Then Exit
 		
 		If m\root = Null Or m\animMode = ANIM_MODE_STOP
@@ -63,7 +77,7 @@ Function UpdateAnimations(rate# = 1.0)
 		
 		If m = Null Then m = ANIM_header_ : Insert m Before First bOGL_Animation
 	Next
-	If doClear Then ANIM_ClearUnused
+	If doClear Then ANIM_ClearUnused_
 	Insert ANIM_header_ Before First bOGL_Animation
 End Function
 
@@ -100,7 +114,7 @@ Function LoadAnimBank(root, bk, start, size)		;Much of this is copied directly f
 		Dim ANIM_AnimName_$(0) : Return
 	EndIf
 	
-	If ANIM_private_NewCounter_ = ANIM_ALLOC_TICKER Then ANIM_ClearUnused
+	If ANIM_private_NewCounter_ = ANIM_ALLOC_TICKER Then ANIM_ClearUnused_
 	ANIM_private_NewCounter_ = ANIM_private_NewCounter_ + 1
 	
 	Local a.bOGL_Animation = New bOGL_Animation		;Construct the animation object
@@ -110,6 +124,8 @@ Function LoadAnimBank(root, bk, start, size)		;Much of this is copied directly f
 	a\length = ANIM_private_ALen_
 	a\animMode = ANIM_MODE_STOP
 	SetEntityUserData root, ANIM_private_UDSlot_, Handle a
+	SetEntityUserData root, ANIM_private_UDSlot_, ANIM_private_CopyStk_, 1
+	SetEntityUserData root, ANIM_private_UDSlot_, ANIM_private_FreeStk_, 2
 	
 	;Attach animations to their respective child nodes
 	For i = eCount - 1 To 0 Step -1
@@ -149,29 +165,7 @@ Function LoadAnimBank(root, bk, start, size)		;Much of this is copied directly f
 End Function
 
 Function CopyAnimation(root, src)
-	Local a.bOGL_Animation = Object.bOGL_Animation GetEntityUserData(src, ANIM_private_UDSlot_)
-	
-	If ANIM_private_NewCounter_ = ANIM_ALLOC_TICKER Then ANIM_ClearUnused
-	ANIM_private_NewCounter_ = ANIM_private_NewCounter_ + 1
-	
-	Local c.bOGL_Animation = New bOGL_Animation
-	c\root = bOGL_EntList_(root)
-	c\nodes = CreateBank(BankSize(a\nodes))
-	c\length = a\length
-	c\animMode = ANIM_MODE_STOP
-	
-	;Update the node list with new nodes
-	Local p, child
-	For p = BankSize(c\nodes) - 4 To 0 Step -4
-		child = PeekInt(a\nodes, p)
-		If child Then PokeInt c\nodes, p, GetChildByName(root, GetEntityName(child)) Else PokeInt c\nodes, p, 0
-	Next
-	
-	;Reference count the keys
-	c\keyFrames = a\keyFrames
-	PokeInt c\keyFrames, BankSize(c\keyFrames) - 4, PeekInt(c\keyFrames, BankSize(c\keyFrames) - 4) + 1
-	
-	SetEntityUserData root, ANIM_private_UDSlot_, Handle c
+	ANIM_CopyAnim_(Object.bOGL_Animation GetEntityUserData(src, ANIM_private_UDSlot_), root)
 End Function
 
 ; Literally copied directly from MD2.bb
@@ -237,26 +231,6 @@ Function IsAnimated(ent)
 	Local a.bOGL_Animation : For a = Each bOGL_Animation	;Need to do this because GetEntityUserData is unsafe
 		If a\root = bOGL_EntList_(ent) Then Return True
 	Next
-End Function
-
-Function ANIM_ClearUnused()
-	Local m.bOGL_Animation
-	For m = Each bOGL_Animation
-		If m\root = Null
-			FreeBank m\nodes
-			If PeekInt(m\keyFrames, BankSize(m\keyFrames) - 4) < 2
-				Local i, t = BankSize(m\keyFrames) - 8
-				For i = 0 To t Step 4
-					FreeBank PeekInt(m\keyFrames, i)
-				Next
-				FreeBank m\keyFrames
-			Else
-				PokeInt m\keyFrames, BankSize(m\keyFrames) - 4, PeekInt(m\keyFrames, BankSize(m\keyFrames) - 4) - 1
-			EndIf
-			Delete m
-		EndIf
-	Next
-	ANIM_private_NewCounter_ = 0
 End Function
 
 
@@ -348,6 +322,58 @@ Function ANIM_UpdateNodePositions_(m.bOGL_Animation)
 	Next
 End Function
 
+Function ANIM_FinishCopy_(ent)
+	ANIM_CopyAnim_(Object.bOGL_Animation GetEntityUserData(ent, ANIM_private_UDSlot_), ent)
+End Function
+
+Function ANIM_CopyAnim_.bOGL_Animation(a.bOGL_Animation, root)
+	If ANIM_private_NewCounter_ = ANIM_ALLOC_TICKER Then ANIM_ClearUnused_
+	ANIM_private_NewCounter_ = ANIM_private_NewCounter_ + 1
+	
+	Local c.bOGL_Animation = New bOGL_Animation
+	c\root = bOGL_EntList_(root)
+	c\nodes = CreateBank(BankSize(a\nodes))
+	c\length = a\length
+	c\animMode = ANIM_MODE_STOP
+	
+	;Update the node list with new nodes
+	Local p, child
+	For p = BankSize(c\nodes) - 4 To 0 Step -4
+		child = PeekInt(a\nodes, p)
+		If child Then PokeInt c\nodes, p, GetChildByName(root, GetEntityName(child)) Else PokeInt c\nodes, p, 0
+	Next
+	
+	;Reference count the keys
+	c\keyFrames = a\keyFrames
+	PokeInt c\keyFrames, BankSize(c\keyFrames) - 4, PeekInt(c\keyFrames, BankSize(c\keyFrames) - 4) + 1
+	
+	SetEntityUserData root, ANIM_private_UDSlot_, Handle ANIM_CopyAnim_(a, root)
+	SetEntityUserData root, ANIM_private_UDSlot_, ANIM_private_CopyStk_, 1
+	SetEntityUserData root, ANIM_private_UDSlot_, ANIM_private_FreeStk_, 2
+	
+	Return c
+End Function
+
+Function ANIM_ClearUnused_()
+	Local m.bOGL_Animation
+	For m = Each bOGL_Animation
+		If m\root = Null
+			FreeBank m\nodes
+			If PeekInt(m\keyFrames, BankSize(m\keyFrames) - 4) < 2
+				Local i, t = BankSize(m\keyFrames) - 8
+				For i = 0 To t Step 4
+					FreeBank PeekInt(m\keyFrames, i)
+				Next
+				FreeBank m\keyFrames
+			Else
+				PokeInt m\keyFrames, BankSize(m\keyFrames) - 4, PeekInt(m\keyFrames, BankSize(m\keyFrames) - 4) - 1
+			EndIf
+			Delete m
+		EndIf
+	Next
+	ANIM_private_NewCounter_ = 0
+End Function
+
 ; This is literally identical to MD2_UpdateAnimation_
 ; A sensible coder would factor out the shared structures to an anim module...
 Function ANIM_UpdateAnimation_(m.bOGL_Animation, rate#)
@@ -395,5 +421,5 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#14#28#30#45#4C#96#B2#D6#DB#E0#E5#EB#F1#109#134#160
+;~F#14#29#33#53#5A#A6#AC#D0#D5#DA#DF#E5#EF#11A#144#148#164#17A
 ;~C#BlitzPlus

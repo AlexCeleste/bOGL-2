@@ -28,7 +28,7 @@ End Type
 
 Const MD2_MODE_STOP = 0, MD2_MODE_LOOP = 1, MD2_MODE_PING = 2, MD2_MODE_ONCE = 3, MD2_MODE_TRANS = 4
 Const MD2_FRAME_SIZE = 44
-Global MD2_private_UDSlot_ = -1, MD2_private_TexName_$
+Global MD2_private_UDSlot_ = -1, MD2_private_CopyStk_, MD2_private_FreeStk_, MD2_private_TexName_$
 Global MD2_buffer_.bOGL_MD2Model, MD2_header_.bOGL_MD2Model
 Dim MD2_VertN_#(0, 0), MD2_VertC_(0)
 
@@ -38,6 +38,8 @@ Dim MD2_VertN_#(0, 0), MD2_VertC_(0)
 
 Function InitMD2Addon()		;Only call this once per program
 	MD2_private_UDSlot_ = RegisterEntityUserDataSlot()
+	MD2_private_CopyStk_ = CreateBank(0)
+	MD2_private_FreeStk_ = CreateBank(0)
 	MD2_header_ = New bOGL_MD2Model
 	MD2_buffer_ = New bOGL_MD2Model
 	MD2_InitVertexNormals_
@@ -45,8 +47,19 @@ Function InitMD2Addon()		;Only call this once per program
 End Function
 
 Function UpdateMD2Anims(rate# = 1.0)
+	Local c, doClear = False
+	
+	;Something has been deleted
+	If BankSize(MD2_private_FreeStk_) Then ResizeBank MD2_private_FreeStk_, 0 : doClear = True
+	If BankSize(MD2_private_CopyStk_)	;Something has been copied
+		For c = 0 To BankSize(MD2_private_CopyStk_) - 4 Step 4
+			MD2_FinishCopy_ PeekInt(MD2_private_CopyStk_, c)
+		Next
+		ResizeBank MD2_private_CopyStk_, 0
+	EndIf
+	
 	Insert MD2_header_ After Last bOGL_MD2Model
-	Local m.bOGL_MD2Model, doClear = False : For m = Each bOGL_MD2Model
+	Local m.bOGL_MD2Model : For m = Each bOGL_MD2Model
 		If m = MD2_buffer_ Then Exit
 		
 		If m\animMode = MD2_MODE_STOP Or m\mesh = Null Or m\bone = Null
@@ -61,7 +74,7 @@ Function UpdateMD2Anims(rate# = 1.0)
 		
 		If m = Null Then m = MD2_header_ : Insert m Before First bOGL_MD2Model
 	Next
-	If doClear Then MD2_ClearUnused
+	If doClear Then MD2_ClearUnused_
 	Insert MD2_header_ Before First bOGL_MD2Model
 End Function
 
@@ -78,6 +91,11 @@ Function LoadMD2Model(file$, parent = 0, numInstances = 1)
 		If numInstances = 1		;Use mesh as root
 			SetEntityUserData mesh, MD2_private_UDSlot_, GetEntityUserData(bone, MD2_private_UDSlot_)
 			SetEntityUserData bone, MD2_private_UDSlot_, 0
+			
+			SetEntityUserData mesh, MD2_private_UDSlot_, MD2_private_CopyStk_, 1
+			SetEntityUserData mesh, MD2_private_UDSlot_, MD2_private_FreeStk_, 2
+			SetEntityUserData bone, MD2_private_UDSlot_, MD2_private_CopyStk_, 1
+			SetEntityUserData bone, MD2_private_UDSlot_, MD2_private_FreeStk_, 2
 		EndIf
 		If MD2_private_TexName_ <> ""
 			Local tex = LoadTexture(MD2_private_TexName_, 0)
@@ -168,24 +186,6 @@ Function LoadMD2SubMesh(bk, st, sz, targetMesh, numInstances, doAutoMove = True)
 	Return bone		;If more than one are created... assume they will be found attached as children
 End Function
 
-Function CopyMD2Mesh(rootMesh, parent = 0)
-	Local mesh = CopyEntity(rootMesh, parent), ci, m.bOGL_MD2Model
-	
-	For ci = 0 To CountChildren(mesh) - 1
-		m = Object.bOGL_MD2Model GetEntityUserData(GetChildEntity(rootMesh, ci), MD2_private_UDSlot_)
-		If m <> Null
-			Local ch = GetChildEntity(mesh, ci)
-			SetEntityUserData ch, MD2_private_UDSlot_, Handle MD2_CopyModel_(m, ch, mesh)
-		EndIf
-	Next
-	m = Object.bOGL_MD2Model GetEntityUserData(rootMesh, MD2_private_UDSlot_)
-	If m <> Null
-		SetEntityUserData mesh, MD2_private_UDSlot_, Handle MD2_CopyModel_(m, GetChildEntity(mesh, 0), mesh)
-	EndIf
-	
-	Return mesh
-End Function
-
 Function AnimateMD2(ent, mode = MD2_MODE_LOOP, speed# = 1.0, fF = 0, lF = -1, trans = 0)
 	Local m.bOGL_MD2Model = Object.bOGL_MD2Model GetEntityUserData(ent, MD2_private_UDSlot_)
 	If fF < 0 Then fF = 0 : Else If fF > m\numFrames - 1 Then fF = m\numFrames - 1
@@ -274,16 +274,6 @@ Function GetMD2SeqByName(out[1], ent, name$)
 	Next
 End Function
 
-Function MD2_ClearUnused()
-	Local m.bOGL_MD2Model
-	For m = Each bOGL_MD2Model
-		If m\bone = Null Or m\mesh = Null
-			If m <> MD2_header_ And m <> MD2_buffer_ Then MD2_FreeModel_ m
-		EndIf
-	Next
-	MD2_private_NewCounter_ = 0
-End Function
-
 
 ; Internal
 ;==========
@@ -293,14 +283,18 @@ Global MD2_private_NewCounter_
 
 ; Allocate a new MD2 instance. This also checks for MD2s attached to dead entities and removes them
 Function MD2_NewModel_.bOGL_MD2Model(bone, mesh, fv, vc, fc, am)
-	If MD2_private_NewCounter_ = MD2_ALLOC_TICKER Then MD2_ClearUnused
+	If MD2_private_NewCounter_ = MD2_ALLOC_TICKER Then MD2_ClearUnused_
 	MD2_private_NewCounter_ = MD2_private_NewCounter_ + 1
 	Local m.bOGL_MD2Model = New bOGL_MD2Model
 	Insert m Before First bOGL_MD2Model
 	m\bone = bOGL_EntList_(bone) : m\mesh = bOGL_EntList_(mesh)
 	m\numFrames = fc : m\numVerts = vc : m\firstVert = fv : m\autoMove = am
 	SetEntityUserData mesh, MD2_private_UDSlot_, 0
+	SetEntityUserData mesh, MD2_private_UDSlot_, MD2_private_CopyStk_, 1
+	SetEntityUserData mesh, MD2_private_UDSlot_, MD2_private_FreeStk_, 2
 	SetEntityUserData bone, MD2_private_UDSlot_, Handle m
+	SetEntityUserData bone, MD2_private_UDSlot_, MD2_private_CopyStk_, 1
+	SetEntityUserData bone, MD2_private_UDSlot_, MD2_private_FreeStk_, 2
 	Return m
 End Function
 
@@ -325,6 +319,21 @@ Function MD2_FreeModel_(m.bOGL_MD2Model)
 	If m\mesh <> Null Then SetEntityUserData m\mesh\handler, MD2_private_UDSlot_, 0
 	If m\bone <> Null Then SetEntityUserData m\bone\handler, MD2_private_UDSlot_, 0
 	Delete m
+End Function
+
+Function MD2_FinishCopy_(mesh)
+	Local ci, m.bOGL_MD2Model
+	
+	For ci = 0 To CountChildren(mesh) - 1
+		Local ch = GetChildEntity(mesh, ci)
+		m = Object.bOGL_MD2Model GetEntityUserData(ch, MD2_private_UDSlot_)
+		If m <> Null Then SetEntityUserData ch, MD2_private_UDSlot_, Handle MD2_CopyModel_(m, ch, mesh)
+	Next
+	
+	m = Object.bOGL_MD2Model GetEntityUserData(mesh, MD2_private_UDSlot_)
+	If m <> Null
+		SetEntityUserData mesh, MD2_private_UDSlot_, Handle MD2_CopyModel_(m, GetChildEntity(mesh, 0), mesh)
+	EndIf
 End Function
 
 ; Since MD2s store XYZ and UV data separately we may have to selectively unweld some vertices for correct results
@@ -458,6 +467,16 @@ Function MD2_UpdateAnimation_(m.bOGL_MD2Model, rate#)
 			m\animTime = Float m\seqS
 		EndIf
 	EndIf
+End Function
+
+Function MD2_ClearUnused_()
+	Local m.bOGL_MD2Model
+	For m = Each bOGL_MD2Model
+		If m\bone = Null Or m\mesh = Null
+			If m <> MD2_header_ And m <> MD2_buffer_ Then MD2_FreeModel_ m
+		EndIf
+	Next
+	MD2_private_NewCounter_ = 0
 End Function
 
 ; Fill the vertex normals table (data taken from http://tfc.duke.free.fr/coding/src/anorms.h )
@@ -629,6 +648,5 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#10#26#2E#43#59#AA#BC#E0#E5#EC#F1#F6#FB#114#126#132#13B#14A#161#1A3
-;~F#1CE
+;~F#10#26#30#50#6B#BC#E0#E5#EC#F1#F6#FB#11C#12C#135#143#153#16A#1AC#1D7
 ;~C#BlitzPlus

@@ -28,7 +28,8 @@ End Type
 Const LOADER_OBJ_UV_STRIDE = 8, LOADER_OBJ_NORM_STRIDE = 12
 Global LOADER_private_SplitCt_ : Dim LOADER_private_SplitRes_$(0)
 Global LOADER_private_FBank_, LOADER_VFSize_ : Dim LOADER_Ents_(0)
-Global LOADER_private_UDSlot_, LOADER_header_.bOGL_BoneEntData_, LOADER_buffer_.bOGL_BoneEntData_
+Global LOADER_private_UDSlot_, LOADER_private_CopyStk_, LOADER_private_FreeStk_
+Global LOADER_header_.bOGL_BoneEntData_, LOADER_buffer_.bOGL_BoneEntData_
 
 
 ; Interface
@@ -36,6 +37,8 @@ Global LOADER_private_UDSlot_, LOADER_header_.bOGL_BoneEntData_, LOADER_buffer_.
 
 Function InitMeshLoaderAddon()		;Only call this once per program
 	LOADER_private_UDSlot_ = RegisterEntityUserDataSlot()
+	LOADER_private_CopyStk_ = CreateBank(0)
+	LOADER_private_FreeStk_ = CreateBank(0)
 	LOADER_header_ = New bOGL_BoneEntData_
 	LOADER_buffer_ = New bOGL_BoneEntData_
 	LOADER_private_FBank_ = CreateBank(4)
@@ -257,10 +260,21 @@ Function SaveOBJMesh(mesh, file$)
 	CloseFile f
 End Function
 
-; Call this once per loop to deform parent meshes
+; Call this once per loop to deform parent meshes, update copies, and clear garbage
 Function UpdateBonedMeshes()
+	Local c, doClear = False
+	
+	;Something has been deleted
+	If BankSize(LOADER_private_FreeStk_) Then ResizeBank LOADER_private_FreeStk_, 0 : doClear = True
+	If BankSize(LOADER_private_CopyStk_)	;Something has been copied
+		For c = 0 To BankSize(LOADER_private_CopyStk_) - 4 Step 4
+			LOADER_FinishCopy_ PeekInt(LOADER_private_CopyStk_, c)
+		Next
+		ResizeBank LOADER_private_CopyStk_, 0
+	EndIf
+	
 	Insert LOADER_header_ After Last bOGL_BoneEntData_
-	Local m.bOGL_BoneEntData_, doClear = False : For m = Each bOGL_BoneEntData_
+	Local m.bOGL_BoneEntData_ : For m = Each bOGL_BoneEntData_
 		If m = LOADER_buffer_ Then Exit
 		
 		If m\ent = Null Or m\isActive = False
@@ -274,7 +288,7 @@ Function UpdateBonedMeshes()
 		
 		If m = Null Then m = LOADER_header_ : Insert m Before First bOGL_BoneEntData_
 	Next
-	If doClear Then LOADER_ClearUnused
+	If doClear Then LOADER_ClearUnused_
 	Insert LOADER_header_ Before First bOGL_BoneEntData_
 End Function
 
@@ -290,45 +304,6 @@ Function DeactivateMeshBones(ent)
 	boneData\isActive = False
 End Function
 
-; Copy a boned mesh and all of its bones (relies on bones being named)
-Function CopyBonedMesh(ent, parent = 0)
-	Local copy = CopyEntity(ent, parent)
-	Local boneData.bOGL_BoneEntData_ = Object.bOGL_BoneEntData_ GetEntityUserData(ent, LOADER_private_UDSlot_)
-	Local copyData.bOGL_BoneEntData_ = New bOGL_BoneEntData_
-	SetEntityUserData copy, LOADER_private_UDSlot_, Handle copyData
-	copyData\ent = bOGL_EntList_(copy)
-	copyData\isActive = boneData\isActive
-	copyData\bones = CreateBank(BankSize(boneData\bones))
-	CopyBank boneData\bones, 0, copyData\bones, 0, BankSize(boneData\bones)
-	Local bi : For bi = 0 To BankSize(copyData\bones) / 12 - 1
-		PokeInt copyData\bones, bi * 12, GetChildByName(copy, GetEntityName(PeekInt(copyData\bones, bi * 12)))
-	Next
-	copyData\verts = boneData\verts
-	PokeInt copyData\verts, 0, PeekInt(copyData\verts, 0) + 1
-	Return copy
-End Function
-
-Function LOADER_ClearUnused()
-	Local m.bOGL_BoneEntData_
-	For m = Each bOGL_BoneEntData_
-		If m\ent = Null
-			If m <> LOADER_header_ And m <> LOADER_buffer_
-				FreeBank m\bones
-				If PeekInt(m\verts, 0) < 2
-					Local v : For v = 4 To BankSize(m\verts) - 4 Step 4
-						FreeBank PeekInt(m\verts, v)
-					Next
-					FreeBank m\verts
-				Else
-					PokeInt m\verts, 0, PeekInt(m\verts, 0) - 1
-				EndIf
-				Delete m
-			EndIf
-		EndIf
-	Next
-	LOADER_private_NewCounter_ = 0
-End Function
-
 
 ; Internal
 ;==========
@@ -337,7 +312,7 @@ Const LOADER_ALLOC_TICKER = 25
 Global LOADER_private_NewCounter_
 
 Function LOADER_LoadEntityDef_(bk, p[0], tgt, ID)
-	If LOADER_private_NewCounter_ = LOADER_ALLOC_TICKER Then LOADER_ClearUnused
+	If LOADER_private_NewCounter_ >= LOADER_ALLOC_TICKER Then LOADER_ClearUnused_
 	LOADER_private_NewCounter_ = LOADER_private_NewCounter_ + 1
 	
 	Local st = p[0], maxSz = tgt - st
@@ -450,10 +425,49 @@ Function LOADER_LoadEntityDef_(bk, p[0], tgt, ID)
 			Next
 			PokeInt boneData\verts, 0, 1
 			SetEntityUserData entH, LOADER_private_UDSlot_, Handle boneData
+			SetEntityUserData entH, LOADER_private_UDSlot_, LOADER_private_CopyStk_, 1
+			SetEntityUserData entH, LOADER_private_UDSlot_, LOADER_private_FreeStk_, 2
 		EndIf
 	EndIf
 	
 	Return entH
+End Function
+
+Function LOADER_FinishCopy_(copy)
+	Local boneData.bOGL_BoneEntData_ = Object.bOGL_BoneEntData_ GetEntityUserData(copy, LOADER_private_UDSlot_)
+	Local copyData.bOGL_BoneEntData_ = New bOGL_BoneEntData_
+	SetEntityUserData copy, LOADER_private_UDSlot_, Handle copyData
+	copyData\ent = bOGL_EntList_(copy)
+	copyData\isActive = boneData\isActive
+	If copyData\isActive Then Insert copyData Before First bOGL_BoneEntData_
+	copyData\bones = CreateBank(BankSize(boneData\bones))
+	CopyBank boneData\bones, 0, copyData\bones, 0, BankSize(boneData\bones)
+	Local bi : For bi = 0 To BankSize(copyData\bones) / 12 - 1
+		PokeInt copyData\bones, bi * 12, GetChildByName(copy, GetEntityName(PeekInt(copyData\bones, bi * 12)))
+	Next
+	copyData\verts = boneData\verts
+	PokeInt copyData\verts, 0, PeekInt(copyData\verts, 0) + 1
+End Function
+
+Function LOADER_ClearUnused_()
+	Local m.bOGL_BoneEntData_
+	For m = Each bOGL_BoneEntData_
+		If m\ent = Null
+			If m <> LOADER_header_ And m <> LOADER_buffer_
+				FreeBank m\bones
+				If PeekInt(m\verts, 0) < 2
+					Local v : For v = 4 To BankSize(m\verts) - 4 Step 4
+						FreeBank PeekInt(m\verts, v)
+					Next
+					FreeBank m\verts
+				Else
+					PokeInt m\verts, 0, PeekInt(m\verts, 0) - 1
+				EndIf
+				Delete m
+			EndIf
+		EndIf
+	Next
+	LOADER_private_NewCounter_ = 0
 End Function
 
 Function LOADER_ExpandVertexData_(vp)
@@ -588,5 +602,5 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#15#24#2C#42#84#E2#104#119#11F#125#136#152#1CA#1D1#1F2#1FA#219#227#240#244
+;~F#15#25#2F#45#87#E5#107#127#12D#139#1B3#1C3#1D8#1DF#200#208#227#235#24E#252
 ;~C#BlitzPlus
