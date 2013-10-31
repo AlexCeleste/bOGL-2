@@ -27,7 +27,7 @@ Type ActionListener
 End Type
 
 Type ACT3_Action
-	Field ent, state, act$, parent.ACT3_Action
+	Field ent.bOGL_Ent, state, act$, parent.ACT3_Action
 	Field aType, aLen, aRate, aPos#, e
 	Field s0#, t0#, u0#, v0#, s1#, t1#, u1#, v1#
 End Type
@@ -42,7 +42,7 @@ Const ACT3_TYPE_LOOP = 32, ACT3_TYPE_SEQ = 33, ACT3_TYPE_COMP = 34
 Const ACT3_TYPE_UNDF = -1
 Const ACT3_SIZE_CELL = 4, ACT3_SIZE_SIMP = 9, ACT3_EPSILON# = 0.001
 
-Global ACT3_private_UDSlot_ = -1, ACT3_private_Temp_, ACT3_private_Idx_
+Global ACT3_private_UDSlot_ = -1, ACT3_private_FreeStk_, ACT3_private_Temp_, ACT3_private_Idx_
 Global ACT3_buffer_.ACT3_Action, ACT3_header_.ACT3_Action
 
 
@@ -53,6 +53,7 @@ Global ACT3_buffer_.ACT3_Action, ACT3_header_.ACT3_Action
 
 Function Init3DAction()		;Only call this once per program
 	If ACT3_private_UDSlot_ < 0 Then ACT3_private_UDSlot_ = RegisterEntityUserDataSlot()
+	If ACT3_private_FreeStk_ < 0 Then ACT3_private_FreeStk_ = CreateBank(0)
 	If ACT3_private_Temp_ = 0 Then ACT3_private_Temp_ = CreateBank(ACT3_SIZE_CELL * ACT3_SIZE_SIMP)
 	If ACT3_private_Idx_ = 0 Then ACT3_private_Idx_ = CreateBank(11 * 8)
 	If ACT3_buffer_ = Null Then ACT3_buffer_ = New ACT3_Action
@@ -69,7 +70,7 @@ Function Update3DActions(rate# = 1.0)
 		
 		If a\aType = ACT3_TYPE_UNDF Then ACT3_ExtractAction_ a	;Give it a defined type
 		
-		If a\aType <= ACT3_TYPE_SEND
+		If a\aType <= ACT3_TYPE_SEND And a\ent <> Null
 			ACT3_ExecuteAction_ a, rate
 			If a\aPos >= a\aLen - ACT3_EPSILON
 				b = a : a = Before a
@@ -77,7 +78,13 @@ Function Update3DActions(rate# = 1.0)
 			EndIf
 		Else	;Move compounds over to the non-running area
 			b = a : a = Before a
-			Insert b After ACT3_buffer_
+			If b\ent <> Null
+				Insert b After ACT3_buffer_
+			Else
+				Delete b : For b = Each ACT3_Action
+					If b\ent = Null And b <> ACT3_header_ And b <> ACT3_buffer_ Then Delete b
+				Next
+			EndIf
 		EndIf
 		
 		If a = Null Then a = ACT3_header_ : Insert a Before First ACT3_Action
@@ -92,13 +99,13 @@ Function Stop3DActions()
 End Function
 
 Function RunAction(ent, act$)
-	ACT3_RunAction_ ent, act$, Null, True
+	ACT3_RunAction_ bOGL_EntList_(ent), act$, Null, True
 End Function
 
 Function StopActionsFor(ent)
 	If ent = 0 Then Return
 	Local a.ACT3_Action : For a = Each ACT3_Action
-		If a\ent = ent Then Delete a
+		If a\ent\handler = ent Then Delete a
 	Next
 End Function
 
@@ -230,53 +237,53 @@ Function ACT3_ExecuteAction_(a.ACT3_Action, s#)
 	Else
 		a\aPos = a\aPos + s		;Normal case
 	EndIf
-	Local ent.bOGL_Ent = bOGL_EntList_(a\ent), vec#[2], tgt.bOGL_Ent
+	Local e.bOGL_Ent = a\ent, vec#[2], tgt.bOGL_Ent
 	Select a\aType
 		Case ACT3_TYPE_M2
-			ent\x = ACT3_Pol_(a, a\s0, a\s1) : ent\y = ACT3_Pol_(a, a\t0, a\t1) : ent\z = ACT3_Pol_(a, a\u0, a\u1)
-			bOGL_InvalidateGlobalPosition_ ent
+			e\x = ACT3_Pol_(a, a\s0, a\s1) : e\y = ACT3_Pol_(a, a\t0, a\t1) : e\z = ACT3_Pol_(a, a\u0, a\u1)
+			bOGL_InvalidateGlobalPosition_ e
 			
 		Case ACT3_TYPE_T2
-			ent\q[0] = ACT3_Pol_(a, a\s0, a\s1)
-			ent\q[1] = ACT3_Pol_(a, a\t0, a\t1)
-			ent\q[2] = ACT3_Pol_(a, a\u0, a\u1)
-			ent\q[3] = ACT3_Pol_(a, a\v0, a\v1)
-			bOGL_NormaliseQuat_ ent\q : ent\Qv = 1 : ent\Rv = 0 : bOGL_InvalidateGlobalPosition_ ent
+			e\q[0] = ACT3_Pol_(a, a\s0, a\s1)
+			e\q[1] = ACT3_Pol_(a, a\t0, a\t1)
+			e\q[2] = ACT3_Pol_(a, a\u0, a\u1)
+			e\q[3] = ACT3_Pol_(a, a\v0, a\v1)
+			bOGL_NormaliseQuat_ e\q : e\Qv = 1 : e\Rv = 0 : bOGL_InvalidateGlobalPosition_ e
 			
 		Case ACT3_TYPE_S2
-			ent\sx = ACT3_Pol_(a, a\s0, a\s1)
-			ent\sy = ACT3_Pol_(a, a\t0, a\t1)
-			ent\sz = ACT3_Pol_(a, a\u0, a\u1)
-			bOGL_InvalidateGlobalPosition_ ent, True
+			e\sx = ACT3_Pol_(a, a\s0, a\s1)
+			e\sy = ACT3_Pol_(a, a\t0, a\t1)
+			e\sz = ACT3_Pol_(a, a\u0, a\u1)
+			bOGL_InvalidateGlobalPosition_ e, True
 			
 		Case ACT3_TYPE_C2
-			If ent\m <> Null
+			If e\m <> Null
 				Local r = ACT3_Pol_(a, a\s0, a\s1) : If r < 0 Then r = 0 ElseIf r > 255 Then r = 255
 				Local g = ACT3_Pol_(a, a\t0, a\t1) : If g < 0 Then g = 0 ElseIf g > 255 Then g = 255
 				Local b = ACT3_Pol_(a, a\u0, a\u1) : If b < 0 Then b = 0 ElseIf b > 255 Then b = 255
-				ent\m\argb = $FF000000 Or (r Shl 16) Or (g Shl 8) Or b
+				e\m\argb = $FF000000 Or (r Shl 16) Or (g Shl 8) Or b
 			EndIf
 			
 		Case ACT3_TYPE_F2
-			If ent\m <> Null
-				ent\m\alpha = ACT3_Pol_(a, a\v0, a\v1)
-				If ent\m\alpha < 0.0 Then ent\m\alpha = 0.0 : ElseIf ent\m\alpha > 1.0 Then ent\m\alpha = 1.0
+			If e\m <> Null
+				e\m\alpha = ACT3_Pol_(a, a\v0, a\v1)
+				If e\m\alpha < 0.0 Then e\m\alpha = 0.0 : ElseIf e\m\alpha > 1.0 Then e\m\alpha = 1.0
 			EndIf
 			
 		Case ACT3_TYPE_TRP
-			TFormPoint a\s0, a\t0, a\u0, a\e, a\ent, vec
-			MoveEntity a\ent, vec[0] * a\v0, vec[1] * a\v0, vec[2] * a\v0
+			TFormPoint a\s0, a\t0, a\u0, a\e, e\handler, vec
+			MoveEntity e\handler, vec[0] * a\v0, vec[1] * a\v0, vec[2] * a\v0
 			tgt = bOGL_EntList_(a\e) : If Not tgt\Gv Then bOGL_UpdateGlobalPosition_ tgt
-			TFormPoint tgt\g_x, tgt\g_y, tgt\g_z, 0, ent\parentH, vec
-			PointEntity a\ent, vec[0], vec[1], vec[2]
+			TFormPoint tgt\g_x, tgt\g_y, tgt\g_z, 0, e\parentH, vec
+			PointEntity e\handler, vec[0], vec[1], vec[2]
 			a\aPos = a\aLen - 1		;Note that this means it will never expire
 			
 		Case ACT3_TYPE_TRD
 			tgt = bOGL_EntList_(a\e) : If Not tgt\Gv Then bOGL_UpdateGlobalPosition_ tgt
-			TFormPoint tgt\g_x, tgt\g_y, tgt\g_z, 0, ent\parentH, vec
-			PointEntity a\ent, vec[0], vec[1], vec[2]
-			Local x# = ent\x - vec[0], y# = ent\y - vec[1], z# = ent\z - vec[2]
-			MoveEntity a\ent, 0, 0, (a\s0 - Sqr(x * x + y * y + z * z)) * a\v0
+			TFormPoint tgt\g_x, tgt\g_y, tgt\g_z, 0, e\parentH, vec
+			PointEntity e\handler, vec[0], vec[1], vec[2]
+			Local x# = e\x - vec[0], y# = e\y - vec[1], z# = e\z - vec[2]
+			MoveEntity e\handler, 0, 0, (a\s0 - Sqr(x * x + y * y + z * z)) * a\v0
 			a\aPos = a\aLen - 1
 			
 		Case ACT3_TYPE_WAIT
@@ -284,7 +291,7 @@ Function ACT3_ExecuteAction_(a.ACT3_Action, s#)
 			
 		Case ACT3_TYPE_SEND
 			Local l.ActionListener = Object.ActionListener a\e
-			If l <> Null Then l\msg = a\aRate : l\src = a\ent
+			If l <> Null Then l\msg = a\aRate : l\src = e\handler
 	End Select
 End Function
 
@@ -330,17 +337,17 @@ Function ACT3_FinalizeAction_(f.ACT3_Action)
 	EndIf
 End Function
 
-Function ACT3_RunAction_(ent, act$, p.ACT3_Action, thisFrame)
+Function ACT3_RunAction_(ent.bOGL_Ent, act$, p.ACT3_Action, thisFrame)
 	Local a.ACT3_Action = New ACT3_Action
 	a\ent = ent : a\act = act : a\aType = ACT3_TYPE_UNDF : a\parent = p
 	If thisFrame Then Insert a Before ACT3_buffer_ Else Insert a Before First ACT3_Action
 End Function
 
 Function ACT3_Unpack_(a.ACT3_Action)	;Fill out start and target data from offsets and entities
-	Local e.bOGL_Ent = bOGL_EntList_(a\ent)
+	Local e.bOGL_Ent = a\ent
 	Select a\aType
 		Case ACT3_TYPE_MB
-			Local vec#[2] : TFormPoint a\s0, a\t0, a\u0, a\ent, e\parentH, vec
+			Local vec#[2] : TFormPoint a\s0, a\t0, a\u0, e\handler, e\parentH, vec
 			a\s1 = vec[0] : a\t1 = vec[1] : a\u1 = vec[2]
 			a\s0 = e\x : a\t0 = e\y : a\u0 = e\z
 			a\aType = ACT3_TYPE_M2
@@ -437,6 +444,6 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#18#1C#35#40#57#5D#61#6B#73#77#7B#7F#84#88#8C#90#94#99#9D#A1
-;~F#A5#A9#AD#B1#B9#E2#122#131#14C#152#193#1A0
+;~F#18#1C#35#41#5E#64#68#72#7A#7E#82#86#8B#8F#93#97#9B#A0#A4#A8
+;~F#AC#B0#B4#B8#C0#E9#129#138#153#159#19A#1A7
 ;~C#BlitzPlus
