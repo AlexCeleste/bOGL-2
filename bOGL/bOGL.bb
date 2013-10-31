@@ -566,7 +566,12 @@ Function CopyEntity(handler, parentH = 0)
 		Next
 	EndIf
 	
-	cp\name = old\name
+	cp\x = old\x : cp\y = old\y : cp\z = old\z : cp\sx = old\sx : cp\sy = old\sy : cp\sz = old\sz
+	cp\r[0] = old\r[0] : cp\r[1] = old\r[1] : cp\r[2] = old\r[2] : cp\r[3] = old\r[3] : cp\Rv = old\Rv
+	cp\q[0] = old\q[0] : cp\q[1] = old\q[1] : cp\q[2] = old\q[2] : cp\q[3] = old\q[3] : cp\Qv = old\Qv
+	bOGL_InvalidateGlobalPosition_ cp, True
+	
+	cp\name = old\name : cp\hidden = old\hidden
 	If old\userData
 		cp\userData = CreateBank(BankSize(old\userData)) : CopyBank old\userData, 0, cp\userData, 0, BankSize(old\userData)
 		For i = 0 To BankSize(cp\userData) - 12 Step 12
@@ -1297,7 +1302,7 @@ End Function
 ;~F#21#2A#31#36#3C#41#49#50#54#5B#5F#65#73#8C#91#96#A1#AD#B7#BB
 ;~F#BF#C3#C8#CD#D2#E0#E5#EA#EF#F4#F9#123#12F#149#14E#153#158#15C#161#169
 ;~F#172#178#182#18A#199#1A1#1A8#1AE#1B3#1BD#1C7#1CE#1D4#1E6#1EA#1EF#1F3#1FE#202#206
-;~F#20A#215#219#243#266#273#278#286#290#29B#2A3#2AB#2B3#2BC#2C5#2CE#2F3#30B#312#319
-;~F#320#32C#33F#349#39E#3D3#3D7#3F2#411#41F#435#44E#45E#462#467#46C#477#480#487#48C
-;~F#494#4A5#4B0#4BB#4D6#4DE#4EE#506
+;~F#20A#215#219#248#26B#278#27D#28B#295#2A0#2A8#2B0#2B8#2C1#2CA#2D3#2F8#310#317#31E
+;~F#325#331#344#34E#3A3#3D8#3DC#3F7#416#424#43A#453#463#467#46C#471#47C#485#48C#491
+;~F#499#4AA#4B5#4C0#4DB#4E3#4F3#50B
 ;~C#BlitzPlus
