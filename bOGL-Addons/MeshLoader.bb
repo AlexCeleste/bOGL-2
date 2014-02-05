@@ -134,8 +134,9 @@ Function LoadBO3D(bk, start, size)
 End Function
 
 Function LoadOBJMesh(file$)
-	Local sz = FileSize(file), f = ReadFile(file), mesh = CreateMesh()
+	Local sz = FileSize(file), f = ReadFile(file), mesh = CreateMesh(), root = mesh
 	Local norms = CreateBank(sz), uvs = CreateBank(sz), np = 0, up = 0, vc = 0
+	SetEntityName root, ""
 	
 	While Not Eof(f)
 		Local def$ = ReadLine(f) : LOADER_Split_ def
@@ -211,6 +212,7 @@ Function LoadOBJMesh(file$)
 					EndIf
 					
 				Case "o"
+					mesh = CreateMesh(root)
 					If LOADER_private_SplitCt_ > 1		;Need a name
 						SetEntityName mesh, LOADER_private_SplitRes_(1)
 					Else
@@ -223,40 +225,21 @@ Function LoadOBJMesh(file$)
 		EndIf
 	Wend
 	
+	If CountVertices(root) = 0 And root <> mesh		;Cleanup potential single-object meshes
+		If CountChildren(root) = 1 And GetEntityName(root) = ""		;No content, no name, one child = redundant
+			SetEntityParent mesh, 0
+			FreeEntity root : root = mesh
+		EndIf
+	EndIf
+	
 	FreeBank norms : FreeBank uvs
-	Return mesh
+	Return root
 End Function
 
 Function SaveOBJMesh(mesh, file$)
 	Local f = WriteFile(file) : If Not f Then Return
-	Local this.bOGL_Ent = bOGL_EntList_(mesh), m.bOGL_Mesh = this\m
 	WriteLine f, "# Exported from bOGL"
-	WriteLine f, "o " + this\name
-	Local v, vtmax = CountVertices(mesh) - 1, t, l$
-	For v = 0 To vtmax
-		l = "v " + PeekFloat(m\vp, v * BOGL_VERT_STRIDE + 20)
-		l = l + " " + PeekFloat(m\vp, v * BOGL_VERT_STRIDE + 24)
-		WriteLine f, l + " " + PeekFloat(m\vp, v * BOGL_VERT_STRIDE + 28)
-	Next
-	For v = 0 To vtmax
-		l = "vt " + PeekFloat(m\vp, v * BOGL_VERT_STRIDE)
-		WriteLine f, l + " " + PeekFloat(m\vp, v * BOGL_VERT_STRIDE + 4)
-	Next
-	For v = 0 To vtmax
-		l = "vn " + PeekFloat(m\vp, v * BOGL_VERT_STRIDE + 8)
-		l = l + " " + PeekFloat(m\vp, v * BOGL_VERT_STRIDE + 12)
-		WriteLine f, l + " " + PeekFloat(m\vp, v * BOGL_VERT_STRIDE + 16)
-	Next
-	vtmax = CountTriangles(mesh) - 1
-	For t = 0 To vtmax
-		v = PeekShort(this\m\poly, t * BOGL_TRIS_STRIDE) + 1
-		l = v + "/" + v + "/" + v + " "
-		v = PeekShort(this\m\poly, t * BOGL_TRIS_STRIDE + 2) + 1
-		l = l + v + "/" + v + "/" + v + " "
-		v = PeekShort(this\m\poly, t * BOGL_TRIS_STRIDE + 4) + 1
-		l = l + v + "/" + v + "/" + v
-		WriteLine f, "f " + l
-	Next
+	LOADER_WriteObj_ f, mesh	;Recurse down the children (will lose structure)
 	CloseFile f
 End Function
 
@@ -433,6 +416,41 @@ Function LOADER_LoadEntityDef_(bk, p[0], tgt, ID)
 	Return entH
 End Function
 
+Function LOADER_WriteObj_(f, ent)
+	Local this.bOGL_Ent = bOGL_EntList_(ent), m.bOGL_Mesh = this\m, ch
+	For ch = 0 To CountChildren(ent) - 1
+		LOADER_WriteObj_ f, GetChildEntity(ent, ch)
+	Next
+	If this\eClass = BOGL_CLASS_MESH
+		WriteLine f, "o " + this\name
+		Local v, vtmax = CountVertices(ent) - 1, t, l$
+		For v = 0 To vtmax
+			l = "v " + PeekFloat(m\vp, v * BOGL_VERT_STRIDE + 20)
+			l = l + " " + PeekFloat(m\vp, v * BOGL_VERT_STRIDE + 24)
+			WriteLine f, l + " " + PeekFloat(m\vp, v * BOGL_VERT_STRIDE + 28)
+		Next
+		For v = 0 To vtmax
+			l = "vt " + PeekFloat(m\vp, v * BOGL_VERT_STRIDE)
+			WriteLine f, l + " " + PeekFloat(m\vp, v * BOGL_VERT_STRIDE + 4)
+		Next
+		For v = 0 To vtmax
+			l = "vn " + PeekFloat(m\vp, v * BOGL_VERT_STRIDE + 8)
+			l = l + " " + PeekFloat(m\vp, v * BOGL_VERT_STRIDE + 12)
+			WriteLine f, l + " " + PeekFloat(m\vp, v * BOGL_VERT_STRIDE + 16)
+		Next
+		vtmax = CountTriangles(ent) - 1
+		For t = 0 To vtmax
+			v = PeekShort(this\m\poly, t * BOGL_TRIS_STRIDE) + 1
+			l = v + "/" + v + "/" + v + " "
+			v = PeekShort(this\m\poly, t * BOGL_TRIS_STRIDE + 2) + 1
+			l = l + v + "/" + v + "/" + v + " "
+			v = PeekShort(this\m\poly, t * BOGL_TRIS_STRIDE + 4) + 1
+			l = l + v + "/" + v + "/" + v
+			WriteLine f, "f " + l
+		Next
+	EndIf
+End Function
+
 Function LOADER_FinishCopy_(copy)
 	Local boneData.bOGL_BoneEntData_ = Object.bOGL_BoneEntData_ GetEntityUserData(copy, LOADER_private_UDSlot_)
 	Local copyData.bOGL_BoneEntData_ = New bOGL_BoneEntData_
@@ -602,5 +620,6 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#15#25#2F#45#87#E5#107#127#12D#139#1B3#1C3#1D8#1DF#200#208#227#235#24E#252
+;~F#15#25#2F#45#87#EE#F6#116#11C#128#1A2#1C5#1D5#1EA#1F1#212#21A#239#247#260
+;~F#264
 ;~C#BlitzPlus
