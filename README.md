@@ -19,7 +19,7 @@ Please overwrite any userlib files remaining from bOGL version 1.01. You **must*
 **Credits:**  
 bOGL 1 by Andres Pajo  
 bOGL 2 by Alex Gilding  
-MD2, Draw2D, Animation and MeshLoader modules by Alex Gilding  
+Addon modules by Alex Gilding  
 OGL Direct by Peter Scheutz  
 
 
