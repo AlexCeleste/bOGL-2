@@ -8,12 +8,16 @@
 
 ; bo3d format version number is 100
 
+; At the moment this converter requires Blitz3D to work (can be changed)
+
+
 
 Global SplitCount : Dim SplitRes$(0)	;(Needed by Split below, must be declared above use)
 Dim b3d_stack(100)		;Needed by b3dFuncs, must be declared and sized above use
 
 
 Global VFloatSize = 32		;Width of floating point numbers (also support IEEE half-precision)
+Graphics3D 640, 480, 32, 6
 
 
 Split CommandLine()
@@ -55,7 +59,7 @@ Type Ent
 	Field tname$, col, alpha#, fx, bc
 	
 	Field kfs, verts, vcols, tris, bones
-	Field weights
+	Field weights, needsNormals
 End Type
 
 
@@ -73,6 +77,9 @@ Function Convert(file$)
 	
 	ReadChunks Null
 	CloseFile f
+	Local e.Ent : For e = Each Ent
+		If e\needsNormals Then RebuildNormals e
+	Next
 	
 	If VFloatSize <> 32 Then ConvertVFloats
 	AddEntSizes		;Add up sizes
@@ -85,7 +92,7 @@ Function Convert(file$)
 	WriteInt f, totalSize
 	WriteInt f, VFloatSize
 	
-	Local e.Ent : For e = Each Ent
+	For e = Each Ent
 		If e\bc Then ReorderVerts e		;Rearrange vertices to match bone structure
 		WriteEnt f, e
 	Next
@@ -162,6 +169,24 @@ Function ReorderVerts(e.Ent)
 	Next
 	
 	Dim VertexMap(0), VertexWeight#(0)
+End Function
+
+; Regenerate normals for a mesh that didn't include them in the file
+Function RebuildNormals(e.Ent)
+	Local m = CreateMesh(), s = CreateSurface(m), i
+	For i = 0 To e\vertc - 1
+		AddVertex s, PeekFloat(e\verts, i * 32 + 20), PeekFloat(e\verts, i * 32 + 24), PeekFloat(e\verts, i * 32 + 28)
+	Next
+	For i = 0 To e\tric - 1
+		AddTriangle s, PeekShort(e\tris, i * 6 + 4), PeekShort(e\tris, i * 6 + 2), PeekShort(e\tris, i * 6)
+	Next
+	UpdateNormals m
+	For i = 0 To e\vertc - 1
+		PokeFloat e\verts, i * 32 + 8, -VertexNX(s, i)
+		PokeFloat e\verts, i * 32 + 12, -VertexNY(s, i)
+		PokeFloat e\verts, i * 32 + 16, -VertexNZ(s, i)
+	Next
+	FreeEntity m
 End Function
 
 Global keyAlreadyExists
@@ -287,7 +312,9 @@ Function ReadChunks(p.Ent)
 					If flags And 1
 						PokeFloat e\verts, e\vertc * 32 + 8, b3dReadFloat()
 						PokeFloat e\verts, e\vertc * 32 + 12, b3dReadFloat()
-						PokeFloat e\verts, e\vertc * 32 + 16, b3dReadFloat()
+						PokeFloat e\verts, e\vertc * 32 + 16, -b3dReadFloat()
+					Else
+						e\needsNormals = True
 					EndIf
 					If flags And 2
 						PokeByte e\vcols, e\vcolc * 3, b3dReadFloat() * 255
@@ -581,13 +608,11 @@ Function FloatToHalf(f#)
 	
 	If exponent
 		exponent = exponent - 127
-		If Abs(exponent) > $1F
+		If Abs(exponent) > 15
 			If exponent <> ($FF - 127) Then fraction = 0
-			exponent = $1F * Sgn(exponent)
-		Else
-			exponent = exponent + 15
+			exponent = 15 * Sgn(exponent)
 		EndIf
-		exponent = exponent And %11111
+		exponent = (exponent + 15) And %11111
 	EndIf
 	fraction = fraction Shr 13
 	
@@ -665,11 +690,11 @@ Function b3dChunkSize()
 End Function
 
 
+
  
 ;~C#Blitz3D
 ;~IDEal Editor Parameters:
-;~F#23#27#2E#41#6A#78#AA#178#18F#19C#1C1#1C5#1D2#1DD#1E3#1E9#1EF#1F6#202#208
-;~F#22A#23A#254#25A#26C#273#277#27B#27F#287#291#296
+;~F#27#2B#32#45#71#7F#AE#C3#193#1AA#1B7#1DC#1E0#1ED#1F8#1FE#204#20A#211#21D
+;~F#223#245#255#26D#273#285#28C#290#294#298#2A0#2AA#2AF
 ;~L#-fsize=16 ninja.b3d
- 
 ;~C#Blitz3D

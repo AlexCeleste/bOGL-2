@@ -8,7 +8,7 @@ keyframe information to be loaded by the bOGL 3D engine for BlitzPlus.
 bOGL has only comparatively very simple entity definitions with a very limited
 range of options, and has no need for the large amount of data provided by
 complicated formats such as B3D. The format chose a flat layout because it is
-tailored for the bOGL engine and therefore trades protability for size and
+tailored for the bOGL engine and therefore trades portability for size and
 simplicity of loading and linking.
 
 
