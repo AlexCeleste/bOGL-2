@@ -205,7 +205,7 @@ End Function
 
 Function VertexNormal(handler, v, nx#, ny#, nz#)
 	Local this.bOGL_Ent = bOGL_EntList_(handler), m.bOGL_Mesh = this\m, ptr = v * BOGL_VERT_STRIDE
-	PokeFloat m\vp, ptr + 8, nx : PokeFloat m\vp, ptr + 12, ny : PokeFloat m\vp, ptr + 16, nz
+	PokeFloat m\vp, ptr + 8, nx : PokeFloat m\vp, ptr + 12, ny : PokeFloat m\vp, ptr + 16, nz : m\Nv = 0
 End Function
 
 Function VertexColor(handler, v, r, g, b)

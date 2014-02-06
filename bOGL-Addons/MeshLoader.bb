@@ -239,7 +239,7 @@ End Function
 Function SaveOBJMesh(mesh, file$)
 	Local f = WriteFile(file) : If Not f Then Return
 	WriteLine f, "# Exported from bOGL"
-	LOADER_WriteObj_ f, mesh	;Recurse down the children (will lose structure)
+	LOADER_WriteObj_ f, mesh, mesh	;Recurse down the children (will lose structure)
 	CloseFile f
 End Function
 
@@ -416,18 +416,17 @@ Function LOADER_LoadEntityDef_(bk, p[0], tgt, ID)
 	Return entH
 End Function
 
-Function LOADER_WriteObj_(f, ent)
+Function LOADER_WriteObj_(f, root, ent)
 	Local this.bOGL_Ent = bOGL_EntList_(ent), m.bOGL_Mesh = this\m, ch
 	For ch = 0 To CountChildren(ent) - 1
-		LOADER_WriteObj_ f, GetChildEntity(ent, ch)
+		LOADER_WriteObj_ f, root, GetChildEntity(ent, ch)
 	Next
 	If this\eClass = BOGL_CLASS_MESH
 		WriteLine f, "o " + this\name
-		Local v, vtmax = CountVertices(ent) - 1, t, l$
+		Local v, vtmax = CountVertices(ent) - 1, t, l$, out#[2]
 		For v = 0 To vtmax
-			l = "v " + PeekFloat(m\vp, v * BOGL_VERT_STRIDE + 20)
-			l = l + " " + PeekFloat(m\vp, v * BOGL_VERT_STRIDE + 24)
-			WriteLine f, l + " " + PeekFloat(m\vp, v * BOGL_VERT_STRIDE + 28)
+			TFormPoint VertexX(ent, v), VertexY(ent, v), VertexZ(ent, v), ent, root, out
+			WriteLine f, "v " + out[0] + " " + out[1] + " " + out[2]
 		Next
 		For v = 0 To vtmax
 			l = "vt " + PeekFloat(m\vp, v * BOGL_VERT_STRIDE)
@@ -496,12 +495,13 @@ Function LOADER_ExpandVertexData_(vp)
 End Function
 
 Function LOADER_UpdateBones_(m.bOGL_BoneEntData_)
-	Local ent.bOGL_Ent = m\ent, msh.bOGL_Mesh = ent\m
+	Local ent.bOGL_Ent = m\ent, msh.bOGL_Mesh = ent\m, mshvp = msh\vp
 	If Not ent\Gv Then bOGL_UpdateGlobalPosition_ ent
 	If Not ent\g_Rv Then bOGL_UpdateAxisAngle_ ent\g_r, ent\g_q
 	
 	Local boneC = BankSize(m\bones) / 12, bi
-	Local tmp_ro# = ent\g_r[0] : ent\g_r[0] = 360 - tmp_ro	;Pre-invert for faster tforms
+	Local tmp_ro = Int(-ent\g_r[0] * Float MESH_SIN_ACC) Mod MESH_SLT_SIZE	;Pre-calc lookup for faster tforms
+	If tmp_ro < 0 Then tmp_ro = tmp_ro + MESH_SLT_SIZE
 	
 	For bi = 0 To boneC - 1
 		Local bone.bOGL_Ent = bOGL_EntList_(PeekInt(m\bones, bi * 12)), vBank = PeekInt(m\verts, (bi + 1) * 4)
@@ -511,20 +511,31 @@ Function LOADER_UpdateBones_(m.bOGL_BoneEntData_)
 			bOGL_UpdateAxisAngle_ bone\g_r, bone\g_q : bone\g_Rv = True
 		EndIf
 		
+		Local gx# = Abs(bone\g_sx * bone\sx), gy# = Abs(bone\g_sy * bone\sy), gz# = Abs(bone\g_sz * bone\sz)
+		
 		If vBank
 			For v = fV To lV
 				Local vi = v - fV, ptr = v * BOGL_VERT_STRIDE
 				
-				MESH_TFormFast_ PeekFloat(vBank, vi * 24 + 12), PeekFloat(vBank, vi * 24 + 16), PeekFloat(vBank, vi * 24 + 20), bone, ent, tfv
-				PokeFloat msh\vp, ptr + 20, tfv[0] : PokeFloat msh\vp, ptr + 24, tfv[1] : PokeFloat msh\vp, ptr + 28, tfv[2]
+				Local lpx# = PeekFloat(vBank, vi * 24 + 12), lpy# = PeekFloat(vBank, vi * 24 + 16), lpz# = PeekFloat(vBank, vi * 24 + 20)
+				MESH_TFormFast2_ lpx, lpy, lpz, bone, ent, tfv, tmp_ro
+				PokeFloat mshvp, ptr + 20, tfv[0] : PokeFloat mshvp, ptr + 24, tfv[1] : PokeFloat mshvp, ptr + 28, tfv[2]
 				
-				MESH_TFormFast_ PeekFloat(vBank, vi * 24), PeekFloat(vBank, vi * 24 + 4), PeekFloat(vBank, vi * 24 + 8), bone, ent, tfv
-				PokeFloat msh\vp, ptr + 8, tfv[0] : PokeFloat msh\vp, ptr + 12, tfv[1] : PokeFloat msh\vp, ptr + 16, tfv[2]
+				Local lnx# = PeekFloat(vBank, vi * 24), lny# = PeekFloat(vBank, vi * 24 + 4), lnz# = PeekFloat(vBank, vi * 24 + 8), tfn#[2]
+				MESH_TFormFast2_ lnx + lpx, lny + lpy, lnz + lpz, bone, ent, tfn, tmp_ro
+				
+				tfn[0] = tfn[0] - tfv[0]
+				tfn[1] = tfn[1] - tfv[1]
+				tfn[2] = tfn[2] - tfv[2]
+				Local l# = Sqr(tfn[0] * tfn[0] + tfn[1] * tfn[1] + tfn[2] * tfn[2])
+				PokeFloat mshvp, ptr + 8, (tfn[0] / l) * gx
+				PokeFloat mshvp, ptr + 12, (tfn[1] / l) * gy
+				PokeFloat mshvp, ptr + 16, (tfn[2] / l) * gz
 			Next
 		EndIf
 	Next
 	
-	ent\g_r[0] = tmp_ro	;Restore from inverted form!
+	msh\Nv = True
 End Function
 
 ;Get the file extension off a name
@@ -620,6 +631,6 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#15#25#2F#45#87#EE#F6#116#11C#128#1A2#1C5#1D5#1EA#1F1#212#21A#239#247#260
-;~F#264
+;~F#15#25#2F#45#87#EE#F6#116#11C#128#1A2#1C4#1D4#1E9#1F0#21D#225#244#252#26B
+;~F#26F
 ;~C#BlitzPlus

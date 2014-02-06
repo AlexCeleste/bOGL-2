@@ -39,7 +39,7 @@ EntityTexture ninja, tex : FreeTexture tex
 RotateEntity ninja, 0, 180, 0
 
 ; Next we need to load and apply an animation (there is no LoadAnimMesh - make one if you want)
-; Animatons are loaded "onto" an existing entity; it should have the same bone names
+; Animations are loaded "onto" an existing entity; it should have the same bone names
 ; Obviously in this case it will match perfectly
 LoadAnimation ninja, "Media\ninja.bo3d"
 ; The ninja can now be animated with Animate()
