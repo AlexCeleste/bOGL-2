@@ -322,18 +322,8 @@ Function MD2_FreeModel_(m.bOGL_MD2Model)
 End Function
 
 Function MD2_FinishCopy_(mesh)
-	Local ci, m.bOGL_MD2Model
-	
-	For ci = 0 To CountChildren(mesh) - 1
-		Local ch = GetChildEntity(mesh, ci)
-		m = Object.bOGL_MD2Model GetEntityUserData(ch, MD2_private_UDSlot_)
-		If m <> Null Then SetEntityUserData ch, MD2_private_UDSlot_, Handle MD2_CopyModel_(m, ch, mesh)
-	Next
-	
-	m = Object.bOGL_MD2Model GetEntityUserData(mesh, MD2_private_UDSlot_)
-	If m <> Null
-		SetEntityUserData mesh, MD2_private_UDSlot_, Handle MD2_CopyModel_(m, GetChildEntity(mesh, 0), mesh)
-	EndIf
+	Local ci, m.bOGL_MD2Model = Object.bOGL_MD2Model GetEntityUserData(mesh, MD2_private_UDSlot_)
+	If m <> Null Then SetEntityUserData mesh, MD2_private_UDSlot_, Handle MD2_CopyModel_(m, GetChildEntity(mesh, 0), mesh)
 End Function
 
 ; Since MD2s store XYZ and UV data separately we may have to selectively unweld some vertices for correct results
@@ -648,5 +638,5 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#10#26#30#50#6B#BC#E0#E5#EC#F1#F6#FB#11C#12C#135#143#153#16A#1AC#1D7
+;~F#10#26#30#50#6B#BC#E0#E5#EC#F1#F6#FB#11C#12C#135#143#149#160#1A2#1CD
 ;~C#BlitzPlus
