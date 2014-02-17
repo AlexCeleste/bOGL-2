@@ -15,7 +15,11 @@ PositionEntity light, 2, 6, -6
 PointEntity light, 0, 0, -6
 
 
-Local cube = CreateCube()
+Local piv = CreatePivot()
+;PositionEntity piv, 0, 0, -10
+;ScaleEntity piv, 2, 0.25, 2
+
+Local cube = CreateCube(piv)
 PaintEntity cube, 255, 0, 0
 PositionEntity cube, 0, 0, -10
 ScaleEntity cube, 2, 0.25, 2
@@ -30,7 +34,7 @@ PositionEntity c2, 3, -2, -10
 Local listener = CreateBank()
 SetCollisionListener listener
 
-MakeBlocker cube, 4, 0.5, 4, COLL_RESPONSE_POST
+MakeBlocker cube, 4, 0.5, 4, COLL_RESPONSE_POST + COLL_RESPONSE_STOP
 MakeCollider c2, 0.5
 
 

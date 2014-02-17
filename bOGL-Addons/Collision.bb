@@ -66,7 +66,7 @@ Function UpdateCollisions()
 	Next
 	COLL_Cons_(COLL_CBSize_ - 1, 1) = -1 : COLL_ConsFree_ = 0
 	
-	COLL_CellSz_ = COLL_private_MaxRadius_ * 2.5
+	COLL_CellSz_ = COLL_private_MaxRadius_ * 2;.5
 	COLL_XCells_ = (COLL_MaxX_ - COLL_MinX_) / COLL_CellSz_
 	COLL_YCells_ = (COLL_MaxY_ - COLL_MinY_) / COLL_CellSz_
 	COLL_ZCells_ = (COLL_MaxZ_ - COLL_MinZ_) / COLL_CellSz_
@@ -169,7 +169,18 @@ Function COLL_CheckCell_(slot)
 							EndIf
 						EndIf
 						If blk\resp And COLL_RESPONSE_STOP		;STOP - move the offending collider out of the block
+							Local xd# = (blk\xs / 2 + col\rad) - Abs(tf[0])
+							Local yd# = (blk\ys / 2 + col\rad) - Abs(tf[1])
+							Local zd# = (blk\zs / 2 + col\rad) - Abs(tf[2])
 							
+							If xd < yd And xd < zd
+								TFormPoint tf[0] + xd * Sgn(tf[0]), tf[1], tf[2], be, 0, tf
+							ElseIf yd < xd And yd < zd
+								TFormPoint tf[0], tf[1] + yd * Sgn(tf[1]), tf[2], be, 0, tf
+							Else
+								TFormPoint tf[0], tf[1], tf[2], be, 0, tf
+							EndIf
+							PositionEntity ce, tf[0], tf[1], tf[2], True
 						EndIf
 					EndIf
 				EndIf
@@ -216,7 +227,7 @@ End Function
 ;!   where
 ;!     p1 = 73856093, p2 = 19349663, p3 = 83492791, n = tablesize
 Function COLL_SpatialHash_(xc, yc, zc)
-	Return ((xc * 73856093) Xor (yc * 19349663) Xor (zc * 83492791)) Mod COLL_HTSize_
+	Return Abs((xc * 73856093) Xor (yc * 19349663) Xor (zc * 83492791)) Mod COLL_HTSize_
 End Function
 
 Function COLL_ExtendConsList_()
@@ -262,4 +273,5 @@ End Function
 
 
 ;~IDEal Editor Parameters:
+;~F#11#15#26#31#5A#60#64#6D#78#8A#8F#93#97#C3#D9#E4#E8#FD#10B
 ;~C#BlitzPlus
