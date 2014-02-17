@@ -21,19 +21,17 @@ End Function
 
 ;Minor optimisation to TFormPoint (src and dst never null, always valid, fast rotation)
 Function MESH_TFormFast_(x#, y#, z#, s.bOGL_Ent, d.bOGL_Ent, out#[2])
-	MESH_RotateVectorFast_ out, x, y, z, s\g_r
-	x = (s\g_x + out[0] * s\sx * s\g_sx - d\g_x) / d\g_sx
-	y = (s\g_y + out[1] * s\sy * s\g_sy - d\g_y) / d\g_sy
-	z = (s\g_z + out[2] * s\sz * s\g_sz - d\g_z) / d\g_sz
+	MESH_RotateVectorFast_ out, x * s\g_sx, y * s\g_sy, z * s\g_sz, s\g_r
+	x = (s\g_x + out[0] - d\g_x) : y = (s\g_y + out[1] - d\g_y) : z = (s\g_z + out[2] - d\g_z)
 	d\g_r[0] = -d\g_r[0] : MESH_RotateVectorFast_ out, x, y, z, d\g_r : d\g_r[0] = -d\g_r[0]
+	out[0] = out[0] / d\g_sx : out[1] = out[1] / d\g_sy : out[2] = out[2] / d\g_sz
 End Function
 
 Function MESH_TFormFast2_(x#, y#, z#, s.bOGL_Ent, d.bOGL_Ent, out#[2], ro)	;Precalculated lookup
-	MESH_RotateVectorFast_ out, x, y, z, s\g_r
-	x = (s\g_x + out[0] * s\sx * s\g_sx - d\g_x) / d\g_sx
-	y = (s\g_y + out[1] * s\sy * s\g_sy - d\g_y) / d\g_sy
-	z = (s\g_z + out[2] * s\sz * s\g_sz - d\g_z) / d\g_sz
+	MESH_RotateVectorFast_ out, x * s\g_sx, y * s\g_sy, z * s\g_sz, s\g_r
+	x = (s\g_x + out[0] - d\g_x) : y = (s\g_y + out[1] - d\g_y) : z = (s\g_z + out[2] - d\g_z)
 	MESH_RotateVectorFast2_ out, x, y, z, d\g_r, ro
+	out[0] = out[0] / d\g_sx : out[1] = out[1] / d\g_sy : out[2] = out[2] / d\g_sz
 End Function
 
 
@@ -71,5 +69,5 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#D#16#1E#2A#34#3F
+;~F#D#16#1D#28#32#3D
 ;~C#BlitzPlus

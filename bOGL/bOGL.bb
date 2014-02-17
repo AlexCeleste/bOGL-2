@@ -990,16 +990,17 @@ Function TFormPoint(x#, y#, z#, src, dst, out#[2])
 	If src
 		Local s.bOGL_Ent = bOGL_EntList_(src) : If Not s\Gv Then bOGL_UpdateGlobalPosition_ s
 		If Not s\g_Rv Then bOGL_UpdateAxisAngle_ s\g_r, s\g_q : s\g_Rv = True
-		bOGL_RotateVector_ out, x, y, z, s\g_r
-		out[0] = s\g_x + out[0] * s\sx * s\g_sx : out[1] = s\g_y + out[1] * s\sy * s\g_sy : out[2] = s\g_z + out[2] * s\sz * s\g_sz
+		bOGL_RotateVector_ out, x * s\g_sx, y * s\g_sy, z * s\g_sz, s\g_r
+		out[0] = s\g_x + out[0] : out[1] = s\g_y + out[1] : out[2] = s\g_z + out[2]
 	Else
 		out[0] = x : out[1] = y : out[2] = z
 	EndIf
 	If dst
 		Local d.bOGL_Ent = bOGL_EntList_(dst) : If Not d\Gv Then bOGL_UpdateGlobalPosition_ d
 		If Not d\g_Rv Then bOGL_UpdateAxisAngle_ d\g_r, d\g_q : d\g_Rv = True
-		x = (out[0] - d\g_x) / d\g_sx : y = (out[1] - d\g_y) / d\g_sy : z = (out[2] - d\g_z) / d\g_sz
+		x = (out[0] - d\g_x) : y = (out[1] - d\g_y) : z = (out[2] - d\g_z)
 		d\g_r[0] = -d\g_r[0] : bOGL_RotateVector_ out, x, y, z, d\g_r : d\g_r[0] = -d\g_r[0]
+		out[0] = out[0] / d\g_sx : out[1] = out[1] / d\g_sy : out[2] = out[2] / d\g_sz
 	EndIf
 End Function
 
@@ -1303,6 +1304,6 @@ End Function
 ;~F#BF#C3#C8#CD#D2#E0#E5#EA#EF#F4#F9#123#12F#149#14E#153#158#15C#161#169
 ;~F#172#178#182#18A#199#1A1#1A8#1AE#1B3#1BD#1C7#1CE#1D4#1E6#1EA#1EF#1F3#1FE#202#206
 ;~F#20A#215#219#248#26B#278#27D#28B#295#2A0#2A8#2B0#2B8#2C1#2CA#2D3#2F8#310#317#31E
-;~F#325#331#344#34E#3A3#3D8#3DC#3F7#416#424#43A#453#463#467#46C#471#47C#485#48C#491
-;~F#499#4AA#4B5#4C0#4DB#4E3#4F3#50B
+;~F#325#331#344#34E#3A3#3D8#3DC#3F8#417#425#43B#454#464#468#46D#472#47D#486#48D#492
+;~F#49A#4AB#4B6#4C1#4DC#4E4#4F4#50C
 ;~C#BlitzPlus
