@@ -16,22 +16,20 @@ Include "bOGL/bOGL.bb"
 
 
 Type COLL_Collider
-	Field e.bOGL_Ent
-	Field rad#;, oldx#, oldy#, oldz#
+	Field e.bOGL_Ent, rad#
 End Type
 
 Type COLL_Blocker
 	Field e.bOGL_Ent
 	Field xs#, ys#, zs#, rad#, resp
-;	Field dx#, dy#, dz#
 End Type
 
 
-Const COLL_RESPONSE_NONE = 0, COLL_RESPONSE_STOP = 1, COLL_RESPONSE_POST = 2, COLL_RESPONSE_MOVE = 5
+Const COLL_RESPONSE_NONE = 0, COLL_RESPONSE_STOP = 1, COLL_RESPONSE_POST = 2;, COLL_RESPONSE_MOVE = 5
 Const COLL_HASH_STARTSZ = 4096, COLL_BUF_STARTSZ = 1024, COLL_HASH_MINSZ = 256;no. cells, not abs size!
 Global COLL_private_UDSlot_ = -1, COLL_private_CopyStk_, COLL_private_FreeStk_, COLL_HTSize_, COLL_CBSize_
 Dim COLL_HashTbl_(0, 0), COLL_Cons_(0, 0) : Global COLL_ConsFree_
-Global COLL_Cbuff_.COLL_Collider, COLL_Bbuff_.COLL_Blocker;, COLL_Bhead_.COLL_Blocker, COLL_Chead_.COLL_Collider
+Global COLL_Cbuff_.COLL_Collider, COLL_Bbuff_.COLL_Blocker, COLL_private_CollListener_
 Global COLL_private_MaxRadius_#, COLL_MinX_#, COLL_MaxX_#, COLL_MinY_#, COLL_MaxY_#, COLL_MinZ_#, COLL_MaxZ_#
 
 
@@ -81,9 +79,13 @@ Function UpdateCollisions()
 		COLL_Bucketize_ b\e\handler, Handle b, b\rad, 1
 	Next
 	
-	;For each bucket
-	;	Test each collider against each blocker
-	;	Act on any detected collisions
+	If COLL_private_CollListener_ Then ResizeBank COLL_private_CollListener_, 0
+	
+	For i = 0 To COLL_HTSize_ - 1	;For each bucket
+		If COLL_HashTbl_(i, 0) <> -1 And COLL_HashTbl_(i, 1) <> -1
+			COLL_CheckCell_ i	;Test for and act on collisions
+		EndIf
+	Next
 End Function
 
 Function SetCollisionSpaceBounds(minX#, maxX#, minY#, maxY#, minZ#, maxZ#)
@@ -92,25 +94,32 @@ Function SetCollisionSpaceBounds(minX#, maxX#, minY#, maxY#, minZ#, maxZ#)
 	COLL_MinZ_ = minZ : COLL_MaxZ_ = maxZ
 End Function
 
+Function SetCollisionListener(bank)
+	COLL_private_CollListener_ = bank
+End Function
+
 Function MakeCollider(ent, radius#)
 	COLL_AllocTick_
 	Local c.COLL_Collider = New COLL_Collider
-	c\rad = radius
+	c\rad = radius : c\e = bOGL_EntList_(ent)
 	If radius > COLL_private_MaxRadius_ Then COLL_private_MaxRadius_ = radius
 	SetEntityUserData ent, COLL_private_UDSlot_, Handle c
+	Insert c Before COLL_Cbuff_
 End Function
 
 Function MakeBlocker(ent, xSize#, ySize#, zSize#, response)
 	COLL_AllocTick_
 	Local b.COLL_Blocker = New COLL_Blocker
+	b\e = bOGL_EntList_(ent)
 	b\xs = xSize : b\ys = ySize : b\zs = zSize : b\resp = response
 	b\rad = Sqr(xSize * xSize + ySize * ySize + zSize * zSize) / 2
 	If b\rad > COLL_private_MaxRadius_ Then COLL_private_MaxRadius_ = b\rad
 	SetEntityUserData ent, COLL_private_UDSlot_, Handle b
+	Insert b Before COLL_Bbuff_
 End Function
 
 Function SetCollisionState(ent, active)
-	Local h = GetEntityUserData ent, COLL_private_UDSlot_
+	Local h = GetEntityUserData(ent, COLL_private_UDSlot_)
 	Local c.COLL_Collider = Object.COLL_Collider h, b.COLL_Blocker
 	If c <> Null
 		If active Then Insert c Before COLL_Cbuff_ : Else Insert c After COLL_Cbuff_
@@ -140,14 +149,45 @@ Function COLL_CopyBlocker_(ent, b.COLL_Blocker)
 	MakeBlocker ent, b\xs, b\ys, b\zs, b\resp
 End Function
 
+Function COLL_CheckCell_(slot)
+	Local c = COLL_HashTbl_(slot, 0), tf#[2]
+	While c <> -1	;Test each collider against each blocker
+		Local b = COLL_HashTbl_(slot, 1), col.COLL_Collider = Object.COLL_Collider COLL_Cons_(c, 0), ce = col\e\handler
+		While b <> -1
+			Local blk.COLL_Blocker = Object.COLL_Blocker COLL_Cons_(b, 0), be = blk\e\handler
+			TFormPoint EntityX(ce, 1), EntityY(ce, 1), EntityZ(ce, 1), 0, be, tf
+			If Abs(tf[0]) < blk\xs / 2 + col\rad
+				If Abs(tf[1]) < blk\ys / 2 + col\rad
+					If Abs(tf[2]) < blk\zs / 2 + col\rad	;Collision detected
+						;Act on any detected collisions
+						If blk\resp And COLL_RESPONSE_POST		;POST - simply add to an externally-read list
+							Local lis = COLL_private_CollListener_
+							If lis <> 0
+								ResizeBank lis, BankSize(lis) + 8
+								PokeInt lis, BankSize(lis) - 8, COLL_Cons_(c, 0)
+								PokeInt lis, BankSize(lis) - 4, COLL_Cons_(b, 0)
+							EndIf
+						EndIf
+						If blk\resp And COLL_RESPONSE_STOP		;STOP - move the offending collider out of the block
+							
+						EndIf
+					EndIf
+				EndIf
+			EndIf
+			b = COLL_Cons_(b, 1)
+		Wend
+		c = COLL_Cons_(c, 1)
+	Wend
+End Function
+
 Global COLL_CellSz_#, COLL_XCells_#, COLL_YCells_#, COLL_ZCells_#
 
 Function COLL_Bucketize_(ent, h, radius#, ch)
-	Local ex# = EntityX(ent, 1), ey# = EntityY(ent, 1), ez# = EntityZ(ent, 1)
+	Local ex# = EntityX(ent, 1) - COLL_MinX_, ey# = EntityY(ent, 1) - COLL_MinY_, ez# = EntityZ(ent, 1) - COLL_MinZ_
 	
-	Local xc = Floor(ex / COLL_XCells_), xprop# = ex - (xc * COLL_CellSz_)
-	Local yc = Floor(ey / COLL_YCells_), yprop# = ey - (yc * COLL_CellSz_)
-	Local zc = Floor(ez / COLL_ZCells_), zprop# = ez - (zc * COLL_CellSz_)
+	Local xc = Floor(ex / COLL_CellSz_), xprop# = ex - (xc * COLL_CellSz_)
+	Local yc = Floor(ey / COLL_CellSz_), yprop# = ey - (yc * COLL_CellSz_)
+	Local zc = Floor(ez / COLL_CellSz_), zprop# = ez - (zc * COLL_CellSz_)
 	
 	Local xm = 0, ym = 0, zm = 0
 	If xprop < radius Then xm = -1 ElseIf xprop > COLL_CellSz_ - radius Then xm = +1
