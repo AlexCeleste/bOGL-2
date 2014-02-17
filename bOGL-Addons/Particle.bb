@@ -62,11 +62,11 @@ Function InitParticleAddon()		;Only call this once per program
 End Function
 
 Function UpdateParticles(camera, rate# = 1.0)
-	Local c, doClear = False, cTime = MilliSecs(), tDiff = cTime - PART_private_LastUpdate_
+	Local c, cTime = MilliSecs(), tDiff = cTime - PART_private_LastUpdate_
 	If tDiff > PART_TDIFF_MAX Then tDiff = 0
 	
 	;Something has been deleted
-	If BankSize(PART_private_FreeStk_) Then ResizeBank PART_private_FreeStk_, 0 : doClear = True
+	If BankSize(PART_private_FreeStk_) Then ResizeBank PART_private_FreeStk_, 0 : PART_ClearUnused_
 	If BankSize(PART_private_CopyStk_)	;Something has been copied
 		For c = 0 To BankSize(PART_private_CopyStk_) - 4 Step 4
 			PART_FinishCopy_ PeekInt(PART_private_CopyStk_, c)
@@ -78,8 +78,12 @@ Function UpdateParticles(camera, rate# = 1.0)
 	Local e.PART_Emitter : For e = Each PART_Emitter
 		If e = PART_buffer_ Then Exit
 		PART_UpdateEmitter_ e, camera, rate, tDiff
+		If e\dur <= 0 And e\pCount <= 0
+			Local n.PART_Emitter = e
+			e = Before e : Insert n After PART_buffer_
+			If e = Null Then e = PART_header_ : Insert e Before First PART_Emitter
+		EndIf
 	Next
-	If doClear Then PART_ClearUnused_
 	Insert PART_header_ Before First PART_Emitter
 	
 	PART_private_LastUpdate_ = cTime
@@ -257,8 +261,6 @@ Function PART_UpdateEmitter_(e.PART_Emitter, camera, rate#, tDiff)
 			PART_AddParticle_ e
 		Wend
 		e\dur = e\dur - tDiff
-	Else
-		If e\pCount <= 0 Then Insert e After Last PART_Emitter : Return
 	EndIf
 	
 	SetEntityParent e\mesh, camera	;This may cause confusion later... document well
@@ -359,6 +361,6 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#17#37#3F#57#5F#65#6A#78#7D#82#87#91#96#9B#A0#A6#B2#D0#E0#11D
-;~F#148#152#157#162
+;~F#17#37#3F#5B#63#69#6E#7C#81#86#8B#95#9A#9F#A4#AA#B6#D4#E4#11F
+;~F#14A#154#159#164
 ;~C#BlitzPlus
