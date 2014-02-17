@@ -1,0 +1,19 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Blitz source files
+*.bb     text eol=crlf
+*.decls  text eol=crlf
+*.ipf    text eol=crlf
+
+# bOGL data files
+*.jpg  binary
+*.png  binary
+*.PNG  binary
+*.b3d  binary
+*.bo3d binary
+*.md2  binary
+*.obj  binary
+
+# Documentation
+*.md     text eol=crlf

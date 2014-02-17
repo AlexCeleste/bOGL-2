@@ -1,0 +1,17 @@
+*.exe
+*.o
+*.dll
+*.com
+*.png
+*.bmp
+*.jpg
+*.obj
+*.wings
+*.db
+*.md2
+*.mtl
+*.b3d
+*.bo3d
+*.bmx
+*.mht
+temp/*
