@@ -34,8 +34,8 @@ Const BOGL_EPSILON# = 0.001, BOGL_LIGHT_EPSILON# = 1.0 / 255.0
 Type bOGL_Ent
 	Field handler, parentH
 	Field hidden, userData, name$
-	Field x#, y#, z#, sx#, sy#, sz#, r#[3], q#[3], Rv, Qv
-	Field g_x#, g_y#, g_z#, g_sx#, g_sy#, g_sz#, g_r#[3], g_q#[3], g_Rv, g_Qv, Gv
+	Field x#, y#, z#, sx#, sy#, sz#, q#[3]
+	Field g_x#, g_y#, g_z#, g_sx#, g_sy#, g_sz#, g_q#[3], Gv
 	Field eClass, c.bOGL_Cam, l.bOGL_Light, m.bOGL_Mesh
 	Field children
 End Type
@@ -386,8 +386,7 @@ End Function
 
 Function MoveEntity(handler, x#, y#, z#)
 	Local this.bOGL_Ent = bOGL_EntList_(handler), v#[2]
-	If Not this\Rv Then bOGL_UpdateAxisAngle_ this\r, this\q : this\Rv = True
-	bOGL_RotateVector_ v, x, y, z, this\r
+	bOGL_QuatRotateVector_ v, x, y, z, this\q
 	this\x = this\x + v[0] : this\y = this\y + v[1] : this\z = this\z + v[2]
 	bOGL_InvalidateGlobalPosition_ this
 End Function
@@ -396,23 +395,21 @@ Function RotateEntity(handler, x#, y#, z#, absolute = False)
 	Local this.bOGL_Ent = bOGL_EntList_(handler)
 	If (absolute <> 0) And (this\parentH <> 0)
 		Local p.bOGL_Ent = bOGL_EntList_(this\parentH), q#[3]
-		If Not p\g_Qv Then bOGL_UpdateQuat_ p\g_q, p\g_r
 		If Not p\Gv Then bOGL_UpdateGlobalPosition_ p
 		bOGL_QuatFromEuler_ q, x, y, z
 		p\g_q[0] = -p\g_q[0] : bOGL_QuatMul_ this\q, q, p\g_q : p\g_q[0] = -p\g_q[0]
 	Else
 		bOGL_QuatFromEuler_ this\q, x, y, z
 	EndIf
-	bOGL_NormaliseQuat_ this\q : this\Qv = True : this\Rv = False
+	bOGL_NormaliseQuat_ this\q
 	bOGL_InvalidateGlobalPosition_ this
 End Function
 
 Function TurnEntity(handler, x#, y#, z#)
 	Local this.bOGL_Ent = bOGL_EntList_(handler), turn#[3], res#[3] : bOGL_QuatFromEuler_ turn, x, y, z
-	If Not this\Qv Then bOGL_UpdateQuat_ this\q, this\r : this\Qv = True
 	bOGL_QuatMul_ res, this\q, turn : bOGL_NormaliseQuat_ res
 	this\q[0] = res[0] : this\q[1] = res[1] : this\q[2] = res[2] : this\q[3] = res[3]
-	this\Rv = False : bOGL_InvalidateGlobalPosition_ this
+	bOGL_InvalidateGlobalPosition_ this
 End Function
 
 Function PointEntity(handler, x#, y#, z#, roll# = 0.0)
@@ -567,8 +564,7 @@ Function CopyEntity(handler, parentH = 0)
 	EndIf
 	
 	cp\x = old\x : cp\y = old\y : cp\z = old\z : cp\sx = old\sx : cp\sy = old\sy : cp\sz = old\sz
-	cp\r[0] = old\r[0] : cp\r[1] = old\r[1] : cp\r[2] = old\r[2] : cp\r[3] = old\r[3] : cp\Rv = old\Rv
-	cp\q[0] = old\q[0] : cp\q[1] = old\q[1] : cp\q[2] = old\q[2] : cp\q[3] = old\q[3] : cp\Qv = old\Qv
+	cp\q[0] = old\q[0] : cp\q[1] = old\q[1] : cp\q[2] = old\q[2] : cp\q[3] = old\q[3]
 	bOGL_InvalidateGlobalPosition_ cp, True
 	
 	cp\name = old\name : cp\hidden = old\hidden
@@ -636,15 +632,14 @@ Function RotateSubMesh(handler, vf, vt, rx#, ry#, rz#, cx#, cy#, cz#)
 End Function
 
 Function QuatRotateSubMesh(handler, vf, vt, q#[3], cx#, cy#, cz#)
-	Local this.bOGL_Ent = bOGL_EntList_(handler), m.bOGL_Mesh = this\m, v, p, r#[3]
-	bOGL_UpdateAxisAngle_ r, q
+	Local this.bOGL_Ent = bOGL_EntList_(handler), m.bOGL_Mesh = this\m, v, p
 	For v = vf To vt
 		p = v * BOGL_VERT_STRIDE
 		Local x# = PeekFloat(m\vp, p + 20), y# = PeekFloat(m\vp, p + 24), z# = PeekFloat(m\vp, p + 28)
-		Local vec#[2] : bOGL_RotateVector_ vec, x - cx, y - cy, z - cz, r
+		Local vec#[2] : bOGL_QuatRotateVector_ vec, x - cx, y - cy, z - cz, q
 		PokeFloat m\vp, p + 20, cx + vec[0] : PokeFloat m\vp, p + 24, cy + vec[1] : PokeFloat m\vp, p + 28, cz + vec[2]
 		x = PeekFloat(m\vp, p + 8) : y = PeekFloat(m\vp, p + 12) : z = PeekFloat(m\vp, p + 16)
-		bOGL_RotateVector_ vec, x - cx, y - cy, z - cz, r
+		bOGL_QuatRotateVector_ vec, x - cx, y - cy, z - cz, q
 		PokeFloat m\vp, p + 8, cx + vec[0] : PokeFloat m\vp, p + 12, cy + vec[1] : PokeFloat m\vp, p + 16, cz + vec[2]
 	Next
 End Function
@@ -695,7 +690,7 @@ Function EntityZ#(handler, absolute = False)
 End Function
 
 Function EntityXAngle#(handler, absolute = False)
-	Local e.bOGL_Ent = bOGL_EntList_(handler) : If Not e\Qv Then bOGL_UpdateQuat_ e\q, e\r : e\Qv = True
+	Local e.bOGL_Ent = bOGL_EntList_(handler)
 	If absolute
 		If Not e\Gv Then bOGL_UpdateGlobalPosition_ e
 		Return ATan2(2. * e\g_q[1] * e\g_q[0] - 2. * e\g_q[2] * e\g_q[3], 1. - 2. * e\g_q[1] * e\g_q[1] - 2. * e\g_q[3] * e\g_q[3])
@@ -704,7 +699,7 @@ Function EntityXAngle#(handler, absolute = False)
 End Function
 
 Function EntityYAngle#(handler, absolute = False)
-	Local e.bOGL_Ent = bOGL_EntList_(handler) : If Not e\Qv Then bOGL_UpdateQuat_ e\q, e\r : e\Qv = True
+	Local e.bOGL_Ent = bOGL_EntList_(handler)
 	If absolute
 		If Not e\Gv Then bOGL_UpdateGlobalPosition_ e
 		Return ATan2(2. * e\g_q[2] * e\g_q[0] - 2. * e\g_q[1] * e\g_q[3], 1. - 2. * e\g_q[2] * e\g_q[2] - 2. * e\g_q[3] * e\g_q[3])
@@ -713,7 +708,7 @@ Function EntityYAngle#(handler, absolute = False)
 End Function
 
 Function EntityZAngle#(handler, absolute = False)
-	Local e.bOGL_Ent = bOGL_EntList_(handler) : If Not e\Qv Then bOGL_UpdateQuat_ e\q, e\r : e\Qv = True
+	Local e.bOGL_Ent = bOGL_EntList_(handler)
 	If absolute
 		If Not e\Gv Then bOGL_UpdateGlobalPosition_ e
 		Return ASin(2. * e\g_q[1] * e\g_q[2] + 2. * e\g_q[3] * e\g_q[0])
@@ -989,17 +984,17 @@ End Function
 Function TFormPoint(x#, y#, z#, src, dst, out#[2])
 	If src
 		Local s.bOGL_Ent = bOGL_EntList_(src) : If Not s\Gv Then bOGL_UpdateGlobalPosition_ s
-		If Not s\g_Rv Then bOGL_UpdateAxisAngle_ s\g_r, s\g_q : s\g_Rv = True
-		bOGL_RotateVector_ out, x * s\g_sx, y * s\g_sy, z * s\g_sz, s\g_r
+		bOGL_QuatRotateVector_ out, x * s\g_sx, y * s\g_sy, z * s\g_sz, s\g_q
 		out[0] = s\g_x + out[0] : out[1] = s\g_y + out[1] : out[2] = s\g_z + out[2]
 	Else
 		out[0] = x : out[1] = y : out[2] = z
 	EndIf
 	If dst
 		Local d.bOGL_Ent = bOGL_EntList_(dst) : If Not d\Gv Then bOGL_UpdateGlobalPosition_ d
-		If Not d\g_Rv Then bOGL_UpdateAxisAngle_ d\g_r, d\g_q : d\g_Rv = True
 		x = (out[0] - d\g_x) : y = (out[1] - d\g_y) : z = (out[2] - d\g_z)
-		d\g_r[0] = -d\g_r[0] : bOGL_RotateVector_ out, x, y, z, d\g_r : d\g_r[0] = -d\g_r[0]
+		d\g_q[1] = -d\g_q[1] : d\g_q[2] = -d\g_q[2] : d\g_q[3] = -d\g_q[3]
+		bOGL_QuatRotateVector_ out, x, y, z, d\g_q
+		d\g_q[1] = -d\g_q[1] : d\g_q[2] = -d\g_q[2] : d\g_q[3] = -d\g_q[3]
 		out[0] = out[0] / d\g_sx : out[1] = out[1] / d\g_sy : out[2] = out[2] / d\g_sz
 	EndIf
 End Function
@@ -1131,22 +1126,6 @@ Function bOGL_ReleaseTexture_(this.bOGL_Tex)	;When there are no more references 
 	If this\rc < 1 Then glDeleteTextures 1, this : Delete this
 End Function
 
-Function bOGL_UpdateQuat_(q#[3], r#[3])	;Convert normalised axis-angle r[3] to normalised quaternion q[3]
-	q[0] = Cos(r[0] / 2.)		;w
-	q[1] = r[1] * Sin(r[0] / 2.) : q[2] = r[2] * Sin(r[0] / 2.) : q[3] = r[3] * Sin(r[0] / 2.)
-End Function
-
-Function bOGL_UpdateAxisAngle_(r#[3], q#[3])	;Convert normalised quaternion q[3] to normalised axis-angle r[3]
-	If Abs q[0] > 1. Then bOGL_NormaliseQuat_ q
-	r[0] = 2 * ACos(q[0])
-	Local s# = Sqr(1. - q[0] * q[0])
-	If s >= BOGL_EPSILON
-		r[1] = q[1] / s : r[2] = q[2] / s : r[3] = q[3] / s
-	Else
-		r[1] = 1. : r[2] = 0. : r[3] = 0.
-	EndIf
-End Function
-
 Function bOGL_QuatFromEuler_(q#[3], x#, y#, z#)
 	Local c1# = Cos(y / 2.), c2# = Cos(z / 2.), c3# = Cos(x / 2.)
     Local s1# = Sin(y / 2.), s2# = Sin(z / 2.), s3# = Sin(x / 2.)
@@ -1168,27 +1147,37 @@ Function bOGL_NormaliseQuat_(q#[3])
 	q[0] = q[0] / l : q[1] = q[1] / l : q[2] = q[2] / l : q[3] = q[3] / l
 End Function
 
-Function bOGL_RotateVector_(out#[2], x#, y#, z#, r#[3])	;Rotate a vector x,y,z by normalised axis-angle r (Rodrigues' rotation)
-	Local cth# = Cos(r[0]), sth# = Sin(r[0])	; vrot = v cos(theta) + (k cross v) sin(theta) + k(k dot v)(1 - cos(theta))
-	Local kdv# = (r[1] * x + r[2] * y + r[3] * z) * (1. - cth)	;(k dot v)(1 - cos(theta))
-	out[0] = cth * x + sth * (r[2] * z - r[3] * y) + r[1] * kdv
-	out[1] = cth * y + sth * (r[3] * x - r[1] * z) + r[2] * kdv
-	out[2] = cth * z + sth * (r[1] * y - r[2] * x) + r[3] * kdv
+Function bOGL_QuatRotateVector_(out#[2], x#, y#, z#, q#[3])
+	Local tx# = (q[2] * z - q[3] * y) * 2.0 ;from http://molecularmusings.wordpress.com/2013/05/24/a-faster-quaternion-vector-multiplication/
+	Local ty# = (q[3] * x - q[1] * z) * 2.0
+	Local tz# = (q[1] * y - q[2] * x) * 2.0
+	out[0] = (x + q[0] * tx) + (q[2] * tz - q[3] * ty)
+	out[1] = (y + q[0] * ty) + (q[3] * tx - q[1] * tz)
+	out[2] = (z + q[0] * tz) + (q[1] * ty - q[2] * tx)
+End Function
+
+Function bOGL_QuatToAxisAngle_(r#[3], q#[3])	;Convert normalised quaternion q[3] to normalised axis-angle r[3]
+	If Abs q[0] > 1. Then bOGL_NormaliseQuat_ q
+	r[0] = 2 * ACos(q[0])
+	Local s# = Sqr(1. - q[0] * q[0])
+	If s >= BOGL_EPSILON
+		r[1] = q[1] / s : r[2] = q[2] / s : r[3] = q[3] / s
+	Else
+		r[1] = 1. : r[2] = 0. : r[3] = 0.
+	EndIf
 End Function
 
 Function bOGL_UpdateGlobalPosition_(ent.bOGL_Ent)
 	If ent\parentH
-		Local par.bOGL_Ent = bOGL_EntList_(ent\parentH), pos#[2] : TFormPoint ent\x * par\sx, ent\y * par\sy, ent\z * par\sz, par\handler, 0, pos
-		ent\g_x = pos[0] : ent\g_y = pos[1] : ent\g_z = pos[2] : ent\g_sx = par\sx : ent\g_sy = par\sy : ent\g_sz = par\sz
-		If Not ent\Qv Then bOGL_UpdateQuat_ ent\q, ent\r : ent\Qv = True
-		If Not par\Qv Then bOGL_UpdateQuat_ par\q, par\r : par\Qv = True
+		Local par.bOGL_Ent = bOGL_EntList_(ent\parentH), pos#[2]
+		TFormPoint ent\x * par\sx, ent\y * par\sy, ent\z * par\sz, par\handler, 0, pos
+		ent\g_x = pos[0] : ent\g_y = pos[1] : ent\g_z = pos[2]
+		ent\g_sx = par\sx : ent\g_sy = par\sy : ent\g_sz = par\sz
 		Local q#[3] : bOGL_QuatMul_ q, par\g_q, ent\q : bOGL_NormaliseQuat_ q
 		ent\g_q[0] = q[0] : ent\g_q[1] = q[1] : ent\g_q[2] = q[2] : ent\g_q[3] = q[3]
-		ent\g_Qv = True : ent\g_Rv = False
 	Else
 		ent\g_x = ent\x : ent\g_y = ent\y : ent\g_z = ent\z : ent\g_sx = 1.0 : ent\g_sy = 1.0 : ent\g_sz = 1.0
-		ent\g_r[0] = ent\r[0] : ent\g_r[1] = ent\r[1] : ent\g_r[2] = ent\r[2] : ent\g_r[3] = ent\r[3] : ent\g_Rv = ent\Rv
-		ent\g_q[0] = ent\q[0] : ent\g_q[1] = ent\q[1] : ent\g_q[2] = ent\q[2] : ent\g_q[3] = ent\q[3] : ent\g_Qv = ent\Qv
+		ent\g_q[0] = ent\q[0] : ent\g_q[1] = ent\q[1] : ent\g_q[2] = ent\q[2] : ent\g_q[3] = ent\q[3]
 	EndIf
 	ent\Gv = True
 End Function
@@ -1284,8 +1273,9 @@ Function bOGL_InitializeRenderCamera_(cam.bOGL_Cam)	;Identical code shared by Re
 	; Rotate camera
 	glPushMatrix
 	If Not cam\ent\Gv Then bOGL_UpdateGlobalPosition_ cam\ent
-	bOGL_NormaliseQuat_ cam\ent\g_q : bOGL_UpdateAxisAngle_ cam\ent\g_r, cam\ent\g_q : cam\ent\g_Rv = True	;Always normalise
-	glRotatef -cam\ent\g_r[0], cam\ent\g_r[1], cam\ent\g_r[2], cam\ent\g_r[3]
+	bOGL_NormaliseQuat_ cam\ent\g_q
+	Local r#[3] : bOGL_QuatToAxisAngle_ r, cam\ent\g_q
+	glRotatef -r[0], r[1], r[2], r[3]
 	glTranslatef -cam\ent\g_x, -cam\ent\g_y, -cam\ent\g_z
 	glScalef cam\ent\g_sx * cam\ent\sx, cam\ent\g_sy * cam\ent\sy, cam\ent\g_sz * cam\ent\sz
 End Function
@@ -1293,8 +1283,8 @@ End Function
 Function bOGL_PushEntityTransform_(ent.bOGL_Ent)		;Push a mesh's position, rotation and scale for rendering (shared)
 	If Not ent\Gv Then bOGL_UpdateGlobalPosition_ ent
 	glTranslatef ent\g_x, ent\g_y, ent\g_z
-	If Not ent\g_Rv Then bOGL_UpdateAxisAngle_ ent\g_r, ent\g_q : ent\g_Rv = True
-	glRotatef ent\g_r[0], ent\g_r[1], ent\g_r[2], ent\g_r[3]
+	Local r#[3] : bOGL_QuatToAxisAngle_ r, ent\g_q
+	glRotatef r[0], r[1], r[2], r[3]
 	glScalef ent\sx * ent\g_sx, ent\sy * ent\g_sy, ent\sz * ent\g_sz
 End Function
 
@@ -1302,8 +1292,8 @@ End Function
 ;~IDEal Editor Parameters:
 ;~F#21#2A#31#36#3C#41#49#50#54#5B#5F#65#73#8C#91#96#A1#AD#B7#BB
 ;~F#BF#C3#C8#CD#D2#E0#E5#EA#EF#F4#F9#123#12F#149#14E#153#158#15C#161#169
-;~F#172#178#182#18A#199#1A1#1A8#1AE#1B3#1BD#1C7#1CE#1D4#1E6#1EA#1EF#1F3#1FE#202#206
-;~F#20A#215#219#248#26B#278#27D#28B#295#2A0#2A8#2B0#2B8#2C1#2CA#2D3#2F8#310#317#31E
-;~F#325#331#344#34E#3A3#3D8#3DC#3F8#417#425#43B#454#464#468#46D#472#47D#486#48D#492
-;~F#49A#4AB#4B6#4C1#4DC#4E4#4F4#50C
+;~F#172#178#182#189#197#19E#1A5#1AB#1B0#1BA#1C4#1CB#1D1#1E3#1E7#1EC#1F0#1FB#1FF#203
+;~F#207#212#216#244#267#274#279#286#290#29B#2A3#2AB#2B3#2BC#2C5#2CE#2F3#30B#312#319
+;~F#320#32C#33F#349#39E#3D3#3D7#3F3#412#420#436#44F#45F#463#468#471#478#47D#486#491
+;~F#4A0#4AB#4B6#4D1#4D9#4E9#502
 ;~C#BlitzPlus

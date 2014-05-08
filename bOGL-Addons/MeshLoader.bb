@@ -42,7 +42,6 @@ Function InitMeshLoaderAddon()		;Only call this once per program
 	LOADER_header_ = New bOGL_BoneEntData_
 	LOADER_buffer_ = New bOGL_BoneEntData_
 	LOADER_private_FBank_ = CreateBank(4)
-	MESH_InitMeshUtils_
 End Function
 
 Function LoadMesh(file$, parent = 0)
@@ -102,7 +101,6 @@ Function LoadBO3D(bk, start, size)
 		If Not GetEntityParent(LOADER_Ents_(i)) Then SetEntityParent LOADER_Ents_(i), LOADER_Ents_(0)
 		Local ent.bOGL_Ent = bOGL_EntList_(LOADER_Ents_(i))
 		bOGL_UpdateGlobalPosition_ ent
-		bOGL_UpdateAxisAngle_ ent\g_r, ent\g_q : ent\g_Rv = True
 	Next
 	
 	For i = 0 To eCount - 1	;Update bone banks with correct entity handles
@@ -321,7 +319,6 @@ Function LOADER_LoadEntityDef_(bk, p[0], tgt, ID)
 	;Local rotation quaternion
 	ent\q[0] = PeekFloat(bk, st + 32) : ent\q[1] = PeekFloat(bk, st + 36)
 	ent\q[2] = PeekFloat(bk, st + 40) : ent\q[3] = PeekFloat(bk, st + 44)
-	ent\Qv = True : ent\Rv = False
 	
 	;Anim length and keyframes are just loaded dumbly since this is not an anim module
 	Local aLen = PeekInt(bk, st + 48), kC = PeekInt(bk, st + 52)
@@ -497,19 +494,13 @@ End Function
 Function LOADER_UpdateBones_(m.bOGL_BoneEntData_)
 	Local ent.bOGL_Ent = m\ent, msh.bOGL_Mesh = ent\m, mshvp = msh\vp
 	If Not ent\Gv Then bOGL_UpdateGlobalPosition_ ent
-	If Not ent\g_Rv Then bOGL_UpdateAxisAngle_ ent\g_r, ent\g_q
 	
 	Local boneC = BankSize(m\bones) / 12, bi
-	Local tmp_ro = Int(-ent\g_r[0] * Float MESH_SIN_ACC) Mod MESH_SLT_SIZE	;Pre-calc lookup for faster tforms
-	If tmp_ro < 0 Then tmp_ro = tmp_ro + MESH_SLT_SIZE
 	
 	For bi = 0 To boneC - 1
 		Local bone.bOGL_Ent = bOGL_EntList_(PeekInt(m\bones, bi * 12)), vBank = PeekInt(m\verts, (bi + 1) * 4)
 		Local fV = PeekInt(m\bones, bi * 12 + 4), lV = PeekInt(m\bones, bi * 12 + 8), v, tfv#[2]
-		If Not bone\Gv
-			bOGL_UpdateGlobalPosition_ bone
-			bOGL_UpdateAxisAngle_ bone\g_r, bone\g_q : bone\g_Rv = True
-		EndIf
+		If Not bone\Gv Then bOGL_UpdateGlobalPosition_ bone
 		
 		Local gx# = Abs(bone\g_sx * bone\sx), gy# = Abs(bone\g_sy * bone\sy), gz# = Abs(bone\g_sz * bone\sz)
 		
@@ -518,11 +509,11 @@ Function LOADER_UpdateBones_(m.bOGL_BoneEntData_)
 				Local vi = v - fV, ptr = v * BOGL_VERT_STRIDE
 				
 				Local lpx# = PeekFloat(vBank, vi * 24 + 12), lpy# = PeekFloat(vBank, vi * 24 + 16), lpz# = PeekFloat(vBank, vi * 24 + 20)
-				MESH_TFormFast2_ lpx, lpy, lpz, bone, ent, tfv, tmp_ro
+				MESH_TFormFast3_ lpx, lpy, lpz, bone, ent, tfv
 				PokeFloat mshvp, ptr + 20, tfv[0] : PokeFloat mshvp, ptr + 24, tfv[1] : PokeFloat mshvp, ptr + 28, tfv[2]
 				
 				Local lnx# = PeekFloat(vBank, vi * 24), lny# = PeekFloat(vBank, vi * 24 + 4), lnz# = PeekFloat(vBank, vi * 24 + 8), tfn#[2]
-				MESH_TFormFast2_ lnx + lpx, lny + lpy, lnz + lpz, bone, ent, tfn, tmp_ro
+				MESH_TFormFast3_ lnx + lpx, lny + lpy, lnz + lpz, bone, ent, tfn
 				
 				tfn[0] = tfn[0] - tfv[0]
 				tfn[1] = tfn[1] - tfv[1]
@@ -631,6 +622,6 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#15#25#2F#45#87#EE#F6#116#11C#128#1A2#1C4#1D4#1E9#1F0#21D#225#244#252#26B
-;~F#26F
+;~F#15#25#2E#44#85#EC#F4#114#11A#126#19F#1C1#1D1#1E6#1ED#214#21C#23B#249#262
+;~F#266
 ;~C#BlitzPlus

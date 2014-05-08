@@ -45,7 +45,6 @@ Function InitAnimationAddon()		;Only call this once per program
 	ANIM_private_FreeStk_ = CreateBank(0)
 	ANIM_header_ = New bOGL_Animation
 	ANIM_buffer_ = New bOGL_Animation
-	MESH_InitMeshUtils_
 End Function
 
 ; Call this once per loop to update entity positions
@@ -315,7 +314,7 @@ Function ANIM_UpdateNodePositions_(m.bOGL_Animation)
 			node\q[1] = pol1 * PeekFloat(frames, fP + 32) + pol0 * PeekFloat(frames, tP + 32)
 			node\q[2] = pol1 * PeekFloat(frames, fP + 36) + pol0 * PeekFloat(frames, tP + 36)
 			node\q[3] = pol1 * PeekFloat(frames, fP + 40) + pol0 * PeekFloat(frames, tP + 40)
-			bOGL_NormaliseQuat_ node\q : node\Rv = False
+			bOGL_NormaliseQuat_ node\q
 			
 			bOGL_InvalidateGlobalPosition_ node, True
 		EndIf
@@ -421,5 +420,5 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#14#29#33#53#5A#A6#AC#D0#D5#DA#DF#E5#EF#11A#144#148#164#17A
+;~F#14#29#32#52#59#A5#AB#CF#D4#D9#DE#E4#EE#119#143#147#163#179
 ;~C#BlitzPlus
