@@ -246,7 +246,7 @@ Function ACT3_ExecuteAction_(a.ACT3_Action, s#)
 			e\q[1] = ACT3_Pol_(a, a\t0, a\t1)
 			e\q[2] = ACT3_Pol_(a, a\u0, a\u1)
 			e\q[3] = ACT3_Pol_(a, a\v0, a\v1)
-			bOGL_NormaliseQuat_ e\q : e\Qv = 1 : e\Rv = 0 : bOGL_InvalidateGlobalPosition_ e
+			bOGL_NormaliseQuat_ e\q : bOGL_InvalidateGlobalPosition_ e
 			
 		Case ACT3_TYPE_S2
 			e\sx = ACT3_Pol_(a, a\s0, a\s1)
@@ -351,7 +351,6 @@ Function ACT3_Unpack_(a.ACT3_Action)	;Fill out start and target data from offset
 			a\aType = ACT3_TYPE_M2
 			
 		Case ACT3_TYPE_TB
-			If Not e\Qv Then bOGL_UpdateQuat_ e\q, e\r : e\Qv = True
 			Local qi#[3], qo#[3] : qi[0] = a\s0 : qi[1] = a\t0 : qi[2] = a\u0 : qi[3] = a\v0
 			bOGL_QuatMul_ qo, e\q, qi
 			a\s0 = e\q[0] : a\t0 = e\q[1] : a\u0 = e\q[2] : a\v0 = e\q[3]
@@ -383,7 +382,6 @@ Function ACT3_Unpack_(a.ACT3_Action)	;Fill out start and target data from offset
 			
 		Case ACT3_TYPE_T2
 			a\s1 = a\s0 : a\t1 = a\t0 : a\u1 = a\u0 : a\v1 = a\v0
-			If Not e\Qv Then bOGL_UpdateQuat_ e\q, e\r : e\Qv = True
 			a\s0 = e\q[0] : a\t0 = e\q[1] : a\u0 = e\q[2] : a\v0 = e\q[3]
 			
 		Case ACT3_TYPE_S2
@@ -443,5 +441,5 @@ End Function
 
 ;~IDEal Editor Parameters:
 ;~F#18#1C#35#3F#5C#62#66#70#78#7C#80#84#89#8D#91#95#99#9E#A2#A6
-;~F#AA#AE#B2#B6#BE#E7#127#136#151#157#198#1A5
+;~F#AA#AE#B2#B6#BE#E7#127#136#151#157#196#1A3
 ;~C#BlitzPlus

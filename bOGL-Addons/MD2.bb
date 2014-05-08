@@ -43,7 +43,6 @@ Function InitMD2Addon()		;Only call this once per program
 	MD2_header_ = New bOGL_MD2Model
 	MD2_buffer_ = New bOGL_MD2Model
 	MD2_InitVertexNormals_
-	MESH_InitMeshUtils_
 End Function
 
 Function UpdateMD2Anims(rate# = 1.0)
@@ -363,13 +362,12 @@ Function MD2_UpdateFramePosition_(m.bOGL_MD2Model, pTime, nTime)
 	Local pFr = PeekInt(m\frames, pTime * MD2_FRAME_SIZE + 40), nFr = PeekInt(m\frames, nTime * MD2_FRAME_SIZE + 40)
 	
 	Local i, vt = m\numVerts - 1, pVal, nVal, vx#, vy#, vz#, vnx#, vny#, vnz#
-	Local varr = m\mesh\m\vp, vptr, voff = m\firstVert, tfv#[2], r#[3];, bone = m\bone\handler, mesh = m\mesh\handler
+	Local varr = m\mesh\m\vp, vptr, voff = m\firstVert, tfv#[2], q#[3]
 	
 	If m\autoMove
-		If Not m\bone\Rv Then bOGL_UpdateAxisAngle_ m\bone\r, m\bone\q : m\bone\Rv = True
 		If Not m\bone\Gv Then bOGL_UpdateGlobalPosition_ m\bone
 		
-		r[0] = m\bone\r[0] : r[1] = m\bone\r[1] : r[2] = m\bone\r[2] : r[3] = m\bone\r[3]
+		q[0] = m\bone\q[0] : q[1] = m\bone\q[1] : q[2] = m\bone\q[2] : q[3] = m\bone\q[3]
 		Local bsx# = m\bone\sx, bsy# = m\bone\sy, bsz# = m\bone\sz
 		Local btx# = m\bone\x, bty# = m\bone\y, btz# = m\bone\z
 		
@@ -388,12 +386,12 @@ Function MD2_UpdateFramePosition_(m.bOGL_MD2Model, pTime, nTime)
 			
 			vptr = (i + voff) * BOGL_VERT_STRIDE
 			
-			MESH_RotateVectorFast_ tfv, vx, vy, vz, r
+			bOGL_QuatRotateVector_ tfv, vx, vy, vz, q
 			PokeFloat varr, vptr + 20, tfv[0] * bsx + btx
 			PokeFloat varr, vptr + 24, tfv[1] * bsy + bty
 			PokeFloat varr, vptr + 28, tfv[2] * bsz + btz
 			
-			MESH_RotateVectorFast_ tfv, vnx, vny, vnz, r
+			bOGL_QuatRotateVector_ tfv, vnx, vny, vnz, q
 			PokeFloat varr, vptr + 8, tfv[0] * gnx
 			PokeFloat varr, vptr + 12, tfv[1] * gny
 			PokeFloat varr, vptr + 16, tfv[2] * gnz
@@ -638,5 +636,5 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#10#26#30#50#6B#BC#E0#E5#EC#F1#F6#FB#11C#12C#135#143#149#160#1A2#1CD
+;~F#10#26#2F#4F#6A#BB#DF#E4#EB#F0#F5#FA#11B#12B#134#142#148#15F#1A0#1CB
 ;~C#BlitzPlus
