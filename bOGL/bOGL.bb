@@ -63,10 +63,6 @@ Type bOGL_Tex
 	Field rc, asVar
 End Type
 
-Type bOGL_Visible
-	Field msh.bOGL_Mesh
-End Type
-
 
 ; Interface functions
 ;=====================
@@ -887,8 +883,8 @@ Function RenderWorld(stencilMode = BOGL_STENCIL_OFF)
 				glDisable GL_FOG
 			EndIf
 			
-			Local vis.bOGL_Visible : For vis = Each bOGL_Visible
-				Local msh.bOGL_Mesh = vis\msh : If msh = Null Then Exit
+			Local msh.bOGL_Mesh : For msh = Each bOGL_Mesh
+				If msh = bOGL_VisBreak_ Then Exit
 				If msh\alpha >= BOGL_LIGHT_EPSILON
 					Local textured = msh\texture <> Null : If textured Then glEnable GL_TEXTURE_2D : Else glDisable GL_TEXTURE_2D
 					
@@ -939,8 +935,8 @@ Function RenderStencil()
 			bOGL_InitializeRenderCamera_ cam		;Clear relevant buffers and push camera matrix and frustum
 			glCullFace GL_BACK
 			
-			Local vis.bOGL_Visible : For vis = Each bOGL_Visible
-				Local msh.bOGL_Mesh = vis\msh : If msh = Null Then Exit
+			Local msh.bOGL_Mesh : For msh = Each bOGL_Mesh
+				If msh = bOGL_VisBreak_ Then Exit
 				If ((msh\FX And BOGL_FX_STENCIL_INCR) Or (msh\FX And BOGL_FX_STENCIL_DECR) Or (msh\FX And BOGL_FX_STENCIL_BOTH))
 					glPushMatrix : bOGL_PushEntityTransform_ msh\ent
 					
@@ -960,8 +956,8 @@ Function RenderStencil()
 			
 			glEnable GL_CULL_FACE : glCullFace GL_FRONT
 			
-			For vis = Each bOGL_Visible	;Those meshes set to "both" run DECR on the backfaces
-				msh = vis\msh : If msh = Null Then Exit
+			For msh = Each bOGL_Mesh	;Those meshes set to "both" run DECR on the backfaces
+				If msh = bOGL_VisBreak_ Then Exit
 				If (msh\FX And BOGL_FX_STENCIL_BOTH) <> 0
 					glPushMatrix : bOGL_PushEntityTransform_ msh\ent
 					glStencilOp GL_KEEP, GL_KEEP, GL_DECR
@@ -1008,10 +1004,11 @@ End Function
 ;=====================================================
 
 ; Use an array to map integer handles to objects extremely quickly
-Const BOGL_ENTLIST_MINSIZE_ = 1024, BOGL_VISCHUNK = 100
+Const BOGL_ENTLIST_MINSIZE_ = 1024
 Dim bOGL_EntList_.bOGL_Ent(0), bOGL_EntCpList_.bOGL_Ent(0)
 Global bOGL_EntCnt_, bOGL_EntOpen_, bOGL_EntMax_, bOGL_EntLSz_
-Global bOGL_AmbientLight_, bOGL_UDScounter_, bOGL_VisChanged_, bOGL_VisCount_
+Global bOGL_AmbientLight_, bOGL_UDScounter_ = 0
+Global bOGL_VisChanged_, bOGL_VisBreak_.bOGL_Mesh
 
 Function bOGL_Init_(width, height)
 	If Not bOGL_bbHwnd Then RuntimeError "Couldn't get the handle of the window!"
@@ -1020,10 +1017,8 @@ Function bOGL_Init_(width, height)
 	BlitzGL_Init
 	bOGL_EntOpen_ = 1 : bOGL_EntLSz_ = BOGL_ENTLIST_MINSIZE_
 	Dim bOGL_EntList_.bOGL_Ent(bOGL_EntLSz_), bOGL_EntCpList_.bOGL_Ent(0)
-	bOGL_UDScounter_ = 0 : bOGL_VisCount_ = BOGL_VISCHUNK
-	Local i : For i = 1 To BOGL_VISCHUNK
-		Local v_.bOGL_Visible = New bOGL_Visible
-	Next
+	If bOGL_VisBreak_ = Null Then bOGL_VisBreak_ = New bOGL_Mesh
+	bOGL_VisChanged_ = True
 	If Not bOGL_AmbientLight_ Then bOGL_AmbientLight_ = CreateBank(16) : PokeFloat bOGL_AmbientLight_, 12, 1.0
 	PokeFloat bOGL_AmbientLight_, 0, 0.5 : PokeFloat bOGL_AmbientLight_, 4, 0.5 : PokeFloat bOGL_AmbientLight_, 8, 0.5
 	
@@ -1045,7 +1040,6 @@ Function bOGL_Init_(width, height)
 End Function
 
 Function bOGL_ClearAll_()
-	Delete Each bOGL_Visible
 	Local e.bOGL_Ent : For e = Each bOGL_Ent
 		FreeEntity e\handler
 	Next
@@ -1209,29 +1203,13 @@ Function bOGL_InvalidateGlobalPosition_(ent.bOGL_Ent, scl = False)
 End Function
 
 Function bOGL_UpdateVisibles_()		;When a mesh is hidden, shown, created or freed, update the visibles list
-	Local v.bOGL_Visible, c, m.bOGL_Mesh, i
-	For v = Each bOGL_Visible
-		v\msh = Null
-	Next
-	v = First bOGL_Visible
-	For m = Each bOGL_Mesh
-		If bOGL_EntityIsVisible_(m\ent)
-			c = c + 1
-			If c >= bOGL_VisCount_
-				For i = 1 To BOGL_VISCHUNK
-					Local v_.bOGL_Visible = New bOGL_Visible
-				Next
-				bOGL_VisCount_ = bOGL_VisCount_ + BOGL_VISCHUNK
-			EndIf
-			v\msh = m : v = After v
+	Insert bOGL_VisBreak_ After Last bOGL_Mesh
+	Local m.bOGL_Mesh : For m = Each bOGL_Mesh
+		If m = bOGL_VisBreak_ Then Exit
+		If Not bOGL_EntityIsVisible_(m\ent)
+			Insert m After bOGL_VisBreak_
 		EndIf
 	Next
-	While bOGL_VisCount_ > c + (BOGL_VISCHUNK * 2)
-		For i = 1 To BOGL_VISCHUNK
-			Delete Last bOGL_Visible
-		Next
-		bOGL_VisCount_ = bOGL_VisCount_ - BOGL_VISCHUNK
-	Wend
 	bOGL_VisChanged_ = False
 End Function
 
@@ -1294,10 +1272,10 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#21#2A#31#36#3C#41#49#50#54#5B#5F#65#73#8C#91#96#A1#B1#BB#BF
-;~F#C3#C7#CC#D1#D6#E4#E9#EE#F3#F8#FD#127#133#14D#152#157#15C#160#165#16D
-;~F#176#17C#186#18D#19B#1A2#1A9#1AF#1B4#1BE#1C8#1CF#1D5#1E7#1EB#1F0#1F4#1FF#203#207
-;~F#20B#216#21A#248#26B#278#27D#28A#294#29F#2A7#2AF#2B7#2C0#2C9#2D2#2F7#30F#316#31D
-;~F#324#330#343#34D#3A2#3D7#3DB#3F7#416#424#43A#453#463#467#46C#475#47C#481#48A#495
-;~F#4A4#4AF#4BA#4D5#4DD#4ED#506
+;~F#21#2A#31#36#3C#45#4C#50#57#5B#61#6F#88#8D#92#9D#AD#B7#BB#BF
+;~F#C3#C8#CD#D2#E0#E5#EA#EF#F4#F9#123#12F#149#14E#153#158#15C#161#169#172
+;~F#178#182#189#197#19E#1A5#1AB#1B0#1BA#1C4#1CB#1D1#1E3#1E7#1EC#1F0#1FB#1FF#203#207
+;~F#212#216#244#267#274#279#286#290#29B#2A3#2AB#2B3#2BC#2C5#2CE#2F3#30B#312#319#320
+;~F#32C#33F#349#39E#3D3#3D7#3F4#411#41E#434#44D#45D#461#466#46F#476#47B#484#48F#49E
+;~F#4A9#4B4#4BF#4C7#4D7#4F0
 ;~C#BlitzPlus
