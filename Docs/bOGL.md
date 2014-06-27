@@ -174,7 +174,7 @@ Many of the features provided by Blitz3D and miniB3D outright do not exist in bO
 * There is no `UpdateWorld`; things like animation are updated by their own addon-specific functions (such as `UpdateAnimations`).
 * Render tweening is not built in.
 * `UpdateNormals` is not built in (good riddance).
-* Collision detection is not built in (since B3D was written, 3D physics libraries have become far more powerful anyway).
+* Collision detection is extremely limited, sphere->cube *only* (this means you may need two colliders, collder and "collidee", for some objects). Since B3D was written, 3D physics libraries have become far more powerful anyway.
 
 #### <span id="existing" />Differences in existing features ####
 
