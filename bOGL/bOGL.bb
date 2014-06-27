@@ -55,7 +55,7 @@ End Type
 Type bOGL_Mesh
 	Field ent.bOGL_Ent
 	Field texture.bOGL_Tex, argb, alpha#, FX
-	Field vp, vc, poly, Nv	;UV+Normal+Position, Colour, Tris, normals valid
+	Field vp, vc, poly, Nv, refC	;UV+Normal+Position, Colour, Tris, normals valid, refcount bank
 End Type
 
 Type bOGL_Tex
@@ -146,10 +146,9 @@ End Function
 
 Function CreateMesh(parentH = 0)
 	Local this.bOGL_Mesh = New bOGL_Mesh, ent.bOGL_Ent = bOGL_NewEnt_(BOGL_CLASS_MESH, Handle this, parentH)
-	this\ent = ent
+	this\ent = ent : this\refC = CreateBank(4) : PokeInt this\refC, 0, 1
 	this\argb = BOGL_DEFAULT_COLOR : this\alpha = 1.0
-	this\vp = CreateBank(0)
-	this\poly = CreateBank(0)
+	this\vp = CreateBank(0) : this\poly = CreateBank(0)
 	
 	bOGL_VisChanged_ = True
 	Return ent\handler
@@ -532,7 +531,7 @@ Function GetEntityUserData(handler, slot, cell = 0)
 	Local this.bOGL_Ent = bOGL_EntList_(handler) : Return PeekInt(this\userData, slot * 12 + cell * 4)
 End Function
 
-Function CopyEntity(handler, parentH = 0)
+Function CopyEntity(handler, parentH = 0, deepCopy = True)
 	Local old.bOGL_Ent = bOGL_EntList_(handler), cp.bOGL_Ent, i
 	
 	Select old\eClass
@@ -549,17 +548,24 @@ Function CopyEntity(handler, parentH = 0)
 		Case BOGL_CLASS_MESH
 			cp = bOGL_EntList_(CreateMesh(parentH))
 			cp\m\texture = old\m\texture : cp\m\texture\rc = cp\m\texture\rc + 1
-			cp\m\argb = old\m\argb : cp\m\alpha = old\m\alpha
-			ResizeBank cp\m\vp, BankSize(old\m\vp) : CopyBank old\m\vp, 0, cp\m\vp, 0, BankSize(old\m\vp)
-			If old\m\vc Then cp\m\vc = CreateBank(BankSize(old\m\vc)) : CopyBank old\m\vc, 0, cp\m\vc, 0, BankSize(old\m\vc)
-			ResizeBank cp\m\poly, BankSize(old\m\poly) : CopyBank old\m\poly, 0, cp\m\poly, 0, BankSize(old\m\poly)
+			cp\m\argb = old\m\argb : cp\m\alpha = old\m\alpha : cp\m\FX = old\m\FX : cp\m\Nv = old\m\Nv
+			If deepCopy		;Create a new set of mesh data
+				ResizeBank cp\m\vp, BankSize(old\m\vp) : CopyBank old\m\vp, 0, cp\m\vp, 0, BankSize(old\m\vp)
+				If old\m\vc Then cp\m\vc = CreateBank(BankSize(old\m\vc)) : CopyBank old\m\vc, 0, cp\m\vc, 0, BankSize(old\m\vc)
+				ResizeBank cp\m\poly, BankSize(old\m\poly) : CopyBank old\m\poly, 0, cp\m\poly, 0, BankSize(old\m\poly)
+			Else		;Share mesh data
+				FreeBank cp\m\vp : FreeBank cp\m\poly : FreeBank cp\m\refC ;: FreeBank cp\m\vc
+				cp\m\vp = old\m\vp : cp\m\poly = old\m\poly : cp\m\refC = old\m\refC : cp\m\vc = old\m\vc
+				PokeInt cp\m\refC, 0, PeekInt(cp\m\refC, 0) + 1
+			EndIf
+			bOGL_VisChanged_ = True
 		Default
 			cp = bOGL_EntList_(CreatePivot(parentH))
 	End Select
 	
 	If old\children
 		For i = 0 To BankSize(old\children) - 4 Step 4
-			CopyEntity PeekInt(old\children, i), cp\handler
+			CopyEntity PeekInt(old\children, i), cp\handler, deepCopy
 		Next
 	EndIf
 	
@@ -590,11 +596,16 @@ Function FreeEntity(handler)
 			If e\l\att Then FreeBank e\l\att
 			Delete e\l
 		Case BOGL_CLASS_MESH
-			If e\m\texture <> Null Then bOGL_ReleaseTexture_ e\m\texture
-			If e\m\vp Then FreeBank e\m\vp
-			If e\m\vc Then FreeBank e\m\vc
-			If e\m\poly Then FreeBank e\m\poly
-			Delete e\m
+			If PeekInt(e\m\refC, 0) < 2
+				If e\m\texture <> Null Then bOGL_ReleaseTexture_ e\m\texture
+				If e\m\vp Then FreeBank e\m\vp
+				If e\m\vc Then FreeBank e\m\vc
+				If e\m\poly Then FreeBank e\m\poly
+				FreeBank e\m\refC
+				Delete e\m
+			Else
+				PokeInt e\m\refC, 0, PeekInt(e\m\refC, 0) - 1	;Don't delete data for shared mesh instances
+			EndIf
 			bOGL_VisChanged_ = bOGL_VisChanged_ Or (e\hidden = False)
 	End Select
 	If e\children
@@ -1272,10 +1283,10 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#21#2A#31#36#3C#45#4C#50#57#5B#61#6F#88#8D#92#9D#AD#B7#BB#BF
-;~F#C3#C8#CD#D2#E0#E5#EA#EF#F4#F9#123#12F#149#14E#153#158#15C#161#169#172
-;~F#178#182#189#197#19E#1A5#1AB#1B0#1BA#1C4#1CB#1D1#1E3#1E7#1EC#1F0#1FB#1FF#203#207
-;~F#212#216#244#267#274#279#286#290#29B#2A3#2AB#2B3#2BC#2C5#2CE#2F3#30B#312#319#320
-;~F#32C#33F#349#39E#3D3#3D7#3F4#411#41E#434#44D#45D#461#466#46F#476#47B#484#48F#49E
-;~F#4A9#4B4#4BF#4C7#4D7#4F0
+;~F#21#2A#31#36#3C#45#4C#50#57#5B#61#6F#88#8D#92#9C#AC#B6#BA#BE
+;~F#C2#C7#CC#D1#DF#E4#E9#EE#F3#F8#122#12E#148#14D#152#157#15B#160#168#171
+;~F#177#181#188#196#19D#1A4#1AA#1AF#1B9#1C3#1CA#1D0#1E2#1E6#1EB#1EF#1FA#1FE#202#206
+;~F#211#215#24A#272#27F#284#291#29B#2A6#2AE#2B6#2BE#2C7#2D0#2D9#2FE#316#31D#324#32B
+;~F#337#34A#354#3A9#3DE#3E2#3FF#41C#429#43F#458#468#46C#471#47A#481#486#48F#49A#4A9
+;~F#4B4#4BF#4CA#4D2#4E2#4FB
 ;~C#BlitzPlus

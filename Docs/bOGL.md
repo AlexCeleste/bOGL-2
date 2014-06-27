@@ -149,7 +149,7 @@ bOGL provides official addon modules for those features that we can safely assum
 * **[Draw2D](Draw2D.md)** provides commands for 2D graphics drawing, including text, images, and graphics primitives like lines and boxes. `Draw2D` uses OpenGL to provide hardware-accelerated drawing in the same context as bOGL's 3D graphics, giving access to very fast rotation and transparency with 2D graphics. `Draw2D` is loosely based on the `Draw3D` library for Blitz3D, and is also similar (in terms of what it does) to `Max2D` for BlitzMax.
 * **[3DAction](3DAction.md)** provides commands for declaratively creating "actions" and firing them on entities in an event-based way. This centralizes your movement code, and allows you to not bother writing tedious boilerplate like simple `MoveEntity` commands. You can set entities to follow other entities, command them to move by a vector or to a position over the next *N* frames, receive updates when actions are completed, and so on, so that your game can be structured as an elegant event/trigger system.
 
-Other official addons may follow. A 2D physics addon is currently in development and will hopefully join the other official addons as part of the official distribution soon.
+Other official addons may follow. A 3D collision detection addon is currently in development and will hopefully join the other official addons as part of the official distribution soon.
 
 The official addons have their own API documentation files, named after each addon (e.g. see `MeshLoader.md` in this folder for documentation on the `MeshLoader` addon).
 
@@ -162,19 +162,18 @@ bOGL is inspired by Blitz3D and miniB3D, but it's not intended to be a drop-in r
 Many of the features provided by Blitz3D and miniB3D outright do not exist in bOGL, even including the official addon modules (from this point on, assume addons are included in the discussion). As a not-necessarily-exhaustive list of these missing features:
 
 * Blitz3D permits a mesh to be made up of multiple separate "surfaces", where a "surface" is a single block of triangles and vertices with a given brush applied to it. bOGL has no concept of "surfaces": each mesh only has one block of vertices and triangles.
-* Blitz3D allows you to "instance" geometry by using shallow copies of entities, meaning less data needs to be copied to the GPU, which is good for performance. bOGL does not include this important feature, so everything that gets drawn has a cost. This means that e.g. scenes with large numbers of animated characters will likely be very slow in bOGL.
+* Blitz3D allows you to "instance" geometry by using shallow copies of entities, meaning less data needs to be copied to the GPU, which is good for performance. bOGL only supports instancing of static meshes (you can try instancing animated meshes, but the results will probably be a disaster). This means that e.g. scenes with large numbers of animated characters (MD2 or BO3D) will likely be very slow in bOGL.
 * bOGL has no concept of a "brush". Colours, textures and FX need to be applied individually; other brush features like shininess do not exist at all.
 * bOGL does not support multitexturing. Any details that you would achieve in Blitz3D using multiple texture layers need to be "baked" into the base texture for bOGL (this will make it a bit more difficult to use lightmaps).
 * bOGL does not support any texture blend modes other than colour.
 * bOGL does not support many of Blitz3D's entity types; mirrors, planes, sprites, listeners and BSPs are not available.
-* Terrains are nominally supported, but are actually just naive mesh-based heightfields that form static, standard meshes. This means there is no dynamic LOD, and the dimensions of a terrain are limited by the maximum number of polygons to a mesh (machine-specific, usually 65536 or half that).
+ * Terrains are nominally supported, but are actually just naive mesh-based heightfields that form static, standard meshes. This means there is no dynamic LOD, and the dimensions of a terrain are limited by the maximum number of polygons to a mesh (machine-specific, usually 65536 or half that).
 * bOGL does not provide loaders for 3DS, X, or B3D files (not to be confused with BO3D files, which are of course supported). You can convert B3D files to BO3D files using the utility at `Tools/bo3d_conv.bb`.
 * There is no `AlignToVector`.
 * `Animation` does not support animation sequences, only frame-by-frame animation.
 * There is no `UpdateWorld`; things like animation are updated by their own addon-specific functions (such as `UpdateAnimations`).
 * Render tweening is not built in.
 * `UpdateNormals` is not built in (good riddance).
-* Collision detection is extremely limited, sphere->cube *only* (this means you may need two colliders, collder and "collidee", for some objects). Since B3D was written, 3D physics libraries have become far more powerful anyway.
 
 #### <span id="existing" />Differences in existing features ####
 
@@ -194,6 +193,7 @@ There are of course also a large number of features inherited from Blitz3D which
 * `CameraZoom` has been replaced by `CameraFieldOfView`, which takes an actual FOV angle instead of an obscure "zoom" value.
 * There is no `CopyRect`, but you can copy data from the back buffer to a Blitz bank, and both ways between a Blitz bank and bOGL textures, using `GrabBackBuffer`, `GetTextureData` and `UpdateTexture` respectively.
 * `EntityFX` flags are different, bearing no relation to their Blitz3D equivalents and offering a different selection of features.
+* Collision detection is extremely limited, sphere->cube *only* (this means you may need two colliders, collder and "collidee", for some objects). Since B3D was written, 3D physics libraries have become far more powerful anyway.
 
 Remember, this list is *not* exhaustive. There are many other subtle differences, especially in the way the non-core modules handle their tasks.
 
@@ -217,9 +217,11 @@ This doesn't include the addon modules, which themselves add some interesting fe
 
 No living project is ever finished. There are several ideas for extension to bOGL that will hopefully be implemented at some point in the future, or are currently in progress:
 
-* A dedicated 2D physics engine module (this is currently under development).
+* A dedicated 2D physics engine module.
 * It might be fun to see bOGL ported to other languages: BlitzMax, Monkey, and Objective-C are all viable and worthwhile targets. There isn't much in bOGL that is specific to Blitz Basic (a few things use the built-in typelists, but not much).
-* A dedicated single-surface particle engine module.
+ * A port to Gambit is currently in development.
+* A dedicated single-surface particle engine module. (done but needs documentation)
+* A dedicated 3D collision module. (done but needs documentation)
 * A port to newer OpenGL versions, to provide things like hardware skinning.
 
 ## <span id="publicapi" />Command reference / API##
@@ -811,21 +813,22 @@ Optionally, the `cell` parameter can be used to set the userdata's onCopy (`cell
 Optionally, the `cell` parameter can be used to check the userdata's onCopy (`cell = 1`) or onFree (`cell = 2`) listener banks (see `SetEntityUserData`).  
 
 #### <span id="copyentity" />CopyEntity ####
-`CopyEntity(handler)`  
-**Parameters:** The entity.  
+`CopyEntity(handler[, parentH, deepCopy])`  
+**Parameters:** The entity. Optionally, the parent of the new copy, and whether to perform a deep copy of mesh data.  
 **Return value:** A newly-created copy of the entity.  
 **Description:** This function creates a complete copy of an entity. The function performs a "deep copy" of all built-in bOGL data associated with the entity, so for example all of the entity's children are recursively copied, and the copies attached to the new entity.  
+If the entity is a mesh, or extended mesh (e.g. MD2), the `deepCopy` parameter determines whether to create a new copy of the mesh data. If you don't copy the mesh data, changes you make (e.g. with `VertexCoords`) to the original mesh will also affect the copy, or vice-versa - but the advantage os greatly reduced memory consumption. Note that animated meshes using mesh deformation (MD2, BO3D) should always be deeply copied, or the animation will mess up other instances! `deepCopy` defaults to `True`, because that way you don't need to think about it (memory's cheap; corrupted graphics aren't).  
 The custom data vector itself is copied, but since bOGL has no idea what the data in the vector represents, the copy is not guaranteed to be "deep" and addons may need to define wrapper copy routines that properly update or copy this extension data as necessary.  
-If the entity's userdata contains any `onCopy` listeners, they will be updated with the copied entity's handle in order to properly complete the operation on their next update.  
+If the entity's userdata contains any `onCopy` listeners, they will be updated with the copied entity's handle in order to properly complete the operation on their next update. (This means you can safely just use `CopyEntity` with e.g. MD2 meshes.)  
 **Future direction:** If bOGL is ported to a language supporting callbacks, this function can be extended to handle deep copies of user data properly by storing the correct `copy` callbacks in the vector alongside the data. In the meantime this service is provided by the `onCopy` listener slots.  
 
 #### <span id="freeentity" />FreeEntity ####
 `FreeEntity(handler)`  
 **Parameters:** The entity.  
 **Return value:** None.  
-**Description:** This function destroys an entity. All built-in bOGL data associated with the entity will be released: any children of the entity will be recursively freed, textures will have their internal reference counts decremented, and the custom data vector will be deleted.  
+**Description:** This function destroys an entity. All built-in bOGL data associated with the entity will be released: any children of the entity will be recursively freed, textures and instanced meshes will have their internal reference counts decremented, and the custom data vector will be deleted.  
 Since bOGL has no idea what the data in the custom data vector represents, any referenced extension objects are not guaranteed to be freed.  
-If the entity's userdata contains any `onFree` listeners, they will be updated with the freed entity's handle in order to properly deal with the operation on their next update (since the handle may be reused, this information is only partially useful, e.g. as a free count).  
+If the entity's userdata contains any `onFree` listeners, they will be updated with the freed entity's handle in order to properly deal with the operation on their next update (since the handle may be reused, this information is only partially useful, e.g. as a free count). This means you can safely just use `FreeEntity` with e.g. MD2 meshes.  
 Addons may choose to define a "free wrapper" function that cleans up the custom data before destroying the entity, or give extension data the ability to tell when its host entity has been destroyed by storing internal nullable pointers (e.g. the `ANIM_ClearUnused` function in `Animation` can run after many entities are freed and clear up any hanging animation data; the free count provided by the `onFree` listener tells it when it needs to do this).  
 **Future direction:** If bOGL is ported to a language supporting callbacks, this function can be extended to properly free user data by storing the correct `free` callbacks in the vector alongside the data. In the meantime this service is provided by the `onFree` listener slots.  
 

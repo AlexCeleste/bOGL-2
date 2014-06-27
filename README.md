@@ -63,7 +63,7 @@ OGL Direct by Peter Scheutz
 [CountChildren](Docs/bOGL.md#countchildren)(handler), [GetChildEntity](Docs/bOGL.md#getchildentity)(handler, index), [GetChildByName](Docs/bOGL.md#getchildbyname)(handler, name$)  
 [SetEntityName](Docs/bOGL.md#setentityname)(handler, name$), [GetEntityName](Docs/bOGL.md#getentityname)$(handler)  
 [RegisterEntityUserDataSlot](Docs/bOGL.md#registerentityuserdataslot)(), [SetEntityUserData](Docs/bOGL.md#setentityuserdata)(handler, slot, val), [GetEntityUserData](Docs/bOGL.md#getentityuserdata)(handler, slot)  
-[CopyEntity](Docs/bOGL.md#copyentity)(handler)  
+[CopyEntity](Docs/bOGL.md#copyentity)(handler[, parentH, deepCopy])  
 [FreeEntity](Docs/bOGL.md#freeentity)(handler)  
 [FlipPolygons](Docs/bOGL.md#flippolygons)(handler)  
 [RotateSubMesh](Docs/bOGL.md#rotatesubmesh)(handler, vf, vt, rx#, ry#, rz#, cx#, cy#, cz#), [QuatRotateSubMesh](Docs/bOGL.md#quatrotatesubmesh)(handler, vf, vt, q#[3], cx#, cy#, cz#)  
