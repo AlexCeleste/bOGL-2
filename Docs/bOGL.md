@@ -149,8 +149,9 @@ bOGL provides official addon modules for those features that we can safely assum
 * **[Draw2D](Draw2D.md)** provides commands for 2D graphics drawing, including text, images, and graphics primitives like lines and boxes. `Draw2D` uses OpenGL to provide hardware-accelerated drawing in the same context as bOGL's 3D graphics, giving access to very fast rotation and transparency with 2D graphics. `Draw2D` is loosely based on the `Draw3D` library for Blitz3D, and is also similar (in terms of what it does) to `Max2D` for BlitzMax.
 * **[3DAction](3DAction.md)** provides commands for declaratively creating "actions" and firing them on entities in an event-based way. This centralizes your movement code, and allows you to not bother writing tedious boilerplate like simple `MoveEntity` commands. You can set entities to follow other entities, command them to move by a vector or to a position over the next *N* frames, receive updates when actions are completed, and so on, so that your game can be structured as an elegant event/trigger system.
 * **[Collision](Collision.md)** provides a very basic collision detection system. It supports movable objects, "blockers" that stop objects with sliding collisions, or even push them around, and invisible "detection" events that can be used to implement more advanced systems like water or poison. Also provides a ray picking function.
+* **[Particle](Particle.md)** provides a simple single-surface particle engine, supporting textures, variable movement, and variable lifetime. It's rather basic but may serve as a foundation for extension into a more complete system, or it would work adequately for a retro 90s style game as it is.
 
-Other official addons may follow. A particle system addon is currently in development and will hopefully join the other official addons as part of the official distribution soon.
+Other official addons may follow.
 
 The official addons have their own API documentation files, named after each addon (e.g. see `MeshLoader.md` in this folder for documentation on the `MeshLoader` addon).
 
