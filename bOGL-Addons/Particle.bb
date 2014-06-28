@@ -269,6 +269,7 @@ Function PART_UpdateEmitter_(e.PART_Emitter, camera, rate#, tDiff)
 	EndIf
 	
 	SetEntityParent e\mesh, camera	;This may cause confusion later... document well
+	
 	For p = 0 To e\pCap - 1	;Update vertex positions
 		sz = PeekFloat(e\pData, p * PART_PSTEP + 36)
 		If sz > 0
@@ -276,10 +277,10 @@ Function PART_UpdateEmitter_(e.PART_Emitter, camera, rate#, tDiff)
 			py = PeekFloat(e\pData, p * PART_PSTEP + 8)
 			pz = PeekFloat(e\pData, p * PART_PSTEP + 12)
 			TFormPoint px, py, pz, e\piv\handler * e\parented, camera, tf
-			VertexCoords e\mesh, p * 4, px - sz, py - sz, pz
-			VertexCoords e\mesh, p * 4 + 1, px + sz, py - sz, pz
-			VertexCoords e\mesh, p * 4 + 2, px + sz, py + sz, pz
-			VertexCoords e\mesh, p * 4 + 3, px - sz, py + sz, pz
+			VertexCoords e\mesh, p * 4, tf[0] - sz, tf[1] - sz, tf[2]
+			VertexCoords e\mesh, p * 4 + 1, tf[0] + sz, tf[1] - sz, tf[2]
+			VertexCoords e\mesh, p * 4 + 2, tf[0] + sz, tf[1] + sz, tf[2]
+			VertexCoords e\mesh, p * 4 + 3, tf[0] - sz, tf[1] + sz, tf[2]
 			col = PeekInt(e\pData, p * PART_PSTEP + 16)
 			Local r = (col And $FF0000) Shr 16, g = (col And $FF00) Shr 8, b = col And $FF
 			VertexColor e\mesh, p * 4, r, g, b
@@ -367,5 +368,5 @@ End Function
 
 ;~IDEal Editor Parameters:
 ;~F#17#37#3F#5B#63#69#6E#73#81#86#8B#90#9A#9F#A4#A9#AF#BB#D9#E9
-;~F#124#14F#159#15E#169
+;~F#125#150#15A#15F#16A
 ;~C#BlitzPlus
