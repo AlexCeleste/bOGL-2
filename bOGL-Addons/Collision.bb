@@ -128,6 +128,10 @@ Function SetBlockerType(ent, btype)
 	Local b.COLL_Blocker = Object.COLL_Blocker GetEntityUserData(ent, COLL_private_UDSlot_) : b\btype = btype
 End Function
 
+Function GetBlockerType(ent)
+	Local b.COLL_Blocker = Object.COLL_Blocker GetEntityUserData(ent, COLL_private_UDSlot_) : Return b\btype
+End Function
+
 Function SetCollisionState(ent, active)
 	Local h = GetEntityUserData(ent, COLL_private_UDSlot_)
 	Local c.COLL_Collider = Object.COLL_Collider h, b.COLL_Blocker
@@ -140,7 +144,7 @@ Function SetCollisionState(ent, active)
 End Function
 
 Function RayPick(x0#, y0#, z0#, x1#, y1#, z1#, out#[2], btype = 0)
-	Local picked = 0, dst# = COLL_INFINITY, range# = Distance(x0, y0, z0, x1, y1, z1), b.COLL_Blocker
+	Local picked = 0, dst# = Distance(x0, y0, z0, x1, y1, z1), b.COLL_Blocker
 	
 	For b = Each COLL_Blocker
 		If b = COLL_Bbuff_ Then Exit
@@ -349,6 +353,6 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#11#15#26#31#5A#60#64#70#7E#82#8D#CE#D3#D7#DB#107#11D#128#12C#141
-;~F#14F#155
+;~F#11#15#26#31#5A#60#64#70#7E#82#86#91#D2#D7#DB#DF#10B#121#12C#130
+;~F#145#153#159
 ;~C#BlitzPlus
