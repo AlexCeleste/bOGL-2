@@ -14,6 +14,8 @@ Local light = CreateLight(255, 255, 255, BOGL_LIGHT_DIR)
 PositionEntity light, 2, 6, -6
 PointEntity light, 0, 0, -6
 
+CameraDrawMode camera, BOGL_CAM_ORTHO
+ScaleEntity camera, 10, 10, 1
 
 Local piv = CreatePivot()
 ;PositionEntity piv, 0, 0, -10
@@ -23,7 +25,7 @@ Local cube = CreateCube(piv)
 PaintEntity cube, 255, 0, 0
 PositionEntity cube, 0, 0, -10
 ScaleEntity cube, 2, 0.25, 2
-TurnEntity cube, 0, 0, 45
+TurnEntity cube, 0, 0, 20
 
 Local c2 = CreateCube()
 PaintEntity c2, 0, 0, 255
@@ -36,6 +38,14 @@ SetCollisionListener listener
 
 MakeBlocker cube, 4, 0.5, 4, COLL_RESPONSE_POST + COLL_RESPONSE_STOP
 MakeCollider c2, 0.5
+
+Local out#[2], c3 = CreateCube()
+ScaleEntity c3, 0.05, 0.05, 0.5
+RayPick 3, -2, -10, 0, 0, -10, out
+PositionEntity c3, out[0], out[1], out[2]
+DebugLog out[0]
+DebugLog out[1]
+DebugLog out[2]
 
 
 Include "bOGL-Addons\Draw2D.bb"

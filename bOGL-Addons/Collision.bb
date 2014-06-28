@@ -20,7 +20,7 @@ Type COLL_Collider
 End Type
 
 Type COLL_Blocker
-	Field e.bOGL_Ent
+	Field e.bOGL_Ent, btype
 	Field xs#, ys#, zs#, rad#, resp
 End Type
 
@@ -118,6 +118,10 @@ Function MakeBlocker(ent, xSize#, ySize#, zSize#, response)
 	Insert b Before COLL_Bbuff_
 End Function
 
+Function SetBlockerType(ent, btype)
+	Local b.COLL_Blocker = Object.COLL_Blocker GetEntityUserData(ent, COLL_private_UDSlot_) : b\btype = btype
+End Function
+
 Function SetCollisionState(ent, active)
 	Local h = GetEntityUserData(ent, COLL_private_UDSlot_)
 	Local c.COLL_Collider = Object.COLL_Collider h, b.COLL_Blocker
@@ -129,11 +133,69 @@ Function SetCollisionState(ent, active)
 	EndIf
 End Function
 
+Function RayPick(x0#, y0#, z0#, x1#, y1#, z1#, out#[2], btype = 0)
+	Local picked = 0, dst# = COLL_INFINITY, range# = Distance(x0, y0, z0, x1, y1, z1), b.COLL_Blocker
+	
+	For b = Each COLL_Blocker
+		If b = COLL_Bbuff_ Then Exit
+		If b\btype = btype
+			Local d.bOGL_Ent = b\e, tfv0#[2], tfv1#[2], tn0#, tn1#, tmp#, m#[2]
+			If Not d\Gv Then bOGL_UpdateGlobalPosition_ d
+			
+			COLL_TFormPointFast_ x0, y0, z0, d, tfv0
+			COLL_TFormPointFast_ x1, y1, z1, d, tfv1
+			
+			Local tmin# = -COLL_INFINITY, tmax# = COLL_INFINITY, r# = Distance(tfv0[0], tfv0[1], tfv0[2], tfv1[0], tfv1[1], tfv1[2])
+			tfv1[0] = (tfv1[0] - tfv0[0]) / r : tfv1[1] = (tfv1[1] - tfv0[1]) / r : tfv1[2] = (tfv1[2] - tfv0[2]) / r
+			
+			If tfv1[0] <> 0.0
+				tn0 = (-b\xs/2 - tfv0[0]) / tfv1[0] : tn1 = (b\xs/2 - tfv0[0]) / tfv1[0]
+				If tn0 < tn1 Then tmin = tn0 Else tmin = tn1
+				If tn0 > tn1 Then tmax = tn0 Else tmax = tn1
+				m[0] = tmin
+			EndIf
+			
+			If tfv1[1] <> 0.0
+				tn0 = (-b\ys/2 - tfv0[1]) / tfv1[1] : tn1 = (b\ys/2 - tfv0[1]) / tfv1[1]
+				If tn0 < tn1 Then tmp = tn0 Else tmp = tn1
+				If tmp > tmin Then tmin = tmp
+				If tn0 > tn1 Then tmp = tn0 Else tmp = tn1
+				If tmp < tmax Then tmax = tmp
+				m[1] = tmin
+			EndIf
+			
+			If tfv1[2] <> 0.0 And tmax >= tmin
+				tn0 = (-b\zs/2 - tfv0[2]) / tfv1[2] : tn1 = (b\zs/2 - tfv0[2]) / tfv1[2]
+				If tn0 < tn1 Then tmp = tn0 Else tmp = tn1
+				If tmp > tmin Then tmin = tmp
+				If tn0 > tn1 Then tmp = tn0 Else tmp = tn1
+				If tmp < tmax Then tmax = tmp
+				m[2] = tmin
+			EndIf
+			
+			If tmax >= tmin
+				Local k = (m[1] > m[0]) : If m[2] > m[k] Then k = 2
+				If m[k] > 0
+					x1 = tfv0[0] + (tfv1[0] * m[k]) : y1 = tfv0[1] + (tfv1[1] * m[k]) : z1 = tfv0[2] + (tfv1[2] * m[k])
+					Local d2# = Sqr(x1*x1 + y1*y1 + z1*z1)
+					If d2 < dst
+						dst = d2
+						TFormPoint x1, y1, z1, d\handler, 0, out
+						picked = d\handler
+					EndIf
+				EndIf
+			EndIf
+		EndIf
+	Next
+	
+	Return picked
+End Function
+
 
 ; Internal
 ;==========
 
-Const COLL_ALLOC_TICKER = 100
+Const COLL_ALLOC_TICKER = 100, COLL_INFINITY# = 10000000000
 Global COLL_private_NewCounter_
 
 Function COLL_AllocTick_()
@@ -271,7 +333,16 @@ Function COLL_FinishCopy_(ent)
 	If c <> Null Then COLL_CopyCollider_ ent, c : Else COLL_CopyBlocker_ ent, Object.COLL_Blocker h
 End Function
 
+Function COLL_TFormPointFast_(x#, y#, z#, d.bOGL_Ent, out#[2])
+	x = (x - d\g_x) : y = (y - d\g_y) : z = (z - d\g_z)
+	d\g_q[1] = -d\g_q[1] : d\g_q[2] = -d\g_q[2] : d\g_q[3] = -d\g_q[3]
+	bOGL_QuatRotateVector_ out, x, y, z, d\g_q
+	d\g_q[1] = -d\g_q[1] : d\g_q[2] = -d\g_q[2] : d\g_q[3] = -d\g_q[3]
+	out[0] = out[0] / d\g_sx : out[1] = out[1] / d\g_sy : out[2] = out[2] / d\g_sz
+End Function
+
 
 ;~IDEal Editor Parameters:
-;~F#11#15#26#31#5A#60#64#6D#78#8A#8F#93#97#C3#D9#E4#E8#FD#10B
+;~F#11#15#26#31#5A#60#64#6D#78#7C#87#C8#CD#D1#D5#101#117#122#126#13B
+;~F#149#14F
 ;~C#BlitzPlus
