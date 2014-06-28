@@ -293,7 +293,7 @@ End Function
 Function PART_AddParticle_(e.PART_Emitter)
 	If e\pNext = -1	;No slots available
 		If e\pCap >= PART_MAX_PARTICLES Then Return		;Nothing to be done!
-		ResizeBank e\pData, BankSize(e\pData * 2)
+		ResizeBank e\pData, BankSize(e\pData) * 2
 		Local i, msh = e\mesh, v0, v1, v2, v3 : For i = e\pCap To e\pCap * 2 - 1
 			PokeInt e\pData, i * PART_PSTEP, i + 1
 			PokeFloat e\pData, i * PART_PSTEP + 28, 0
