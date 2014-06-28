@@ -9,7 +9,7 @@
      * [Differences in existing features](#differences-in-existing-features)
      * [New features not in Blitz3D](#new-features-not-in-blitz3d)
  * [Future directions](#future-directions)
-* [Command reference / API](#publicapi)
+* [Command reference / API](#command-reference--api)
  * [Global](#global)
      * [Graphics3D](#graphics3d)
      * [EndGraphics3D](#endgraphics3d)
@@ -223,7 +223,7 @@ No living project is ever finished. There are several ideas for extension to bOG
  * A port to Gambit is currently in development.
 * A port to newer OpenGL versions, to provide things like hardware skinning.
 
-## <span id="publicapi" />Command reference / API##
+## <span id="command-reference--api" />Command reference / API##
 
 This section describes each command from the bOGL core API in detail.
 Commands that belong to the official addon modules are not described here, but rather in the specific documentation for the relevant addon.

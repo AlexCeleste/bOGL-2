@@ -3,7 +3,7 @@
 
 * [Introduction](#introduction)
 * [Quick start](#quick-start)
-* [Command reference / API](#publicapi)
+* [Command reference / API](#command-reference--api)
  * [InitAnimationAddon](#initanimationaddon)
  * [UpdateAnimations](#updateanimations)
  * [LoadAnimation](#loadanimation)
@@ -37,7 +37,7 @@ That's all you need to do to support loading animated meshes in your 3D project!
 
 If you use IDEal, consider adding `Animation.bb` to your IDEal project file in order to provide proper syntax highlighting and code support for the commands in this module. If you don't use IDEal, or just don't want to clutter your project, there's also an optional .decls file (`Animation_Optional.decls`) that you can add to your `userlibs` folder to get syntax highlighting that way.
 
-## <span id="publicapi"/>Command reference / API ##
+## <span id="command-reference--api"/>Command reference / API ##
 
 #### <span id="initf" />InitAnimationAddon ####
 `InitAnimationAddon()`  

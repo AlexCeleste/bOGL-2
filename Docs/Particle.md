@@ -112,7 +112,7 @@ It is safe (albeit pointless) to call this repeatedly on the same emitter.
 `SetParticleTexture(emit, FXflags)`  
 **Parameters:** The emitter; particle FX flags.  
 **Return value:** None.  
-**Description:** This function sets FX flags for the particle mesh of the given emitter. See [the main bOGL documentation](bOGL.md#entityfx) for information about FX flags.  
+**Description:** This function sets FX flags for the particle mesh of the given emitter. See [the main bOGL documentation](bOGL.md#entityfx) for information about the available FX flags.  
 
 #### <span id="setparticledirection" />SetParticleDirection ####
 `SetParticleDirection(emit, dx#, dy#, dz#[, var#])`  

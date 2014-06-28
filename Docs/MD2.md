@@ -3,7 +3,7 @@
 
 * [Introduction](#introduction)
 * [Quick start](#quick-start)
-* [Command reference / API](#publicapi)
+* [Command reference / API](#command-reference--api)
  * [InitMD2Addon](#initmd2addon)
  * [UpdateMD2Anims](#updatemd2anims)
  * [LoadMD2Model](#loadmd2model)
@@ -36,7 +36,7 @@ That's all you need to do to support using animated MD2 characters in your 3D pr
 
 If you use IDEal, consider adding `MD2.bb` to your IDEal project file in order to provide proper syntax highlighting and code support for the commands in this module. If you don't use IDEal, or just don't want to clutter your project, there's also an optional .decls file (`MD2_Optional.decls`) that you can add to your `userlibs` folder to get syntax highlighting that way.
 
-## <span id="publicapi"/>Command reference / API ##
+## <span id="command-reference--api"/>Command reference / API ##
 
 #### <span id="initf" />InitMD2Addon ####
 `InitAnimationAddon()`  

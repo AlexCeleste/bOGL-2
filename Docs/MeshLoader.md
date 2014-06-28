@@ -3,7 +3,7 @@
 
 * [Introduction](#introduction)
 * [Quick start](#quick-start)
-* [Command reference / API](#publicapi)
+* [Command reference / API](#command-reference--api)
  * [InitMeshLoaderAddon](#initmeshloaderaddon)
  * [LoadMesh](#loadmesh)
  * [LoadBO3D](#loadbo3d)
@@ -38,7 +38,7 @@ That's all you need to do to support loading meshes in your 3D project! Now add 
 
 If you use IDEal, consider adding `MeshLoader.bb` to your IDEal project file in order to provide proper syntax highlighting and code support for the commands in this module. If you don't use IDEal, or just don't want to clutter your project, there's also an optional .decls file (`MeshLoader_Optional.decls`) that you can add to your `userlibs` folder to get syntax highlighting that way.
 
-## <span id="publicapi"/>Command reference / API ##
+## <span id="command-reference--api"/>Command reference / API ##
 
 #### <span id="initf" />InitMeshLoaderAddon ####
 `InitMeshLoaderAddon()`  
