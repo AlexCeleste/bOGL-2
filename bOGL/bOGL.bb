@@ -150,7 +150,7 @@ Function CreateMesh(parentH = 0)
 	this\argb = BOGL_DEFAULT_COLOR : this\alpha = 1.0
 	this\vp = CreateBank(0) : this\poly = CreateBank(0)
 	
-	bOGL_VisChanged_ = True
+	Insert this Before First bOGL_Mesh : bOGL_VisChanged_ = True
 	Return ent\handler
 End Function
 
@@ -431,20 +431,20 @@ End Function
 
 Function EntityAlpha(handler, alpha#)
 	Local this.bOGL_Ent = bOGL_EntList_(handler)
-	If this\m\alpha = 1 And alpha < 1
-		bOGL_VisChanged_ = True : Insert this\m After Last bOGL_Mesh
-	ElseIf this\m\alpha < 1 And alpha = 1
-		bOGL_VisChanged_ = True : Insert this\m Before First bOGL_Mesh
+	If alpha < 1.0
+		Insert this\m Before bOGL_VisBreak_
+	Else
+		Insert this\m Before First bOGL_Mesh
 	EndIf
 	this\m\alpha = alpha
 End Function
 
 Function EntityFX(handler, flags)
 	Local this.bOGL_Ent = bOGL_EntList_(handler)
-	If (Not (this\m\FX And (BOGL_FX_ADDBLEND Or BOGL_FX_MULBLEND))) And (flags And (BOGL_FX_ADDBLEND Or BOGL_FX_MULBLEND))
-		bOGL_VisChanged_ = True : Insert this\m After Last bOGL_Mesh
-	ElseIf (this\m\FX And (BOGL_FX_ADDBLEND Or BOGL_FX_MULBLEND)) And (Not (flags And (BOGL_FX_ADDBLEND Or BOGL_FX_MULBLEND)))
-		bOGL_VisChanged_ = True : Insert this\m Before First bOGL_Mesh
+	If flags And (BOGL_FX_ADDBLEND Or BOGL_FX_MULBLEND)
+		Insert this\m Before bOGL_VisBreak_
+	Else
+		Insert this\m Before First bOGL_Mesh
 	EndIf
 	this\m\FX = flags
 End Function
@@ -911,11 +911,13 @@ Function RenderWorld(stencilMode = BOGL_STENCIL_OFF)
 					If msh\FX And BOGL_FX_FLATSHADED Then glShadeModel GL_FLAT : Else glShadeModel GL_SMOOTH
 					If msh\FX And BOGL_FX_NOFOG Then glDisable GL_FOG : ElseIf cam\fogmode Then glEnable GL_FOG
 					If msh\FX And BOGL_FX_ADDBLEND
-						glBlendFunc GL_ONE, GL_ONE : glEnable GL_BLEND
+						glBlendFunc GL_ONE, GL_ONE : glEnable GL_BLEND : glDepthMask False
 					ElseIf msh\FX And BOGL_FX_MULBLEND
-						glBlendFunc GL_DST_COLOR, GL_ZERO : glEnable GL_BLEND
+						glBlendFunc GL_DST_COLOR, GL_ZERO : glEnable GL_BLEND : glDepthMask False
+					ElseIf msh\alpha < 1
+						glEnable GL_BLEND : glBlendFunc GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA : glDepthMask False
 					Else
-						If msh\alpha < 1 Then glEnable GL_BLEND : glBlendFunc GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA : Else glDisable GL_BLEND
+						glDisable GL_BLEND : glDepthMask True
 					EndIf
 					If msh\FX And BOGL_FX_NOCULL Then glDisable GL_CULL_FACE : Else glEnable GL_CULL_FACE
 					
@@ -931,6 +933,7 @@ Function RenderWorld(stencilMode = BOGL_STENCIL_OFF)
 		EndIf
 	Next
 	
+	glDepthMask True
 	glFlush : glScissor 0, 0, bOGL_bbHwndW, bOGL_bbHwndH
 ;	Local GLError = glGetError() : If GLError <> GL_NO_ERROR Then DebugLog "OpenGL Error:  " + GLError
 End Function
@@ -1288,6 +1291,6 @@ End Function
 ;~F#C2#C7#CC#D1#DF#E4#E9#EE#F3#F8#122#12E#148#14D#152#157#15B#160#168#171
 ;~F#177#181#188#196#19D#1A4#1AA#1AF#1B9#1C3#1CA#1D0#1E2#1E6#1EB#1EF#1FA#1FE#202#206
 ;~F#211#215#24A#272#27F#284#291#29B#2A6#2AE#2B6#2BE#2C7#2D0#2D9#2FE#316#31D#324#32B
-;~F#337#34A#354#3A9#3DE#3E2#3FF#41C#429#43F#458#468#46C#471#47A#481#486#48F#49A#4AA
-;~F#4B5#4C0#4CB#4D3#4E3#4FC
+;~F#337#34A#354#3AC#3E1#3E5#402#41F#42C#442#45B#46B#46F#474#47D#484#489#492#49D#4AD
+;~F#4B8#4C3#4CE#4D6#4E6#4FF
 ;~C#BlitzPlus
