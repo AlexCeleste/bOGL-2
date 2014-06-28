@@ -1,5 +1,5 @@
 
-# MeshLoader: an addon for bOGL-2 #
+# Draw2D: an addon for bOGL-2 #
 
 * [Introduction](#introduction)
 * [Quick start](#quick-start)
