@@ -3,7 +3,7 @@
 
 * [Introduction](#introduction)
 * [Quick start](#quick-start)
-* [Command reference / API](#command-reference--api)
+* [Command reference / API](#publicapi)
  * [InitMeshLoaderAddon](#initmeshloaderaddon)
  * [LoadMesh](#loadmesh)
  * [LoadBO3D](#loadbo3d)

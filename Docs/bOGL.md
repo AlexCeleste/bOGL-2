@@ -9,7 +9,7 @@
      * [Differences in existing features](#differences-in-existing-features)
      * [New features not in Blitz3D](#new-features-not-in-blitz3d)
  * [Future directions](#future-directions)
-* [Command reference / API](#command-reference--api)
+* [Command reference / API](#publicapi)
  * [Global](#global)
      * [Graphics3D](#graphics3d)
      * [EndGraphics3D](#endgraphics3d)
@@ -221,8 +221,6 @@ No living project is ever finished. There are several ideas for extension to bOG
 * A dedicated 2D physics engine module.
 * It might be fun to see bOGL ported to other languages: BlitzMax, Monkey, and Objective-C are all viable and worthwhile targets. There isn't much in bOGL that is specific to Blitz Basic (a few things use the built-in typelists, but not much).
  * A port to Gambit is currently in development.
-* A dedicated single-surface particle engine module. (done but needs documentation)
-* A dedicated 3D collision module. (done but needs documentation)
 * A port to newer OpenGL versions, to provide things like hardware skinning.
 
 ## <span id="publicapi" />Command reference / API##

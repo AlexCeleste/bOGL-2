@@ -3,7 +3,7 @@
 
 * [Introduction](#introduction)
 * [Quick start](#quick-start)
-* [Command reference / API](#command-reference--api)
+* [Command reference / API](#publicapi)
  * [Init3DAction](#init3daction)
  * [Update3DActions](#update3dactions)
  * [Stop3DActions](#stop3dactions)

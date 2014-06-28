@@ -3,7 +3,7 @@
 
 * [Introduction](#introduction)
 * [Quick start](#quick-start)
-* [Command reference / API](#command-reference--api)
+* [Command reference / API](#publicapi)
  * [InitDraw2D](#initdraw2d)
  * [SetViewport2D](#setviewport2d)
  * [SetVirtualResolution2D](#setvirtualresolution2d)

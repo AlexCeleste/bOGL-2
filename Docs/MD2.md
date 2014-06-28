@@ -3,7 +3,7 @@
 
 * [Introduction](#introduction)
 * [Quick start](#quick-start)
-* [Command reference / API](#command-reference--api)
+* [Command reference / API](#publicapi)
  * [InitMD2Addon](#initmd2addon)
  * [UpdateMD2Anims](#updatemd2anims)
  * [LoadMD2Model](#loadmd2model)
