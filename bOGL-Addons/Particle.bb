@@ -142,7 +142,7 @@ Function SetParticleFX(emit, FXflags)
 	EntityFX e\mesh, FXflags
 End Function
 
-Function SetParicleDirection(emit, dx#, dy#, dz#, var# = 0.0)
+Function SetParticleDirection(emit, dx#, dy#, dz#, var# = 0.0)
 	Local e.PART_Emitter = Object.PART_Emitter GetEntityUserData(emit, PART_private_UDSlot_)
 	If Not e\parented	;Globalize direction
 		Local tf#[2] : TFormPoint dx, dy, dz, emit, 0, tf

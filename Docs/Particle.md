@@ -14,7 +14,7 @@
  * [SetEmitterRate](#setemitterrate)
  * [SetParticleTexture](#setparticletexture)
  * [SetParticleFX](#setparticlefx)
- * [SetParicleDirection](#setparicledirection)
+ * [SetParticleDirection](#setparticledirection)
  * [SetParticleRGB](#setparticlergb)
  * [SetParticleSpeed](#setparticlespeed)
  * [SetParticleLifetime](#setparticlelifetime)
