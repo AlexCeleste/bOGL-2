@@ -99,23 +99,29 @@ Function SetCollisionListener(bank)
 End Function
 
 Function MakeCollider(ent, radius#)
-	COLL_AllocTick_
-	Local c.COLL_Collider = New COLL_Collider
-	c\rad = radius : c\e = bOGL_EntList_(ent)
+	Local c.COLL_Collider = Object.COLL_Collider GetEntityUserData(ent, COLL_private_UDSlot_)
+	If c = Null
+		COLL_AllocTick_
+		c = New COLL_Collider : c\e = bOGL_EntList_(ent)
+		SetEntityUserData ent, COLL_private_UDSlot_, Handle c
+		Insert c Before COLL_Cbuff_
+	EndIf
+	c\rad = radius
 	If radius > COLL_private_MaxRadius_ Then COLL_private_MaxRadius_ = radius
-	SetEntityUserData ent, COLL_private_UDSlot_, Handle c
-	Insert c Before COLL_Cbuff_
 End Function
 
 Function MakeBlocker(ent, xSize#, ySize#, zSize#, response)
-	COLL_AllocTick_
-	Local b.COLL_Blocker = New COLL_Blocker
-	b\e = bOGL_EntList_(ent)
+	Local b.COLL_Blocker = Object.COLL_Blocker GetEntityUserData(ent, COLL_private_UDSlot_)
+	If b = Null
+		COLL_AllocTick_
+		b = New COLL_Blocker
+		b\e = bOGL_EntList_(ent)
+		SetEntityUserData ent, COLL_private_UDSlot_, Handle b
+		Insert b Before COLL_Bbuff_
+	EndIf
 	b\xs = xSize : b\ys = ySize : b\zs = zSize : b\resp = response
 	b\rad = Sqr(xSize * xSize + ySize * ySize + zSize * zSize) / 2
 	If b\rad > COLL_private_MaxRadius_ Then COLL_private_MaxRadius_ = b\rad
-	SetEntityUserData ent, COLL_private_UDSlot_, Handle b
-	Insert b Before COLL_Bbuff_
 End Function
 
 Function SetBlockerType(ent, btype)
@@ -343,6 +349,6 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#11#15#26#31#5A#60#64#6D#78#7C#87#C8#CD#D1#D5#101#117#122#126#13B
-;~F#149#14F
+;~F#11#15#26#31#5A#60#64#70#7E#82#8D#CE#D3#D7#DB#107#11D#128#12C#141
+;~F#14F#155
 ;~C#BlitzPlus
