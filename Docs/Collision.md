@@ -116,4 +116,5 @@ This function applies to both blockers and colliders.
 **Description:** This function casts a ray between `x0, y0, z0` and `x1, y1, z1` in global space, and returns the closest blocker object to the origin that intersects the ray. If no object could be picked, the function returns 0.  
 The eaxct position of the pick on the object (in world space) is returned in the `out` vector, if an object could be found.  
 The optional `btype` parameter specifies a blocker "type" tag integer; only blockers that match this type are tested for. Blockers of a different type are completely ignored. This is useful if you want to be able to e.g. shoot through invisible trigger zones, rather than allow them to stop bullets like a wall.  
+Be warned that `RayPick` does not use hash space partitioning, and therefore may be considerably slower than basic collision detection. You probably don't want to use it multiple times every frame.  
 
