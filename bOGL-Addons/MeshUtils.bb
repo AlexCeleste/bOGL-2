@@ -22,28 +22,20 @@ End Function
 
 ;Minor optimisation to TFormPoint (src and dst never null, always valid, fast rotation)
 Function MESH_TFormFast_depr_(x#, y#, z#, s.bOGL_Ent, d.bOGL_Ent, out#[2])
-;	MESH_RotateVectorFast_depr_ out, x * s\g_sx, y * s\g_sy, z * s\g_sz, s\g_r
-;	x = (s\g_x + out[0] - d\g_x) : y = (s\g_y + out[1] - d\g_y) : z = (s\g_z + out[2] - d\g_z)
-;	d\g_r[0] = -d\g_r[0] : MESH_RotateVectorFast_depr_ out, x, y, z, d\g_r : d\g_r[0] = -d\g_r[0]
-;	out[0] = out[0] / d\g_sx : out[1] = out[1] / d\g_sy : out[2] = out[2] / d\g_sz
 	RuntimeError "deprecated"
 End Function
 
 Function MESH_TFormFast2_depr_(x#, y#, z#, s.bOGL_Ent, d.bOGL_Ent, out#[2], ro)	;Precalculated lookup
-;	MESH_RotateVectorFast_depr_ out, x * s\g_sx, y * s\g_sy, z * s\g_sz, s\g_r
-;	x = (s\g_x + out[0] - d\g_x) : y = (s\g_y + out[1] - d\g_y) : z = (s\g_z + out[2] - d\g_z)
-;	MESH_RotateVectorFast2_depr_ out, x, y, z, d\g_r, ro
-;	out[0] = out[0] / d\g_sx : out[1] = out[1] / d\g_sy : out[2] = out[2] / d\g_sz
 	RuntimeError "deprecated"
 End Function
 
 Function MESH_TFormFast3_(x#, y#, z#, s.bOGL_Ent, d.bOGL_Ent, out#[2])	;Quat-based
-	bOGL_QuatRotateVector_ out, x * s\g_sx, y * s\g_sy, z * s\g_sz, s\g_q
+	bOGL_QuatRotateVector_ out, x * s\sx * s\g_sx, y * s\sy * s\g_sy, z * s\sz * s\g_sz, s\g_q
 	x = (s\g_x + out[0] - d\g_x) : y = (s\g_y + out[1] - d\g_y) : z = (s\g_z + out[2] - d\g_z)
 	d\g_q[1] = -d\g_q[1] : d\g_q[2] = -d\g_q[2] : d\g_q[3] = -d\g_q[3]
 	bOGL_QuatRotateVector_ out, x, y, z, d\g_q
 	d\g_q[1] = -d\g_q[1] : d\g_q[2] = -d\g_q[2] : d\g_q[3] = -d\g_q[3]
-	out[0] = out[0] / d\g_sx : out[1] = out[1] / d\g_sy : out[2] = out[2] / d\g_sz
+	out[0] = out[0] / (d\sx * d\g_sx) : out[1] = out[1] / (d\sy * d\g_sy) : out[2] = out[2] / (d\sz * d\g_sz)
 End Function
 
 
@@ -83,5 +75,5 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#D#17#1F#27#34#3F#4B
+;~F#D#17#1B#1F#2C#37#43
 ;~C#BlitzPlus

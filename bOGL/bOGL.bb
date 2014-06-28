@@ -995,7 +995,7 @@ End Function
 Function TFormPoint(x#, y#, z#, src, dst, out#[2])
 	If src
 		Local s.bOGL_Ent = bOGL_EntList_(src) : If Not s\Gv Then bOGL_UpdateGlobalPosition_ s
-		bOGL_QuatRotateVector_ out, x * s\g_sx, y * s\g_sy, z * s\g_sz, s\g_q
+		bOGL_QuatRotateVector_ out, x * s\sx * s\g_sx, y * s\sy * s\g_sy, z * s\sz * s\g_sz, s\g_q
 		out[0] = s\g_x + out[0] : out[1] = s\g_y + out[1] : out[2] = s\g_z + out[2]
 	Else
 		out[0] = x : out[1] = y : out[2] = z
@@ -1006,7 +1006,7 @@ Function TFormPoint(x#, y#, z#, src, dst, out#[2])
 		d\g_q[1] = -d\g_q[1] : d\g_q[2] = -d\g_q[2] : d\g_q[3] = -d\g_q[3]
 		bOGL_QuatRotateVector_ out, x, y, z, d\g_q
 		d\g_q[1] = -d\g_q[1] : d\g_q[2] = -d\g_q[2] : d\g_q[3] = -d\g_q[3]
-		out[0] = out[0] / d\g_sx : out[1] = out[1] / d\g_sy : out[2] = out[2] / d\g_sz
+		out[0] = out[0] / (d\sx * d\g_sx) : out[1] = out[1] / (d\sy * d\g_sy) : out[2] = out[2] / (d\sz * d\g_sz)
 	EndIf
 End Function
 
@@ -1179,9 +1179,10 @@ End Function
 Function bOGL_UpdateGlobalPosition_(ent.bOGL_Ent)
 	If ent\parentH
 		Local par.bOGL_Ent = bOGL_EntList_(ent\parentH), pos#[2]
+		If Not par\Gv Then bOGL_UpdateGlobalPosition_ par
 		TFormPoint ent\x * par\sx, ent\y * par\sy, ent\z * par\sz, par\handler, 0, pos
 		ent\g_x = pos[0] : ent\g_y = pos[1] : ent\g_z = pos[2]
-		ent\g_sx = par\sx : ent\g_sy = par\sy : ent\g_sz = par\sz
+		ent\g_sx = par\sx * par\g_sx : ent\g_sy = par\sy * par\g_sy : ent\g_sz = par\sz * par\g_sz
 		Local q#[3] : bOGL_QuatMul_ q, par\g_q, ent\q : bOGL_NormaliseQuat_ q
 		ent\g_q[0] = q[0] : ent\g_q[1] = q[1] : ent\g_q[2] = q[2] : ent\g_q[3] = q[3]
 	Else
@@ -1207,7 +1208,7 @@ Function bOGL_InvalidateGlobalPosition_(ent.bOGL_Ent, scl = False)
 		If scl Then If ent\eClass = BOGL_CLASS_MESH Then ent\m\Nv = False
 		ent\Gv = False : If ent\children
 			Local lst = BankSize(ent\children) - 4, c : For c = 0 To lst Step 4
-				bOGL_InvalidateGlobalPosition_ bOGL_EntList_(PeekInt(ent\children, c))
+				bOGL_InvalidateGlobalPosition_ bOGL_EntList_(PeekInt(ent\children, c)), scl
 			Next
 		EndIf
 	EndIf
@@ -1287,6 +1288,6 @@ End Function
 ;~F#C2#C7#CC#D1#DF#E4#E9#EE#F3#F8#122#12E#148#14D#152#157#15B#160#168#171
 ;~F#177#181#188#196#19D#1A4#1AA#1AF#1B9#1C3#1CA#1D0#1E2#1E6#1EB#1EF#1FA#1FE#202#206
 ;~F#211#215#24A#272#27F#284#291#29B#2A6#2AE#2B6#2BE#2C7#2D0#2D9#2FE#316#31D#324#32B
-;~F#337#34A#354#3A9#3DE#3E2#3FF#41C#429#43F#458#468#46C#471#47A#481#486#48F#49A#4A9
-;~F#4B4#4BF#4CA#4D2#4E2#4FB
+;~F#337#34A#354#3A9#3DE#3E2#3FF#41C#429#43F#458#468#46C#471#47A#481#486#48F#49A#4AA
+;~F#4B5#4C0#4CB#4D3#4E3#4FC
 ;~C#BlitzPlus
