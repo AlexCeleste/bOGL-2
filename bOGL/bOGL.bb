@@ -1256,7 +1256,7 @@ Function bOGL_InitializeRenderCamera_(cam.bOGL_Cam)	;Identical code shared by Re
 	glMatrixMode GL_PROJECTION
 	glLoadIdentity
 	If cam\drawmode = BOGL_CAM_ORTHO
-		Local oCamY# = bOGL_bbHwndH * cam\viewangle / bOGL_bbHwndW : glOrtho -cam\viewangle, cam\viewangle, oCamY, -oCamY, cam\near, cam\far
+		Local oCamY# = bOGL_bbHwndH * cam\viewangle / bOGL_bbHwndW : glOrtho -cam\viewangle, cam\viewangle, -oCamY, oCamY, cam\near, cam\far
 	Else
 		gluPerspective cam\viewangle, Float cam\vpw / cam\vph, cam\near, cam\far
 	EndIf
