@@ -99,7 +99,8 @@ Function SetCollisionListener(bank)
 End Function
 
 Function MakeCollider(ent, radius#)
-	Local c.COLL_Collider = Object.COLL_Collider GetEntityUserData(ent, COLL_private_UDSlot_)
+	Local c.COLL_Collider = Null, e.bOGL_Ent = bOGL_EntList_(ent)
+	If e\userData Then c = Object.COLL_Collider GetEntityUserData(ent, COLL_private_UDSlot_)
 	If c = Null
 		COLL_AllocTick_
 		c = New COLL_Collider : c\e = bOGL_EntList_(ent)
@@ -111,11 +112,12 @@ Function MakeCollider(ent, radius#)
 End Function
 
 Function MakeBlocker(ent, xSize#, ySize#, zSize#, response)
-	Local b.COLL_Blocker = Object.COLL_Blocker GetEntityUserData(ent, COLL_private_UDSlot_)
+	Local b.COLL_Blocker = Null, e.bOGL_Ent = bOGL_EntList_(ent)
+	If e\userData Then b = Object.COLL_Blocker GetEntityUserData(ent, COLL_private_UDSlot_)
 	If b = Null
 		COLL_AllocTick_
 		b = New COLL_Blocker
-		b\e = bOGL_EntList_(ent)
+		b\e = e
 		SetEntityUserData ent, COLL_private_UDSlot_, Handle b
 		Insert b Before COLL_Bbuff_
 	EndIf
@@ -152,8 +154,8 @@ Function RayPick(x0#, y0#, z0#, x1#, y1#, z1#, out#[2], btype = 0)
 			Local d.bOGL_Ent = b\e, tfv0#[2], tfv1#[2], tn0#, tn1#, tmp#, m#[2]
 			If Not d\Gv Then bOGL_UpdateGlobalPosition_ d
 			
-			COLL_TFormPointFast_ x0, y0, z0, d, tfv0
-			COLL_TFormPointFast_ x1, y1, z1, d, tfv1
+			COLL_TFormPointFast1_ x0, y0, z0, d, tfv0
+			COLL_TFormPointFast1_ x1, y1, z1, d, tfv1
 			
 			Local tmin# = -COLL_INFINITY, tmax# = COLL_INFINITY, r# = Distance(tfv0[0], tfv0[1], tfv0[2], tfv1[0], tfv1[1], tfv1[2])
 			tfv1[0] = (tfv1[0] - tfv0[0]) / r : tfv1[1] = (tfv1[1] - tfv0[1]) / r : tfv1[2] = (tfv1[2] - tfv0[2]) / r
@@ -190,7 +192,7 @@ Function RayPick(x0#, y0#, z0#, x1#, y1#, z1#, out#[2], btype = 0)
 					Local d2# = Sqr(x1*x1 + y1*y1 + z1*z1)
 					If d2 < dst
 						dst = d2
-						TFormPoint x1, y1, z1, d\handler, 0, out
+						COLL_TFormPointFast2_ x1, y1, z1, d, out
 						picked = d\handler
 					EndIf
 				EndIf
@@ -226,8 +228,9 @@ Function COLL_CheckCell_(slot)
 	While c <> -1	;Test each collider against each blocker
 		Local b = COLL_HashTbl_(slot, 1), col.COLL_Collider = Object.COLL_Collider COLL_Cons_(c, 0), ce = col\e\handler
 		While b <> -1
-			Local blk.COLL_Blocker = Object.COLL_Blocker COLL_Cons_(b, 0), be = blk\e\handler
-			TFormPoint EntityX(ce, 1), EntityY(ce, 1), EntityZ(ce, 1), 0, be, tf
+			Local blk.COLL_Blocker = Object.COLL_Blocker COLL_Cons_(b, 0)
+			If Not blk\e\Gv Then bOGL_UpdateGlobalPosition_ blk\e
+			COLL_TFormPointFast1_ EntityX(ce, 1), EntityY(ce, 1), EntityZ(ce, 1), blk\e, tf
 			If Abs(tf[0]) < blk\xs / 2 + col\rad
 				If Abs(tf[1]) < blk\ys / 2 + col\rad
 					If Abs(tf[2]) < blk\zs / 2 + col\rad	;Collision detected
@@ -246,11 +249,11 @@ Function COLL_CheckCell_(slot)
 							Local zd# = (blk\zs / 2 + col\rad) - Abs(tf[2])
 							
 							If xd < yd And xd < zd
-								TFormPoint tf[0] + xd * Sgn(tf[0]), tf[1], tf[2], be, 0, tf
+								COLL_TFormPointFast2_ tf[0] + xd * Sgn(tf[0]), tf[1], tf[2], blk\e, tf
 							ElseIf yd < xd And yd < zd
-								TFormPoint tf[0], tf[1] + yd * Sgn(tf[1]), tf[2], be, 0, tf
+								COLL_TFormPointFast2_ tf[0], tf[1] + yd * Sgn(tf[1]), tf[2], blk\e, tf
 							Else
-								TFormPoint tf[0], tf[1], tf[2], be, 0, tf
+								COLL_TFormPointFast2_ tf[0], tf[1], tf[2], blk\e, tf
 							EndIf
 							PositionEntity ce, tf[0], tf[1], tf[2], True
 						EndIf
@@ -343,7 +346,7 @@ Function COLL_FinishCopy_(ent)
 	If c <> Null Then COLL_CopyCollider_ ent, c : Else COLL_CopyBlocker_ ent, Object.COLL_Blocker h
 End Function
 
-Function COLL_TFormPointFast_(x#, y#, z#, d.bOGL_Ent, out#[2])
+Function COLL_TFormPointFast1_(x#, y#, z#, d.bOGL_Ent, out#[2])		;From world space
 	x = (x - d\g_x) : y = (y - d\g_y) : z = (z - d\g_z)
 	d\g_q[1] = -d\g_q[1] : d\g_q[2] = -d\g_q[2] : d\g_q[3] = -d\g_q[3]
 	bOGL_QuatRotateVector_ out, x, y, z, d\g_q
@@ -351,8 +354,14 @@ Function COLL_TFormPointFast_(x#, y#, z#, d.bOGL_Ent, out#[2])
 	out[0] = out[0] / d\g_sx : out[1] = out[1] / d\g_sy : out[2] = out[2] / d\g_sz
 End Function
 
+Function COLL_TFormPointFast2_(x#, y#, z#, s.bOGL_Ent, out#[2])		;To world space
+	bOGL_QuatRotateVector_ out, x * s\g_sx, y * s\g_sy, z * s\g_sz, s\g_q
+	out[0] = s\g_x + out[0] : out[1] = s\g_y + out[1] : out[2] = s\g_z + out[2]
+End Function
+
+
 
 ;~IDEal Editor Parameters:
-;~F#11#15#26#31#5A#60#64#70#7E#82#86#91#D2#D7#DB#DF#10B#121#12C#130
-;~F#145#153#159
+;~F#11#15#26#31#5A#60#64#71#80#84#88#93#D4#D9#DD#E1#10E#124#12F#133
+;~F#148#156#15C#164
 ;~C#BlitzPlus
