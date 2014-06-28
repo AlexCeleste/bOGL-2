@@ -24,7 +24,7 @@ PaintEntity base, 255, 0, 0
 ; Add some particle stuff
 Local emit = CreateEmitter(0, 10)
 PositionEntity emit, 0, 0, -7
-FireEmitter emit, 1000
+FireEmitter emit, 10000
 Local tex = LoadTexture("Media\Gauss.png")
 SetParticleTexture emit, tex
 SetParticleFX emit, BOGL_FX_ADDBLEND

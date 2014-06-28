@@ -108,6 +108,11 @@ Function PauseEmitter(emit)
 	Insert e After Last PART_Emitter
 End Function
 
+Function ResumeEmitter(emit)
+	Local e.PART_Emitter = Object.PART_Emitter GetEntityUserData(emit, PART_private_UDSlot_)
+	Insert e Before PART_buffer_
+End Function
+
 Function ClearEmitter(emit)
 	Local e.PART_Emitter = Object.PART_Emitter GetEntityUserData(emit, PART_private_UDSlot_)
 	Local i : For i = 0 To e\pCap - 1
@@ -361,6 +366,6 @@ End Function
 
 
 ;~IDEal Editor Parameters:
-;~F#17#37#3F#5B#63#69#6E#7C#81#86#8B#95#9A#9F#A4#AA#B6#D4#E4#11F
-;~F#14A#154#159#164
+;~F#17#37#3F#5B#63#69#6E#73#81#86#8B#90#9A#9F#A4#A9#AF#BB#D9#E9
+;~F#124#14F#159#15E#169
 ;~C#BlitzPlus

@@ -3,7 +3,7 @@
 
 * [Introduction](#introduction)
 * [Quick start](#quick-start)
-* [Command reference / API](#publicapi)
+* [Command reference / API](#command-reference--api)
  * [InitDraw2D](#initdraw2d)
  * [SetViewport2D](#setviewport2d)
  * [SetVirtualResolution2D](#setvirtualresolution2d)
@@ -60,7 +60,7 @@ That's all you need to do to support drawing hardware-accelerated images and tex
 
 If you use IDEal, consider adding `Draw2D.bb` to your IDEal project file in order to provide proper syntax highlighting and code support for the commands in this module. If you don't use IDEal, or just don't want to clutter your project, there's also an optional .decls file (`Draw2D_Optional.decls`) that you can add to your `userlibs` folder to get syntax highlighting that way.
 
-## <span id="publicapi"/>Command reference / API ##
+## <span id="command-reference--api"/>Command reference / API ##
 
 #### <span id="initdraw2d" />InitDraw2D ####
 `InitDraw2D()`  
