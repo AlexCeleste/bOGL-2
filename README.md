@@ -4,6 +4,8 @@
 
 **About:** bOGL is an OpenGL based open source 3D engine for BlitzBasic (Tested on BlitzPlus). bOGL also works with Blitz3D, if you remove the 3D canvas functions.
 
+![](https://raw.githubusercontent.com/Leushenko/bOGL-2/master/Media/dr1.png)
+
 While the command set is loosely based on that of Blitz3D, they are not compatible, nor are they intended to be. Several commands work differently by design.
 
 bOGL is intended to allow for a modular addon structure. Modules are provided for [2D drawing](bOGL-Addons/Draw2D.bb), [MD2 animation](bOGL-Addons/MD2.bb), [loading and saving static meshes](bOGL-Addons/MeshLoader.bb), [loading and animating skinned meshes](bOGL-Addons/Animation.bb), [event-based entity control](bOGL-Addons/3DAction.bb), [3D collision detection](bOGL-Addons/Collision.bb), and [single-surface particles](bOGL-Addons/Particle.bb). Others may follow. Understanding a module is not required to understand the operation of the bOGL engine core.
