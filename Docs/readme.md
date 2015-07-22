@@ -1,7 +1,5 @@
 
-# bOGL-2 #
-
-## Documentation ##
+## bOGL-2 Documentation ##
 
 This is the index to the bOGL-2 documentation.
 
